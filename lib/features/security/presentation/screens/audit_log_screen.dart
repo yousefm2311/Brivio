@@ -32,7 +32,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       var query = Supabase.instance.client
           .from('audit_logs')
           .select(
-            'id, table_name, record_id, action, actor_user_id, old_data, new_data, created_at',
+            'id, table_name, record_id, action, actor_id, old_data, new_data, created_at',
           );
       if (_tableFilter != 'all') {
         query = query.eq('table_name', _tableFilter);
@@ -201,7 +201,7 @@ class _AuditLogItem {
       tableName: row['table_name']?.toString() ?? 'unknown',
       recordId: row['record_id']?.toString(),
       action: row['action']?.toString() ?? 'UPDATE',
-      actorUserId: row['actor_user_id']?.toString(),
+      actorUserId: row['actor_id']?.toString(),
       oldData: row['old_data'],
       newData: row['new_data'],
       createdAt:
@@ -211,17 +211,17 @@ class _AuditLogItem {
   }
 
   IconData get icon {
-    return switch (action) {
-      'INSERT' => Icons.add_circle,
-      'DELETE' => Icons.delete,
+    return switch (action.toLowerCase()) {
+      'insert' => Icons.add_circle,
+      'delete' => Icons.delete,
       _ => Icons.edit,
     };
   }
 
   Color get color {
-    return switch (action) {
-      'INSERT' => AppColors.success,
-      'DELETE' => AppColors.error,
+    return switch (action.toLowerCase()) {
+      'insert' => AppColors.success,
+      'delete' => AppColors.error,
       _ => AppColors.warning,
     };
   }

@@ -29,6 +29,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
   List<_StaffQueueItem> _invoiceQueue = [];
   List<_StaffQueueItem> _attendanceQueue = [];
   List<_StaffQueueItem> _enrollmentQueue = [];
+  List<_StaffQueueItem> _operationsQueue = [];
 
   static const _destinations = [
     PortalDestination(icon: Icons.dashboard_customize, label: 'Overview'),
@@ -77,6 +78,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
         _fetchInvoiceQueue(),
         _fetchAttendanceQueue(),
         _fetchEnrollmentQueue(),
+        _fetchOperationsQueue(),
       ]);
 
       if (!mounted) return;
@@ -87,6 +89,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
         _invoiceQueue = results[3] as List<_StaffQueueItem>;
         _attendanceQueue = results[4] as List<_StaffQueueItem>;
         _enrollmentQueue = results[5] as List<_StaffQueueItem>;
+        _operationsQueue = results[6] as List<_StaffQueueItem>;
         _isLoading = false;
       });
     } catch (e) {
@@ -205,6 +208,19 @@ class _StaffDashboardState extends State<StaffDashboard> {
               createdAt: DateTime.tryParse(row['start_date']?.toString() ?? ''),
             ),
           )
+          .toList();
+    });
+  }
+
+  Future<List<_StaffQueueItem>> _fetchOperationsQueue() async {
+    return _safeQuery(() async {
+      final rows = await Supabase.instance.client.rpc(
+        'get_staff_operations_queue',
+        params: {'p_limit': 80},
+      );
+      return (rows as List)
+          .whereType<Map>()
+          .map((row) => _StaffQueueItem.fromQueueJson(row))
           .toList();
     });
   }
@@ -344,6 +360,30 @@ class _StaffDashboardState extends State<StaffDashboard> {
     );
   }
 
+  Future<void> _decideAdjustment(_StaffQueueItem item, bool approve) {
+    return _runQueueDialog(
+      title: approve ? 'Approve adjustment' : 'Reject adjustment',
+      content: Text(
+        approve
+            ? 'This will apply the requested discount or exemption.'
+            : 'This will reject the requested discount or exemption.',
+      ),
+      confirmLabel: approve ? 'Approve' : 'Reject',
+      confirmIcon: approve ? Icons.check : Icons.close,
+      action: () => Supabase.instance.client.rpc(
+        'apply_payment_adjustment_request',
+        params: {
+          'p_request_id': item.id,
+          'p_approve': approve,
+          'p_decision_note': approve
+              ? 'Approved by staff operations.'
+              : 'Rejected by staff operations.',
+        },
+      ),
+      successMessage: approve ? 'Adjustment applied.' : 'Adjustment rejected.',
+    );
+  }
+
   Future<void> _runQueueDialog({
     required String title,
     required Widget content,
@@ -443,8 +483,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
   }
 
   Widget _overviewPage() {
-    final openTasks =
-        _leaveQueue.length + _invoiceQueue.length + _attendanceQueue.length;
+    final openTasks = _operationsQueue.isNotEmpty
+        ? _operationsQueue.length
+        : _leaveQueue.length + _invoiceQueue.length + _attendanceQueue.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -495,16 +536,20 @@ class _StaffDashboardState extends State<StaffDashboard> {
         const SizedBox(height: 8),
         _QueueList(
           emptyText: 'No priority items right now.',
-          items: [
-            ..._leaveQueue.take(5),
-            ..._invoiceQueue.take(5),
-            ..._attendanceQueue.take(5),
-          ],
+          items: _operationsQueue.isNotEmpty
+              ? _operationsQueue.take(12).toList()
+              : [
+                  ..._leaveQueue.take(5),
+                  ..._invoiceQueue.take(5),
+                  ..._attendanceQueue.take(5),
+                ],
           onApproveLeave: (item) => _reviewLeaveQueueItem(item, 'approved'),
           onRejectLeave: (item) => _reviewLeaveQueueItem(item, 'rejected'),
           onRecordPayment: _recordCashPayment,
           onMarkExcused: (item) => _resolveAttendanceException(item, 'excused'),
           onMarkPresent: (item) => _resolveAttendanceException(item, 'present'),
+          onApproveAdjustment: (item) => _decideAdjustment(item, true),
+          onRejectAdjustment: (item) => _decideAdjustment(item, false),
         ),
       ],
     );
@@ -545,6 +590,21 @@ class _StaffDashboardState extends State<StaffDashboard> {
         _QueueList(
           emptyText: 'No recent enrollments visible.',
           items: _enrollmentQueue,
+        ),
+        const SizedBox(height: 18),
+        const PortalSectionTitle(title: 'Unified operations queue'),
+        const SizedBox(height: 8),
+        _QueueList(
+          emptyText:
+              'Run the latest operations migration to enable this queue.',
+          items: _operationsQueue,
+          onApproveLeave: (item) => _reviewLeaveQueueItem(item, 'approved'),
+          onRejectLeave: (item) => _reviewLeaveQueueItem(item, 'rejected'),
+          onRecordPayment: _recordCashPayment,
+          onMarkExcused: (item) => _resolveAttendanceException(item, 'excused'),
+          onMarkPresent: (item) => _resolveAttendanceException(item, 'present'),
+          onApproveAdjustment: (item) => _decideAdjustment(item, true),
+          onRejectAdjustment: (item) => _decideAdjustment(item, false),
         ),
       ],
     );
@@ -634,6 +694,8 @@ class _QueueList extends StatelessWidget {
   final ValueChanged<_StaffQueueItem>? onRecordPayment;
   final ValueChanged<_StaffQueueItem>? onMarkExcused;
   final ValueChanged<_StaffQueueItem>? onMarkPresent;
+  final ValueChanged<_StaffQueueItem>? onApproveAdjustment;
+  final ValueChanged<_StaffQueueItem>? onRejectAdjustment;
 
   const _QueueList({
     required this.emptyText,
@@ -643,6 +705,8 @@ class _QueueList extends StatelessWidget {
     this.onRecordPayment,
     this.onMarkExcused,
     this.onMarkPresent,
+    this.onApproveAdjustment,
+    this.onRejectAdjustment,
   });
 
   @override
@@ -717,6 +781,22 @@ class _QueueList extends StatelessWidget {
           icon: const Icon(Icons.check_circle),
         ),
       ],
+      _StaffQueueType.adjustment => [
+        IconButton(
+          tooltip: 'Approve adjustment',
+          onPressed: onApproveAdjustment == null
+              ? null
+              : () => onApproveAdjustment!(item),
+          icon: const Icon(Icons.check),
+        ),
+        IconButton(
+          tooltip: 'Reject adjustment',
+          onPressed: onRejectAdjustment == null
+              ? null
+              : () => onRejectAdjustment!(item),
+          icon: const Icon(Icons.close),
+        ),
+      ],
       _StaffQueueType.enrollment => const [],
     };
   }
@@ -744,7 +824,7 @@ class _AccessCard extends StatelessWidget {
   }
 }
 
-enum _StaffQueueType { leave, invoice, attendance, enrollment }
+enum _StaffQueueType { leave, invoice, attendance, enrollment, adjustment }
 
 class _StaffQueueItem {
   final _StaffQueueType type;
@@ -767,6 +847,27 @@ class _StaffQueueItem {
     this.currency = 'EGP',
   });
 
+  factory _StaffQueueItem.fromQueueJson(Map raw) {
+    final row = Map<String, dynamic>.from(raw);
+    final type = switch (row['item_type']?.toString()) {
+      'leave' => _StaffQueueType.leave,
+      'invoice' => _StaffQueueType.invoice,
+      'attendance' => _StaffQueueType.attendance,
+      'adjustment' => _StaffQueueType.adjustment,
+      _ => _StaffQueueType.enrollment,
+    };
+    return _StaffQueueItem(
+      type: type,
+      id: row['item_id']?.toString() ?? '',
+      title: row['title']?.toString() ?? 'Operation',
+      subtitle: row['subtitle']?.toString() ?? '',
+      status: row['status']?.toString() ?? 'pending',
+      createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
+      amountMinor: _asInt(row['amount_minor']),
+      currency: row['currency']?.toString() ?? 'EGP',
+    );
+  }
+
   IconData get icon {
     return switch (status.toLowerCase()) {
       'pending' => Icons.pending_actions,
@@ -774,6 +875,7 @@ class _StaffQueueItem {
       'absent' => Icons.cancel,
       'late' => Icons.schedule,
       'active' => Icons.person_add,
+      'applied' => Icons.verified,
       _ => Icons.assignment,
     };
   }
@@ -794,4 +896,10 @@ class _StaffQueueItem {
     final day = value.day.toString().padLeft(2, '0');
     return '${value.year}-$month-$day';
   }
+}
+
+int _asInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
 }

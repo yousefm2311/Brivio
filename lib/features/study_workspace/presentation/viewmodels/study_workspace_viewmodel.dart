@@ -164,7 +164,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       final response = await http
           .post(
             Uri.parse('${AppConfig.effectiveCodeSandboxUrl}/run'),
-            headers: const {'Content-Type': 'application/json'},
+            headers: AppConfig.codeSandboxHeaders,
             body: jsonEncode({'language': language, 'code': code, 'stdin': ''}),
           )
           .timeout(const Duration(seconds: 12));
@@ -200,7 +200,8 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
         isSuccess: false,
         output:
             'Sandbox server is not reachable.\n'
-            'Start sandbox_server/server.py then try Run code again.\n\n'
+            'Start sandbox_server/server.py for local trusted execution, or use the Docker production sandbox on a server.\n'
+            'The Visualize button still works offline for studying the code flow.\n\n'
             '${_buildPreviewOutput(code)}',
       );
     } finally {

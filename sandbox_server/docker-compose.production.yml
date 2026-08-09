@@ -1,0 +1,29 @@
+services:
+  academy-code-sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    ports:
+      - "8787:8787"
+    environment:
+      SANDBOX_RUN_TIMEOUT_SECONDS: "5"
+      SANDBOX_COMPILE_TIMEOUT_SECONDS: "10"
+      SANDBOX_MAX_CODE_BYTES: "20000"
+      SANDBOX_MAX_STDIN_BYTES: "4000"
+      SANDBOX_MEMORY_LIMIT: "128m"
+      SANDBOX_CPU_LIMIT: "0.5"
+      SANDBOX_PIDS_LIMIT: "64"
+      SANDBOX_RATE_LIMIT_PER_MINUTE: "30"
+      SANDBOX_API_KEY: "${SANDBOX_API_KEY:-}"
+      SANDBOX_PYTHON_IMAGE: "python:3.12-alpine"
+      SANDBOX_CPP_IMAGE: "gcc:14-bookworm"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,noexec,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

@@ -519,4 +519,17 @@ GRANT EXECUTE ON FUNCTION public.request_teacher_payment_adjustment(UUID, BIGINT
 GRANT EXECUTE ON FUNCTION public.apply_payment_adjustment_request(UUID, BOOLEAN, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_payment_adjustment_requests(TEXT) TO authenticated;
 
+DO $$
+BEGIN
+  IF to_regclass('public.payment_adjustment_requests') IS NOT NULL
+     AND to_regprocedure('public.write_audit_log()') IS NOT NULL THEN
+    DROP TRIGGER IF EXISTS audit_payment_adjustment_requests_changes
+      ON public.payment_adjustment_requests;
+    CREATE TRIGGER audit_payment_adjustment_requests_changes
+      AFTER INSERT OR UPDATE OR DELETE ON public.payment_adjustment_requests
+      FOR EACH ROW EXECUTE FUNCTION public.write_audit_log();
+  END IF;
+END;
+$$;
+
 NOTIFY pgrst, 'reload schema';

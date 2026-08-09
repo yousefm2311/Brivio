@@ -1660,11 +1660,20 @@ class _CodePaneState extends State<_CodePane> {
   List<_CodeChallenge> _challenges = [];
   _CodeChallenge? _selectedChallenge;
   _ChallengeRunResult? _challengeResult;
+  bool _isVisualizing = false;
+  int _activeTraceIndex = -1;
+  List<_CodeTraceStep> _traceSteps = [];
 
   @override
   void initState() {
     super.initState();
     _loadChallenges();
+  }
+
+  @override
+  void dispose() {
+    _isVisualizing = false;
+    super.dispose();
   }
 
   Future<void> _loadChallenges() async {
@@ -1704,7 +1713,7 @@ class _CodePaneState extends State<_CodePane> {
         final response = await http
             .post(
               Uri.parse('${AppConfig.effectiveCodeSandboxUrl}/run'),
-              headers: const {'Content-Type': 'application/json'},
+              headers: AppConfig.codeSandboxHeaders,
               body: jsonEncode({
                 'language': _language,
                 'code': widget.controller.text,
@@ -1764,6 +1773,43 @@ class _CodePaneState extends State<_CodePane> {
       _challengeResult = result;
       _isRunningChallenge = false;
     });
+  }
+
+  Future<void> _visualizeCode() async {
+    final steps = _buildTraceSteps(widget.controller.text, _language);
+    if (steps.isEmpty) {
+      setState(() {
+        _traceSteps = const [
+          _CodeTraceStep(
+            lineNumber: 0,
+            code: 'No executable lines yet.',
+            explanation: 'Write a few lines, then run the visualizer again.',
+          ),
+        ];
+        _activeTraceIndex = 0;
+        _isVisualizing = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _traceSteps = steps;
+      _activeTraceIndex = 0;
+      _isVisualizing = true;
+    });
+
+    for (var i = 0; i < steps.length; i++) {
+      if (!mounted || !_isVisualizing) return;
+      setState(() => _activeTraceIndex = i);
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+    }
+
+    if (!mounted) return;
+    setState(() => _isVisualizing = false);
+  }
+
+  void _stopVisualization() {
+    setState(() => _isVisualizing = false);
   }
 
   @override
@@ -1835,6 +1881,13 @@ class _CodePaneState extends State<_CodePane> {
                           viewModel.isRunningCode ? 'Running' : 'Run code',
                         ),
                       ),
+                      FilledButton.tonalIcon(
+                        onPressed: _isVisualizing ? null : _visualizeCode,
+                        icon: const Icon(Icons.auto_graph),
+                        label: Text(
+                          _isVisualizing ? 'Visualizing' : 'Visualize',
+                        ),
+                      ),
                       OutlinedButton.icon(
                         onPressed: viewModel.isRunningCode
                             ? null
@@ -1847,11 +1900,20 @@ class _CodePaneState extends State<_CodePane> {
                       const SizedBox(
                         width: 260,
                         child: Text(
-                          'Runs through the configured Sandbox Server.',
+                          'Visualize explains the flow. Run code uses the configured Sandbox Server.',
                         ),
                       ),
                     ],
                   ),
+                  if (_traceSteps.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _CodeTracePanel(
+                      steps: _traceSteps,
+                      activeIndex: _activeTraceIndex,
+                      isPlaying: _isVisualizing,
+                      onStop: _stopVisualization,
+                    ),
+                  ],
                   if (viewModel.lastRunResult != null) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -2013,6 +2075,225 @@ class _ChallengePanel extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CodeTracePanel extends StatelessWidget {
+  final List<_CodeTraceStep> steps;
+  final int activeIndex;
+  final bool isPlaying;
+  final VoidCallback onStop;
+
+  const _CodeTracePanel({
+    required this.steps,
+    required this.activeIndex,
+    required this.isPlaying,
+    required this.onStop,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final safeActiveIndex = activeIndex.clamp(0, steps.length - 1);
+    final activeStep = steps[safeActiveIndex];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.auto_graph),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Execution Visualizer',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                if (isPlaying)
+                  IconButton.filledTonal(
+                    tooltip: 'Stop',
+                    onPressed: onStop,
+                    icon: const Icon(Icons.stop),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            LinearProgressIndicator(
+              value: steps.isEmpty ? 0 : (safeActiveIndex + 1) / steps.length,
+            ),
+            const SizedBox(height: 10),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: Container(
+                key: ValueKey('${activeStep.lineNumber}-${activeStep.code}'),
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.studentRole.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.studentRole.withValues(alpha: .28),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activeStep.lineNumber <= 0
+                          ? 'Ready'
+                          : 'Line ${activeStep.lineNumber}',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    SelectableText(
+                      activeStep.code,
+                      style: const TextStyle(fontFamily: 'monospace'),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(activeStep.explanation),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 116,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: steps.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final step = steps[index];
+                  final isActive = index == safeActiveIndex;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 180,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? AppColors.studentRole
+                          : theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isActive
+                            ? AppColors.studentRole
+                            : theme.dividerColor,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          step.lineNumber <= 0
+                              ? 'Ready'
+                              : 'Line ${step.lineNumber}',
+                          style: TextStyle(
+                            color: isActive
+                                ? Colors.white
+                                : theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          step.code,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isActive
+                                ? Colors.white
+                                : theme.colorScheme.onSurfaceVariant,
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CodeTraceStep {
+  final int lineNumber;
+  final String code;
+  final String explanation;
+
+  const _CodeTraceStep({
+    required this.lineNumber,
+    required this.code,
+    required this.explanation,
+  });
+}
+
+List<_CodeTraceStep> _buildTraceSteps(String source, String language) {
+  final steps = <_CodeTraceStep>[];
+  final lines = source.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    final trimmed = lines[i].trim();
+    if (trimmed.isEmpty) continue;
+    if (trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
+
+    steps.add(
+      _CodeTraceStep(
+        lineNumber: i + 1,
+        code: trimmed,
+        explanation: _explainCodeLine(trimmed, language),
+      ),
+    );
+  }
+  return steps;
+}
+
+String _explainCodeLine(String line, String language) {
+  final normalized = line.toLowerCase();
+  if (normalized.startsWith('print') || normalized.startsWith('cout')) {
+    return 'Output step: this line sends a value to the console so the student can inspect the result.';
+  }
+  if (normalized.contains('input(') ||
+      normalized.contains('cin') ||
+      normalized.contains('scanf')) {
+    return 'Input step: the program waits for data before it can continue.';
+  }
+  if (normalized.startsWith('for ') ||
+      normalized.startsWith('for(') ||
+      normalized.startsWith('while ') ||
+      normalized.startsWith('while(')) {
+    return 'Loop step: this block repeats while its condition allows it.';
+  }
+  if (normalized.startsWith('if ') ||
+      normalized.startsWith('if(') ||
+      normalized.startsWith('else') ||
+      normalized.startsWith('elif')) {
+    return 'Decision step: the program chooses a path based on a condition.';
+  }
+  if (normalized.startsWith('def ') ||
+      normalized.contains(' function ') ||
+      (language == 'cpp' &&
+          normalized.contains('(') &&
+          normalized.endsWith('{'))) {
+    return 'Function step: this defines reusable logic that runs when called.';
+  }
+  if (line.contains('=') && !line.contains('==')) {
+    return 'Memory step: this stores or updates a value for later lines.';
+  }
+  if (normalized.startsWith('return')) {
+    return 'Return step: this sends a value back to the caller and ends the current function path.';
+  }
+  return 'Execution step: the interpreter or compiler handles this line as part of the program flow.';
 }
 
 class _CodeChallenge {

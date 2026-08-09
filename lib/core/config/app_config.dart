@@ -19,6 +19,19 @@ class AppConfig {
     defaultValue: 'http://127.0.0.1:8787',
   );
 
+  static const String codeSandboxApiKey = String.fromEnvironment(
+    'CODE_SANDBOX_API_KEY',
+    defaultValue: '',
+  );
+
+  static Map<String, String> get codeSandboxHeaders {
+    final headers = {'Content-Type': 'application/json'};
+    if (codeSandboxApiKey.trim().isNotEmpty) {
+      headers['X-Sandbox-Key'] = codeSandboxApiKey.trim();
+    }
+    return headers;
+  }
+
   /// Dynamically resolved Supabase URL handling Android loopback (10.0.2.2) automatically
   static String get effectiveSupabaseUrl {
     const rawUrl = supabaseUrl;

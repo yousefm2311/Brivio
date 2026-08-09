@@ -161,8 +161,9 @@ class _DataImportScreenState extends State<DataImportScreen> {
         .length;
 
     return PortalPageShell(
-      title: 'CSV Import Wizard',
-      subtitle: 'Bulk provision students, parents, and teachers from CSV or Excel.',
+      title: 'Spreadsheet Import Wizard',
+      subtitle:
+          'Bulk provision students, parents, and teachers from CSV or Excel.',
       icon: Icons.upload_file,
       accentColor: AppColors.adminRole,
       actions: [
@@ -510,4 +511,134 @@ List<List<String>> _parseDelimited(String source) {
     rows.add([...currentRow]);
   }
   return rows;
+}
+
+List<List<String>> _parseXlsx(List<int> bytes) {
+  final archive = ZipDecoder().decodeBytes(bytes);
+  final files = {
+    for (final file in archive.files)
+      if (file.isFile) file.name: file.content as List<int>,
+  };
+
+  final workbookXml = _xlsxText(files, 'xl/workbook.xml');
+  final workbookRelsXml = _xlsxText(files, 'xl/_rels/workbook.xml.rels');
+  final sheetPath = _firstWorksheetPath(workbookXml, workbookRelsXml);
+  final sharedStrings = _readSharedStrings(files);
+  final sheetXml = _xlsxText(files, sheetPath);
+  final document = XmlDocument.parse(sheetXml);
+  final sparseRows = <int, Map<int, String>>{};
+
+  for (final row in document.findAllElements('row')) {
+    final rowIndex = int.tryParse(row.getAttribute('r') ?? '') ?? 0;
+    if (rowIndex <= 0) continue;
+
+    final values = <int, String>{};
+    for (final cell in row.findElements('c')) {
+      final ref = cell.getAttribute('r') ?? '';
+      final colIndex = _xlsxColumnIndex(ref);
+      if (colIndex < 0) continue;
+      values[colIndex] = _xlsxCellValue(cell, sharedStrings);
+    }
+    sparseRows[rowIndex - 1] = values;
+  }
+
+  if (sparseRows.isEmpty) return const [];
+  final maxRow = sparseRows.keys.reduce((a, b) => a > b ? a : b);
+  final maxCol = sparseRows.values
+      .expand((row) => row.keys)
+      .fold<int>(0, (max, col) => col > max ? col : max);
+
+  final rows = <List<String>>[];
+  for (var r = 0; r <= maxRow; r++) {
+    final sparse = sparseRows[r] ?? const <int, String>{};
+    rows.add([for (var c = 0; c <= maxCol; c++) sparse[c] ?? '']);
+  }
+
+  return rows
+      .where((row) => row.any((cell) => cell.trim().isNotEmpty))
+      .toList();
+}
+
+String _xlsxText(Map<String, List<int>> files, String path) {
+  final bytes = files[path];
+  if (bytes == null) {
+    throw FormatException('Missing XLSX part: $path');
+  }
+  return utf8.decode(bytes, allowMalformed: true);
+}
+
+String _firstWorksheetPath(String workbookXml, String relsXml) {
+  final workbook = XmlDocument.parse(workbookXml);
+  final rels = XmlDocument.parse(relsXml);
+  final firstSheet = workbook.findAllElements('sheet').firstOrNull;
+  if (firstSheet == null) {
+    throw const FormatException('The Excel workbook has no worksheets.');
+  }
+
+  final relationId =
+      firstSheet.getAttribute('r:id') ?? firstSheet.getAttribute('id');
+  if (relationId == null || relationId.isEmpty) {
+    throw const FormatException('The first worksheet is missing its relation.');
+  }
+
+  final relationship = rels
+      .findAllElements('Relationship')
+      .firstWhere(
+        (rel) => rel.getAttribute('Id') == relationId,
+        orElse: () => throw const FormatException(
+          'Could not resolve the first worksheet relation.',
+        ),
+      );
+  final target = relationship.getAttribute('Target');
+  if (target == null || target.isEmpty) {
+    throw const FormatException('The first worksheet relation has no target.');
+  }
+  return target.startsWith('xl/') ? target : 'xl/$target';
+}
+
+List<String> _readSharedStrings(Map<String, List<int>> files) {
+  final bytes = files['xl/sharedStrings.xml'];
+  if (bytes == null) return const [];
+  final document = XmlDocument.parse(utf8.decode(bytes, allowMalformed: true));
+  return document
+      .findAllElements('si')
+      .map(
+        (item) =>
+            item.findAllElements('t').map((node) => node.innerText).join(),
+      )
+      .toList();
+}
+
+String _xlsxCellValue(XmlElement cell, List<String> sharedStrings) {
+  final type = cell.getAttribute('t');
+  final valueNode = cell.findElements('v').firstOrNull;
+  final inlineText = cell.findElements('is').firstOrNull;
+
+  if (type == 'inlineStr' && inlineText != null) {
+    return inlineText.findAllElements('t').map((node) => node.innerText).join();
+  }
+  if (valueNode == null) return '';
+
+  final raw = valueNode.innerText;
+  if (type == 's') {
+    final index = int.tryParse(raw);
+    if (index == null || index < 0 || index >= sharedStrings.length) return '';
+    return sharedStrings[index];
+  }
+  if (type == 'b') return raw == '1' ? 'true' : 'false';
+  return raw;
+}
+
+int _xlsxColumnIndex(String cellRef) {
+  final letters = RegExp(
+    r'^[A-Z]+',
+    caseSensitive: false,
+  ).stringMatch(cellRef)?.toUpperCase();
+  if (letters == null || letters.isEmpty) return -1;
+
+  var value = 0;
+  for (final codeUnit in letters.codeUnits) {
+    value = value * 26 + (codeUnit - 64);
+  }
+  return value - 1;
 }
