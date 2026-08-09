@@ -125,6 +125,11 @@ BEGIN
     RAISE EXCEPTION 'Class session not found' USING ERRCODE = 'P0002';
   END IF;
 
+  IF cs.status IN ('completed', 'cancelled') THEN
+    RAISE EXCEPTION 'Class session is closed for attendance QR'
+      USING ERRCODE = 'P0001';
+  END IF;
+
   IF NOT (
     public.is_admin_or_super()
     OR public.current_teacher_assigned_to_group(cs.group_id)
@@ -224,6 +229,19 @@ BEGIN
     RAISE EXCEPTION 'Student is not enrolled in this session group' USING ERRCODE = '42501';
   END IF;
 
+  IF EXISTS (
+    SELECT 1
+    FROM public.attendance_records ar
+    WHERE ar.class_session_id = v_qr.class_session_id
+      AND ar.student_id = v_student_id
+      AND ar.device_id IS NOT NULL
+      AND NULLIF(trim(COALESCE(p_device_id, '')), '') IS NOT NULL
+      AND ar.device_id <> NULLIF(trim(COALESCE(p_device_id, '')), '')
+  ) THEN
+    RAISE EXCEPTION 'Attendance already marked from another device'
+      USING ERRCODE = '42501';
+  END IF;
+
   INSERT INTO public.attendance_records (
     class_session_id,
     student_id,
@@ -273,9 +291,164 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.get_session_qr_attendance_roster(UUID);
+CREATE OR REPLACE FUNCTION public.get_session_qr_attendance_roster(
+  p_class_session_id UUID
+)
+RETURNS TABLE (
+  student_id UUID,
+  student_code TEXT,
+  full_name TEXT,
+  attendance_status TEXT,
+  check_in_at TIMESTAMPTZ,
+  device_id TEXT,
+  latitude NUMERIC,
+  longitude NUMERIC,
+  marked_by_qr BOOLEAN
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  cs RECORD;
+BEGIN
+  SELECT * INTO cs FROM public.class_sessions WHERE id = p_class_session_id;
+  IF cs.id IS NULL THEN
+    RAISE EXCEPTION 'Class session not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT (
+    public.is_admin_or_super()
+    OR public.has_permission('attendance.view')
+    OR public.current_teacher_assigned_to_group(cs.group_id)
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized to view attendance roster'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    s.id AS student_id,
+    COALESCE(s.student_code, '')::TEXT AS student_code,
+    COALESCE(p.full_name, s.student_code, 'Student')::TEXT AS full_name,
+    COALESCE(ar.attendance_status, 'pending')::TEXT AS attendance_status,
+    ar.check_in_at,
+    ar.device_id,
+    ar.latitude,
+    ar.longitude,
+    (ar.qr_session_id IS NOT NULL)::BOOLEAN AS marked_by_qr
+  FROM public.enrollments e
+  JOIN public.students s ON s.id = e.student_id
+  LEFT JOIN public.profiles p ON p.id = s.profile_id
+  LEFT JOIN public.attendance_records ar
+    ON ar.student_id = s.id
+   AND ar.class_session_id = p_class_session_id
+  WHERE e.group_id = cs.group_id
+    AND e.status = 'active'
+  ORDER BY COALESCE(p.full_name, s.student_code, s.id::TEXT);
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.finalize_qr_attendance(UUID);
+CREATE OR REPLACE FUNCTION public.finalize_qr_attendance(
+  p_class_session_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  cs RECORD;
+  enr RECORD;
+  absent_count INT := 0;
+  present_count INT := 0;
+  late_count INT := 0;
+  total_count INT := 0;
+BEGIN
+  SELECT * INTO cs FROM public.class_sessions WHERE id = p_class_session_id;
+  IF cs.id IS NULL THEN
+    RAISE EXCEPTION 'Class session not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT (
+    public.is_admin_or_super()
+    OR public.has_permission('attendance.finalize')
+    OR public.current_teacher_assigned_to_group(cs.group_id)
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized to finalize QR attendance'
+      USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.attendance_qr_sessions
+  SET status = 'closed', updated_at = NOW()
+  WHERE class_session_id = p_class_session_id
+    AND status = 'active';
+
+  FOR enr IN
+    SELECT student_id
+    FROM public.enrollments
+    WHERE group_id = cs.group_id
+      AND status = 'active'
+  LOOP
+    total_count := total_count + 1;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM public.attendance_records
+      WHERE class_session_id = p_class_session_id
+        AND student_id = enr.student_id
+    ) THEN
+      INSERT INTO public.attendance_records (
+        class_session_id,
+        student_id,
+        attendance_status,
+        marked_by,
+        marked_at,
+        notes
+      ) VALUES (
+        p_class_session_id,
+        enr.student_id,
+        'absent',
+        auth.uid(),
+        NOW(),
+        'Auto-marked absent on QR attendance finalization'
+      );
+      absent_count := absent_count + 1;
+    END IF;
+  END LOOP;
+
+  SELECT
+    COALESCE(SUM(CASE WHEN attendance_status = 'present' THEN 1 ELSE 0 END), 0)::INT,
+    COALESCE(SUM(CASE WHEN attendance_status = 'late' THEN 1 ELSE 0 END), 0)::INT,
+    COALESCE(SUM(CASE WHEN attendance_status = 'absent' THEN 1 ELSE 0 END), 0)::INT
+  INTO present_count, late_count, absent_count
+  FROM public.attendance_records
+  WHERE class_session_id = p_class_session_id;
+
+  UPDATE public.class_sessions
+  SET status = 'completed', updated_at = NOW()
+  WHERE id = p_class_session_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'class_session_id', p_class_session_id,
+    'total_count', total_count,
+    'present_count', present_count,
+    'late_count', late_count,
+    'absent_count', absent_count,
+    'status', 'completed'
+  );
+END;
+$$;
+
 REVOKE EXECUTE ON FUNCTION public.get_current_attendance_qr(UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.validate_attendance_qr(TEXT, TEXT, NUMERIC, NUMERIC) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_session_qr_attendance_roster(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.finalize_qr_attendance(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_current_attendance_qr(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.validate_attendance_qr(TEXT, TEXT, NUMERIC, NUMERIC) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_session_qr_attendance_roster(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.finalize_qr_attendance(UUID) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';

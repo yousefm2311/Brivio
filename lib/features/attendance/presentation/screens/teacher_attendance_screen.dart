@@ -180,7 +180,10 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   void _openQrAttendance(ClassSession session) {
     showDialog(
       context: context,
-      builder: (_) => _TeacherAttendanceQrDialog(session: session),
+      builder: (_) => _TeacherAttendanceQrDialog(
+        session: session,
+        onFinalized: _loadGroupsAndSessions,
+      ),
     );
   }
 
@@ -291,8 +294,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
 class _TeacherAttendanceQrDialog extends StatefulWidget {
   final ClassSession session;
+  final Future<void> Function()? onFinalized;
 
-  const _TeacherAttendanceQrDialog({required this.session});
+  const _TeacherAttendanceQrDialog({required this.session, this.onFinalized});
 
   @override
   State<_TeacherAttendanceQrDialog> createState() =>
@@ -303,15 +307,20 @@ class _TeacherAttendanceQrDialogState
     extends State<_TeacherAttendanceQrDialog> {
   Timer? _timer;
   bool _isLoading = true;
+  bool _isFinalizing = false;
   String? _error;
   String? _token;
   DateTime? _expiresAt;
+  List<_QrRosterItem> _roster = [];
 
   @override
   void initState() {
     super.initState();
-    _loadQr();
-    _timer = Timer.periodic(const Duration(seconds: 20), (_) => _loadQr());
+    _refreshQrWorkspace();
+    _timer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _refreshQrWorkspace(),
+    );
   }
 
   @override
@@ -320,7 +329,7 @@ class _TeacherAttendanceQrDialogState
     super.dispose();
   }
 
-  Future<void> _loadQr() async {
+  Future<void> _refreshQrWorkspace() async {
     if (!mounted) return;
     setState(() {
       _isLoading = _token == null;
@@ -332,11 +341,20 @@ class _TeacherAttendanceQrDialogState
         'get_current_attendance_qr',
         params: {'p_class_session_id': widget.session.id},
       );
+      final rosterResponse = await Supabase.instance.client.rpc(
+        'get_session_qr_attendance_roster',
+        params: {'p_class_session_id': widget.session.id},
+      );
       final json = Map<String, dynamic>.from(response as Map);
+      final roster = (rosterResponse as List)
+          .whereType<Map>()
+          .map((row) => _QrRosterItem.fromMap(row))
+          .toList();
       if (!mounted) return;
       setState(() {
         _token = json['token']?.toString();
         _expiresAt = DateTime.tryParse(json['expires_at']?.toString() ?? '');
+        _roster = roster;
         _isLoading = false;
       });
     } catch (e) {
@@ -345,6 +363,58 @@ class _TeacherAttendanceQrDialogState
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _finalizeAttendance() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Finalize QR attendance?'),
+        content: const Text(
+          'Students who did not scan the QR will be marked absent and this session will be completed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Finalize'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isFinalizing = true);
+    try {
+      final response = await Supabase.instance.client.rpc(
+        'finalize_qr_attendance',
+        params: {'p_class_session_id': widget.session.id},
+      );
+      final json = Map<String, dynamic>.from(response as Map);
+      _timer?.cancel();
+      await widget.onFinalized?.call();
+      if (!mounted) return;
+      nav.pop();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Attendance finalized: ${json['present_count'] ?? 0} present, '
+            '${json['late_count'] ?? 0} late, ${json['absent_count'] ?? 0} absent.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isFinalizing = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Finalization failed: $e')),
+      );
     }
   }
 
@@ -358,11 +428,14 @@ class _TeacherAttendanceQrDialogState
         ?.difference(DateTime.now())
         .inSeconds
         .clamp(0, 999);
+    final presentCount = _roster
+        .where((item) => item.status == 'present' || item.status == 'late')
+        .length;
 
     return AlertDialog(
       title: const Text('Attendance QR'),
       content: SizedBox(
-        width: 360,
+        width: 420,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -406,22 +479,116 @@ class _TeacherAttendanceQrDialogState
                   : 'Expires in ${secondsLeft}s',
               style: Theme.of(context).textTheme.titleMedium,
             ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Checked in $presentCount/${_roster.length}',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 180),
+              child: _roster.isEmpty
+                  ? const Center(child: Text('Roster will appear here.'))
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _roster.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final item = _roster[index];
+                        final checkedIn =
+                            item.status == 'present' || item.status == 'late';
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            checkedIn
+                                ? Icons.check_circle
+                                : Icons.radio_button_unchecked,
+                            color: checkedIn ? Colors.green : Colors.grey,
+                          ),
+                          title: Text(item.fullName),
+                          subtitle: Text(
+                            item.checkInAt == null
+                                ? item.studentCode
+                                : '${item.studentCode} | ${_formatQrTime(item.checkInAt!)} | ${item.markedByQr ? "QR" : "Manual"}',
+                          ),
+                          trailing: Text(item.status.toUpperCase()),
+                        );
+                      },
+                    ),
+            ),
           ],
         ),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isFinalizing ? null : () => Navigator.pop(context),
           child: const Text('Close'),
         ),
+        OutlinedButton.icon(
+          onPressed: _isFinalizing ? null : _finalizeAttendance,
+          icon: _isFinalizing
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.done_all),
+          label: const Text('Finalize Attendance'),
+        ),
         FilledButton.icon(
-          onPressed: _loadQr,
+          onPressed: _isFinalizing ? null : _refreshQrWorkspace,
           icon: const Icon(Icons.refresh),
           label: const Text('Refresh'),
         ),
       ],
     );
   }
+}
+
+class _QrRosterItem {
+  final String studentId;
+  final String studentCode;
+  final String fullName;
+  final String status;
+  final DateTime? checkInAt;
+  final String? deviceId;
+  final bool markedByQr;
+
+  const _QrRosterItem({
+    required this.studentId,
+    required this.studentCode,
+    required this.fullName,
+    required this.status,
+    required this.checkInAt,
+    required this.deviceId,
+    required this.markedByQr,
+  });
+
+  factory _QrRosterItem.fromMap(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    return _QrRosterItem(
+      studentId: json['student_id']?.toString() ?? '',
+      studentCode: json['student_code']?.toString() ?? '',
+      fullName: json['full_name']?.toString() ?? 'Student',
+      status: json['attendance_status']?.toString() ?? 'pending',
+      checkInAt: DateTime.tryParse(json['check_in_at']?.toString() ?? ''),
+      deviceId: json['device_id']?.toString(),
+      markedByQr: json['marked_by_qr'] == true,
+    );
+  }
+}
+
+String _formatQrTime(DateTime value) {
+  final local = value.toLocal();
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }
 
 class _GroupPicker extends StatelessWidget {

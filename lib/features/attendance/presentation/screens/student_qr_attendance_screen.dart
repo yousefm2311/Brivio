@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -38,13 +41,15 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
     });
 
     try {
+      final deviceId = await _resolveDeviceId();
+      final position = await _tryResolvePosition();
       final response = await Supabase.instance.client.rpc(
         'validate_attendance_qr',
         params: {
           'p_token': token,
-          'p_device_id': 'flutter-client',
-          'p_latitude': null,
-          'p_longitude': null,
+          'p_device_id': deviceId,
+          'p_latitude': position?.latitude,
+          'p_longitude': position?.longitude,
         },
       );
       final json = Map<String, dynamic>.from(response as Map);
@@ -62,6 +67,46 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
         _isSubmitting = false;
         _hasScanned = false;
       });
+    }
+  }
+
+  Future<String> _resolveDeviceId() async {
+    final plugin = DeviceInfoPlugin();
+    try {
+      if (Platform.isAndroid) {
+        final info = await plugin.androidInfo;
+        return 'android-${info.id}';
+      }
+      if (Platform.isIOS) {
+        final info = await plugin.iosInfo;
+        return 'ios-${info.identifierForVendor ?? 'unknown'}';
+      }
+    } catch (_) {}
+    return 'unknown-device';
+  }
+
+  Future<Position?> _tryResolvePosition() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      return Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+    } catch (_) {
+      return null;
     }
   }
 
