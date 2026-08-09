@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../academy/data/repositories/supabase_academy_repositories.dart';
+import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_assessment_repositories.dart';
 import '../../domain/models/assessment_models.dart';
 
 class TeacherQuestionBankScreen extends StatefulWidget {
-  const TeacherQuestionBankScreen({super.key});
+  final String teacherId;
+
+  const TeacherQuestionBankScreen({super.key, required this.teacherId});
 
   @override
   State<TeacherQuestionBankScreen> createState() =>
@@ -14,6 +18,9 @@ class TeacherQuestionBankScreen extends StatefulWidget {
 
 class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
   late final SupabaseQuestionBankRepository _questionRepo;
+  late final SupabaseTeacherRepository _teacherRepo;
+  List<GroupEntity> _groups = [];
+  GroupEntity? _selectedGroup;
   List<Question> _questions = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -22,6 +29,9 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
   void initState() {
     super.initState();
     _questionRepo = SupabaseQuestionBankRepository(
+      SupabaseClientWrapper(Supabase.instance.client),
+    );
+    _teacherRepo = SupabaseTeacherRepository(
       SupabaseClientWrapper(Supabase.instance.client),
     );
     _loadQuestions();
@@ -34,11 +44,15 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     });
 
     try {
-      final q = await _questionRepo.fetchQuestionsForSubject(
-        '30000000-0000-0000-0000-000000000001',
-      );
+      final groups = await _teacherRepo.fetchAssignedGroups(widget.teacherId);
+      final selected = _selectedGroup ?? (groups.isEmpty ? null : groups.first);
+      final q = selected == null
+          ? <Question>[]
+          : await _questionRepo.fetchQuestionsForSubject(selected.subjectId);
       if (mounted) {
         setState(() {
+          _groups = groups;
+          _selectedGroup = selected;
           _questions = q;
           _isLoading = false;
         });
@@ -54,12 +68,19 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
   }
 
   void _showCreateMcqDialog() {
+    final selectedGroup = _selectedGroup;
+    if (selectedGroup == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No assigned teaching groups found.')),
+      );
+      return;
+    }
     final promptCtrl = TextEditingController();
-    final opt1Ctrl = TextEditingController(text: '2');
-    final opt2Ctrl = TextEditingController(text: '3');
-    final opt3Ctrl = TextEditingController(text: '4');
-    final opt4Ctrl = TextEditingController(text: '5');
-    int correctIdx = 2; // Option 3 is correct (value 4)
+    final opt1Ctrl = TextEditingController();
+    final opt2Ctrl = TextEditingController();
+    final opt3Ctrl = TextEditingController();
+    final opt4Ctrl = TextEditingController();
+    int correctIdx = 0;
     final ptsCtrl = TextEditingController(text: '5');
 
     showDialog(
@@ -176,7 +197,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
 
                   final q = Question(
                     id: '',
-                    subjectId: '30000000-0000-0000-0000-000000000001',
+                    subjectId: selectedGroup.subjectId,
                     questionType: QuestionType.multipleChoice,
                     prompt: promptCtrl.text.trim(),
                     defaultPoints: double.tryParse(ptsCtrl.text) ?? 5.0,
@@ -228,7 +249,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateMcqDialog,
+        onPressed: _selectedGroup == null ? null : _showCreateMcqDialog,
         icon: const Icon(Icons.help_outline),
         label: const Text('Add MCQ Question'),
       ),
@@ -251,25 +272,66 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                 ],
               ),
             )
-          : _questions.isEmpty
-          ? const Center(child: Text('No questions found in Question Bank.'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _questions.length,
-              separatorBuilder: (ctx, i) => const Divider(height: 1),
-              itemBuilder: (ctx, i) {
-                final q = _questions[i];
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.help_outline)),
-                  title: Text(
-                    q.prompt,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+          : Column(
+              children: [
+                if (_groups.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: DropdownButtonFormField<GroupEntity>(
+                      initialValue: _selectedGroup,
+                      decoration: const InputDecoration(
+                        labelText: 'Teaching Group',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _groups
+                          .map(
+                            (g) => DropdownMenuItem(
+                              value: g,
+                              child: Text('${g.name} (${g.code})'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (group) {
+                        if (group == null) return;
+                        setState(() => _selectedGroup = group);
+                        _loadQuestions();
+                      },
+                    ),
                   ),
-                  subtitle: Text(
-                    'Type: ${q.questionType.name.toUpperCase()} | Points: ${q.defaultPoints}',
-                  ),
-                );
-              },
+                Expanded(
+                  child: _selectedGroup == null
+                      ? const Center(
+                          child: Text('No assigned teaching groups found.'),
+                        )
+                      : _questions.isEmpty
+                      ? const Center(
+                          child: Text('No questions found in Question Bank.'),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _questions.length,
+                          separatorBuilder: (ctx, i) =>
+                              const Divider(height: 1),
+                          itemBuilder: (ctx, i) {
+                            final q = _questions[i];
+                            return ListTile(
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.help_outline),
+                              ),
+                              title: Text(
+                                q.prompt,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Type: ${q.questionType.name.toUpperCase()} | Points: ${q.defaultPoints}',
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
             ),
     );
   }

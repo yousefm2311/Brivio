@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 
@@ -243,77 +245,63 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
           p.email.toLowerCase().contains(q);
     }).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Parent Management'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadParents),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showProvisionParentDialog,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Provision Parent'),
-      ),
-      body: Column(
+    return PortalPageShell(
+      title: 'Parent Management',
+      subtitle: 'Provision guardian accounts and link them to students.',
+      icon: Icons.family_restroom,
+      accentColor: AppColors.parentRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadParents,
+        ),
+        PortalAction(
+          icon: Icons.person_add,
+          label: 'Provision Parent',
+          onPressed: _showProvisionParentDialog,
+          primary: true,
+        ),
+      ],
+      child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search Parents',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
+          PortalSearchField(
+            controller: _searchController,
+            label: 'Search parents',
+            onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 12),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Error: $_errorMessage',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _loadParents,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                : filtered.isEmpty
-                ? const Center(child: Text('No parents found.'))
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
-                    separatorBuilder: (ctx, i) => const Divider(height: 1),
-                    itemBuilder: (ctx, i) {
-                      final p = filtered[i];
-                      return ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.family_restroom),
-                        ),
-                        title: Text(
-                          p.fullName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text('Email: ${p.email}'),
-                        trailing: ElevatedButton.icon(
-                          onPressed: () => _showLinkStudentDialog(p),
-                          icon: const Icon(Icons.link, size: 16),
-                          label: const Text('Link Child'),
-                        ),
-                      );
-                    },
-                  ),
+            child: PortalStateView(
+              isLoading: _isLoading,
+              errorMessage: _errorMessage,
+              isEmpty: filtered.isEmpty,
+              emptyTitle: 'No parents found',
+              emptySubtitle: 'Provision guardian accounts, then link children.',
+              emptyIcon: Icons.family_restroom,
+              onRetry: _loadParents,
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: filtered.length,
+                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) {
+                  final p = filtered[i];
+                  return PortalListCard(
+                    icon: Icons.family_restroom,
+                    accentColor: AppColors.parentRole,
+                    title: p.fullName,
+                    subtitle: 'Email: ${p.email}',
+                    trailing: [
+                      FilledButton.icon(
+                        onPressed: () => _showLinkStudentDialog(p),
+                        icon: const Icon(Icons.link),
+                        label: const Text('Link Child'),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
 
@@ -63,7 +65,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     int selectedDay = 1; // Monday
     TimeOfDay startTime = const TimeOfDay(hour: 10, minute: 0);
     TimeOfDay endTime = const TimeOfDay(hour: 12, minute: 0);
-    final roomCtrl = TextEditingController(text: 'Room 101');
+    final roomCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -113,6 +115,42 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Room / Location',
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.schedule),
+                          label: Text('Start ${startTime.format(context)}'),
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: startTime,
+                            );
+                            if (picked != null) {
+                              setStateDialog(() => startTime = picked);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.schedule),
+                          label: Text('End ${endTime.format(context)}'),
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: endTime,
+                            );
+                            if (picked != null) {
+                              setStateDialog(() => endTime = picked);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -174,57 +212,48 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Schedule Management'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadSchedules,
-          ),
-        ],
+    return PortalPageShell(
+      title: 'Schedule Management',
+      subtitle: 'Create validated class schedules and detect conflicts.',
+      icon: Icons.schedule,
+      accentColor: AppColors.adminRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadSchedules,
+        ),
+        PortalAction(
+          icon: Icons.add,
+          label: 'Add Schedule',
+          onPressed: _showCreateScheduleDialog,
+          primary: true,
+        ),
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: _schedules.isEmpty,
+        emptyTitle: 'No schedules found',
+        emptySubtitle: 'Create a group first, then add validated time slots.',
+        emptyIcon: Icons.schedule,
+        onRetry: _loadSchedules,
+        child: ListView.separated(
+          padding: EdgeInsets.zero,
+          itemCount: _schedules.length,
+          separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+          itemBuilder: (ctx, i) {
+            final s = _schedules[i];
+            return PortalListCard(
+              icon: Icons.schedule,
+              accentColor: AppColors.adminRole,
+              title: 'Day ${s.dayOfWeek}: ${s.startTime} - ${s.endTime}',
+              subtitle: 'Location: ${s.roomLocation ?? "Not assigned"}',
+              trailing: [PortalStatusChip(status: s.status)],
+            );
+          },
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateScheduleDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Schedule'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Error: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadSchedules,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          : _schedules.isEmpty
-          ? const Center(child: Text('No class schedules found.'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _schedules.length,
-              separatorBuilder: (ctx, i) => const Divider(height: 1),
-              itemBuilder: (ctx, i) {
-                final s = _schedules[i];
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.schedule)),
-                  title: Text(
-                    'Day ${s.dayOfWeek}: ${s.startTime} - ${s.endTime}',
-                  ),
-                  subtitle: Text('Location: ${s.roomLocation ?? "Main Hall"}'),
-                );
-              },
-            ),
     );
   }
 }

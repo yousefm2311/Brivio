@@ -395,20 +395,10 @@ class SupabaseTeacherRepository implements ITeacherRepository {
   @override
   Future<List<GroupEntity>> fetchAssignedGroups(String teacherId) async {
     try {
-      final assignments = await _wrapper.client
-          .from('group_teachers')
-          .select('group_id')
-          .eq('teacher_id', teacherId);
-
-      final groupIds = (assignments as List)
-          .map((a) => a['group_id'] as String)
-          .toList();
-      if (groupIds.isEmpty) return [];
-
-      final groupsRaw = await _wrapper.client
-          .from('groups')
-          .select()
-          .filter('id', 'in', groupIds);
+      final groupsRaw = await _wrapper.client.rpc(
+        'get_teacher_assigned_groups',
+        params: {'p_teacher_id': teacherId},
+      );
 
       return (groupsRaw as List)
           .map((g) => GroupEntity.fromJson(g as Map<String, dynamic>))
@@ -633,6 +623,24 @@ class SupabaseGroupRepository implements IGroupRepository {
 class SupabaseEnrollmentRepository implements IEnrollmentRepository {
   final SupabaseClientWrapper _wrapper;
   SupabaseEnrollmentRepository(this._wrapper);
+
+  Future<List<GroupEntity>> fetchGroupsForStudent(String studentId) async {
+    try {
+      final groupsRaw = await _wrapper.client.rpc(
+        'get_student_groups',
+        params: {'p_student_id': studentId},
+      );
+
+      return (groupsRaw as List)
+          .map((g) => GroupEntity.fromJson(g as Map<String, dynamic>))
+          .where((group) => group.id.isNotEmpty)
+          .toList();
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Failed to fetch student groups: ${e.toString()}',
+      );
+    }
+  }
 
   @override
   Future<List<EnrollmentEntity>> fetchEnrollmentsForStudent(

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
+import '../../../academy/data/repositories/supabase_academy_repositories.dart';
+import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_assessment_repositories.dart';
 import '../../domain/models/assessment_models.dart';
 
@@ -13,6 +17,9 @@ class QuestionBankScreen extends StatefulWidget {
 
 class _QuestionBankScreenState extends State<QuestionBankScreen> {
   late final SupabaseQuestionBankRepository _questionRepo;
+  late final SupabaseSubjectRepository _subjectRepo;
+  List<SubjectEntity> _subjects = [];
+  SubjectEntity? _selectedSubject;
   List<Question> _questions = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -21,6 +28,9 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
   void initState() {
     super.initState();
     _questionRepo = SupabaseQuestionBankRepository(
+      SupabaseClientWrapper(Supabase.instance.client),
+    );
+    _subjectRepo = SupabaseSubjectRepository(
       SupabaseClientWrapper(Supabase.instance.client),
     );
     _loadQuestions();
@@ -33,11 +43,16 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
     });
 
     try {
-      final q = await _questionRepo.fetchQuestionsForSubject(
-        '30000000-0000-0000-0000-000000000001',
-      );
+      final subjects = await _subjectRepo.fetchSubjects(status: 'active');
+      final selected =
+          _selectedSubject ?? (subjects.isEmpty ? null : subjects.first);
+      final q = selected == null
+          ? <Question>[]
+          : await _questionRepo.fetchQuestionsForSubject(selected.id);
       if (mounted) {
         setState(() {
+          _subjects = subjects;
+          _selectedSubject = selected;
           _questions = q;
           _isLoading = false;
         });
@@ -53,6 +68,13 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
   }
 
   void _showCreateQuestionDialog() {
+    final selectedSubject = _selectedSubject;
+    if (selectedSubject == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Create an active subject first.')),
+      );
+      return;
+    }
     final textCtrl = TextEditingController();
     final ptsCtrl = TextEditingController(text: '5');
     String qType = 'multiple_choice';
@@ -124,7 +146,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                   try {
                     final q = Question(
                       id: '',
-                      subjectId: '30000000-0000-0000-0000-000000000001',
+                      subjectId: selectedSubject.id,
                       questionType: QuestionTypeExtension.fromString(qType),
                       prompt: textCtrl.text.trim(),
                       defaultPoints: double.tryParse(ptsCtrl.text) ?? 5.0,
@@ -163,60 +185,82 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Question Bank Management'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadQuestions,
+    return PortalPageShell(
+      title: 'Question Bank',
+      subtitle: 'Create reusable assessment questions by subject.',
+      icon: Icons.help_outline,
+      accentColor: AppColors.adminRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadQuestions,
+        ),
+        if (_selectedSubject != null)
+          PortalAction(
+            icon: Icons.help_outline,
+            label: 'Add Question',
+            onPressed: _showCreateQuestionDialog,
+            primary: true,
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateQuestionDialog,
-        icon: const Icon(Icons.help_outline),
-        label: const Text('Add Question'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Error: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadQuestions,
-                    child: const Text('Retry'),
-                  ),
-                ],
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: false,
+        emptyTitle: 'No question data',
+        emptySubtitle: 'Create an active subject first.',
+        emptyIcon: Icons.help_outline,
+        onRetry: _loadQuestions,
+        child: Column(
+          children: [
+            if (_subjects.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DropdownButtonFormField<SubjectEntity>(
+                  initialValue: _selectedSubject,
+                  decoration: const InputDecoration(labelText: 'Subject'),
+                  items: _subjects
+                      .map(
+                        (s) => DropdownMenuItem(
+                          value: s,
+                          child: Text('${s.name} (${s.code})'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (subject) {
+                    if (subject == null) return;
+                    setState(() => _selectedSubject = subject);
+                    _loadQuestions();
+                  },
+                ),
               ),
-            )
-          : _questions.isEmpty
-          ? const Center(child: Text('No questions found in question bank.'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _questions.length,
-              separatorBuilder: (ctx, i) => const Divider(height: 1),
-              itemBuilder: (ctx, i) {
-                final q = _questions[i];
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.help_outline)),
-                  title: Text(
-                    q.prompt,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    'Type: ${q.questionType.name.toUpperCase()} | Points: ${q.defaultPoints}',
-                  ),
-                );
-              },
+            Expanded(
+              child: _selectedSubject == null
+                  ? const Center(child: Text('No active subjects found.'))
+                  : _questions.isEmpty
+                  ? const Center(
+                      child: Text('No questions found in question bank.'),
+                    )
+                  : ListView.separated(
+                      padding: EdgeInsets.zero,
+                      itemCount: _questions.length,
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                      itemBuilder: (ctx, i) {
+                        final q = _questions[i];
+                        return PortalListCard(
+                          icon: Icons.help_outline,
+                          accentColor: AppColors.adminRole,
+                          title: q.prompt,
+                          subtitle:
+                              'Type: ${q.questionType.name.toUpperCase()} | Points: ${q.defaultPoints}',
+                        );
+                      },
+                    ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -5,18 +5,21 @@ import '../logging/app_logger.dart';
 class AppConfig {
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'http://127.0.0.1:15431',
+    defaultValue: 'https://jprscnyqjkzlofzfaarw.supabase.co',
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     defaultValue:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwcnNjbnlxamt6bG9memZhYXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMzUyMjksImV4cCI6MjEwMTgxMTIyOX0.BH2ZkP2jjP1nWpiNvPPpk11VmWYMK54xymNxvt15_zc',
   );
 
   /// Dynamically resolved Supabase URL handling Android loopback (10.0.2.2) automatically
   static String get effectiveSupabaseUrl {
     const rawUrl = supabaseUrl;
+    if (rawUrl.trim().isEmpty) {
+      throw StateError('SUPABASE_URL must be provided with --dart-define.');
+    }
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       if (rawUrl.contains('127.0.0.1')) {
         return rawUrl.replaceAll('127.0.0.1', '10.0.2.2');
@@ -26,6 +29,16 @@ class AppConfig {
       }
     }
     return rawUrl;
+  }
+
+  static String get effectiveSupabaseAnonKey {
+    const rawKey = supabaseAnonKey;
+    if (rawKey.trim().isEmpty) {
+      throw StateError(
+        'SUPABASE_ANON_KEY must be provided with --dart-define.',
+      );
+    }
+    return rawKey;
   }
 
   /// Safely print debug diagnostics in development without leaking secrets.

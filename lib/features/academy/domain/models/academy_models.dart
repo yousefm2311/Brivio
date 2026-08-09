@@ -45,10 +45,10 @@ class Student extends Equatable {
   });
 
   factory Student.fromJson(Map<String, dynamic> json) => Student(
-    id: json['id'] as String,
-    profileId: json['profile_id'] as String,
-    studentCode: json['student_code'] as String,
-    primaryBranchId: json['primary_branch_id'] as String,
+    id: json['id'] as String? ?? '',
+    profileId: json['profile_id'] as String? ?? '',
+    studentCode: json['student_code'] as String? ?? '',
+    primaryBranchId: json['primary_branch_id'] as String? ?? '',
     gradeLevel: json['grade_level'] as String?,
     schoolName: json['school_name'] as String?,
     status: json['status'] as String? ?? 'active',
@@ -287,11 +287,11 @@ class GroupEntity extends Equatable {
   });
 
   factory GroupEntity.fromJson(Map<String, dynamic> json) => GroupEntity(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    code: json['code'] as String,
-    subjectId: json['subject_id'] as String,
-    branchId: json['branch_id'] as String,
+    id: json['id'] as String? ?? '',
+    name: json['name'] as String? ?? 'Group',
+    code: json['code'] as String? ?? '',
+    subjectId: json['subject_id'] as String? ?? '',
+    branchId: json['branch_id'] as String? ?? '',
     maxCapacity: json['max_capacity'] as int?,
     status: json['status'] as String? ?? 'active',
   );
@@ -335,11 +335,17 @@ class EnrollmentEntity extends Equatable {
 
   factory EnrollmentEntity.fromJson(Map<String, dynamic> json) =>
       EnrollmentEntity(
-        id: json['id'] as String,
-        studentId: json['student_id'] as String,
-        groupId: json['group_id'] as String,
+        id: json['id'] as String? ?? '',
+        studentId: json['student_id'] as String? ?? '',
+        groupId: json['group_id'] as String? ?? '',
         status: json['status'] as String? ?? 'active',
-        enrolledAt: DateTime.parse(json['enrolled_at'] as String),
+        enrolledAt:
+            DateTime.tryParse(
+              json['enrolled_at'] as String? ??
+                  json['start_date'] as String? ??
+                  '',
+            ) ??
+            DateTime.now(),
       );
 
   @override

@@ -28,10 +28,10 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
     });
 
     try {
-      final res = await Supabase.instance.client
-          .from('homework_submissions')
-          .select('*, profiles:student_id(full_name, email)')
-          .order('submitted_at', ascending: false);
+      final res = await Supabase.instance.client.rpc(
+        'get_teacher_grading_queue',
+        params: {'p_teacher_id': widget.teacherId},
+      );
 
       if (mounted) {
         setState(() {
@@ -164,7 +164,6 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
               separatorBuilder: (ctx, i) => const Divider(height: 1),
               itemBuilder: (ctx, i) {
                 final sub = _homeworkSubmissions[i];
-                final prof = sub['profiles'] as Map<String, dynamic>? ?? {};
                 final isGraded = sub['status'] == 'graded';
 
                 return ListTile(
@@ -178,11 +177,11 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                     ),
                   ),
                   title: Text(
-                    'Student: ${prof['full_name'] ?? "Learner"}',
+                    'Student: ${sub['student_full_name'] ?? "Learner"}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    'Status: ${(sub['status'] as String? ?? "submitted").toUpperCase()} | Score: ${sub['score'] ?? "Pending"}',
+                    '${sub['homework_title'] ?? "Homework"} | Status: ${(sub['status'] as String? ?? "submitted").toUpperCase()} | Score: ${sub['score'] ?? "Pending"}',
                   ),
                   trailing: isGraded
                       ? const Chip(

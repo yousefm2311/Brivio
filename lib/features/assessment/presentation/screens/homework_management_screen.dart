@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
+import '../../../academy/data/repositories/supabase_academy_repositories.dart';
+import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_assessment_repositories.dart';
 import '../../domain/models/assessment_models.dart';
 
@@ -14,6 +18,9 @@ class HomeworkManagementScreen extends StatefulWidget {
 
 class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
   late final SupabaseHomeworkRepository _homeworkRepo;
+  late final SupabaseGroupRepository _groupRepo;
+  List<GroupEntity> _groups = [];
+  GroupEntity? _selectedGroup;
   List<Homework> _homeworks = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -22,6 +29,9 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
   void initState() {
     super.initState();
     _homeworkRepo = SupabaseHomeworkRepository(
+      SupabaseClientWrapper(Supabase.instance.client),
+    );
+    _groupRepo = SupabaseGroupRepository(
       SupabaseClientWrapper(Supabase.instance.client),
     );
     _loadHomeworks();
@@ -34,11 +44,15 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
     });
 
     try {
-      final h = await _homeworkRepo.fetchHomeworkForGroup(
-        'c1000000-0000-0000-0000-000000000001',
-      );
+      final groups = await _groupRepo.fetchGroups(status: 'active');
+      final selected = _selectedGroup ?? (groups.isEmpty ? null : groups.first);
+      final h = selected == null
+          ? <Homework>[]
+          : await _homeworkRepo.fetchHomeworkForGroup(selected.id);
       if (mounted) {
         setState(() {
+          _groups = groups;
+          _selectedGroup = selected;
           _homeworks = h;
           _isLoading = false;
         });
@@ -54,152 +68,206 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
   }
 
   void _showCreateHomeworkDialog() {
+    final selectedGroup = _selectedGroup;
+    if (selectedGroup == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Create an active group first.')),
+      );
+      return;
+    }
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final ptsCtrl = TextEditingController(text: '100');
+    final ptsCtrl = TextEditingController();
+    DateTime? dueAt;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create Homework Assignment'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Homework Title (e.g. Problem Set 1)',
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: const Text('Create Homework Assignment'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Homework Title',
+                  ),
                 ),
-              ),
-              TextField(
-                controller: descCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Instructions / Description',
+                TextField(
+                  controller: descCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Instructions / Description',
+                  ),
+                  maxLines: 2,
                 ),
-                maxLines: 2,
-              ),
-              TextField(
-                controller: ptsCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Max Score / Points',
+                TextField(
+                  controller: ptsCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Max Score / Points',
+                  ),
+                  keyboardType: TextInputType.number,
                 ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 730)),
+                      initialDate:
+                          dueAt ?? DateTime.now().add(const Duration(days: 7)),
+                    );
+                    if (picked != null) setStateDialog(() => dueAt = picked);
+                  },
+                  icon: const Icon(Icons.event),
+                  label: Text(
+                    dueAt == null
+                        ? 'Select due date'
+                        : 'Due ${dueAt!.year}-${dueAt!.month}-${dueAt!.day}',
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty) return;
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final maxScore = double.tryParse(ptsCtrl.text);
+                if (titleCtrl.text.trim().isEmpty ||
+                    maxScore == null ||
+                    maxScore <= 0 ||
+                    dueAt == null) {
+                  return;
+                }
 
-              final nav = Navigator.of(ctx);
-              try {
-                final hw = Homework(
-                  id: '',
-                  title: titleCtrl.text.trim(),
-                  description: descCtrl.text.trim().isEmpty
-                      ? null
-                      : descCtrl.text.trim(),
-                  subjectId: '30000000-0000-0000-0000-000000000001',
-                  groupId: 'c1000000-0000-0000-0000-000000000001',
-                  dueAt: DateTime.now().add(const Duration(days: 7)),
-                  maxScore: double.tryParse(ptsCtrl.text) ?? 100.0,
-                  status: 'published',
-                );
+                final nav = Navigator.of(ctx);
+                try {
+                  final hw = Homework(
+                    id: '',
+                    title: titleCtrl.text.trim(),
+                    description: descCtrl.text.trim().isEmpty
+                        ? null
+                        : descCtrl.text.trim(),
+                    subjectId: selectedGroup.subjectId,
+                    groupId: selectedGroup.id,
+                    dueAt: dueAt!,
+                    maxScore: maxScore,
+                    status: 'published',
+                  );
 
-                await _homeworkRepo.createHomework(hw);
-                nav.pop();
-                _loadHomeworks();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Homework assignment published to canonical database!',
+                  await _homeworkRepo.createHomework(hw);
+                  nav.pop();
+                  _loadHomeworks();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Homework assignment published!'),
+                        backgroundColor: Colors.green,
                       ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Creation failed: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Creation failed: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Publish Homework'),
-          ),
-        ],
+              },
+              child: const Text('Publish Homework'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Homework Management'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadHomeworks,
+    return PortalPageShell(
+      title: 'Homework Management',
+      subtitle: 'Publish group assignments with due dates and scoring.',
+      icon: Icons.assignment,
+      accentColor: AppColors.adminRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadHomeworks,
+        ),
+        if (_selectedGroup != null)
+          PortalAction(
+            icon: Icons.assignment,
+            label: 'Add Homework',
+            onPressed: _showCreateHomeworkDialog,
+            primary: true,
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateHomeworkDialog,
-        icon: const Icon(Icons.assignment),
-        label: const Text('Add Homework'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Error: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadHomeworks,
-                    child: const Text('Retry'),
-                  ),
-                ],
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: false,
+        emptyTitle: 'No homework data',
+        emptySubtitle: 'Create an active group first.',
+        emptyIcon: Icons.assignment,
+        onRetry: _loadHomeworks,
+        child: Column(
+          children: [
+            if (_groups.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DropdownButtonFormField<GroupEntity>(
+                  initialValue: _selectedGroup,
+                  decoration: const InputDecoration(labelText: 'Group'),
+                  items: _groups
+                      .map(
+                        (g) => DropdownMenuItem(
+                          value: g,
+                          child: Text('${g.name} (${g.code})'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (group) {
+                    if (group == null) return;
+                    setState(() => _selectedGroup = group);
+                    _loadHomeworks();
+                  },
+                ),
               ),
-            )
-          : _homeworks.isEmpty
-          ? const Center(child: Text('No homework assignments found.'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _homeworks.length,
-              separatorBuilder: (ctx, i) => const Divider(height: 1),
-              itemBuilder: (ctx, i) {
-                final h = _homeworks[i];
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.assignment)),
-                  title: Text(
-                    h.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    'Max Score: ${h.maxScore} | Due: ${h.dueAt.year}-${h.dueAt.month}-${h.dueAt.day} | Status: ${h.status.toUpperCase()}',
-                  ),
-                );
-              },
+            Expanded(
+              child: _selectedGroup == null
+                  ? const Center(child: Text('No active groups found.'))
+                  : _homeworks.isEmpty
+                  ? const Center(child: Text('No homework assignments found.'))
+                  : ListView.separated(
+                      padding: EdgeInsets.zero,
+                      itemCount: _homeworks.length,
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                      itemBuilder: (ctx, i) {
+                        final h = _homeworks[i];
+                        return PortalListCard(
+                          icon: Icons.assignment,
+                          accentColor: AppColors.adminRole,
+                          title: h.title,
+                          subtitle:
+                              'Max Score: ${h.maxScore} | Due: ${h.dueAt.year}-${h.dueAt.month}-${h.dueAt.day} | Status: ${h.status.toUpperCase()}',
+                          trailing: [PortalStatusChip(status: h.status)],
+                        );
+                      },
+                    ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }

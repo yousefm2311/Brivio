@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../core/network/supabase_client_wrapper.dart';
+import '../../design_system/tokens/colors.dart';
+import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
 import '../../features/academy/presentation/screens/academy_screens.dart';
@@ -17,6 +20,7 @@ class ParentDashboard extends StatefulWidget {
 
 class _ParentDashboardState extends State<ParentDashboard> {
   bool _isLoading = false;
+  String? _errorMessage;
   List<Student> _linkedChildren = [];
   Student? _selectedChild;
   List<GroupEntity> _childGroups = [];
@@ -28,29 +32,34 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   Future<void> _loadLinkedChildren() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       final wrapper = SupabaseClientWrapper(Supabase.instance.client);
       final parentRepo = SupabaseParentRepository(wrapper);
 
       final parentId = widget.authViewModel.bootstrap?.parentId;
-      List<Student> children = [];
-      if (parentId != null) {
-        children = await parentRepo.fetchLinkedStudents(parentId);
-      }
-
+      final children = parentId == null
+          ? <Student>[]
+          : await parentRepo.fetchLinkedStudents(parentId);
       final selected = children.isNotEmpty ? children.first : null;
+
+      if (!mounted) return;
       setState(() {
         _linkedChildren = children;
         _selectedChild = selected;
         _isLoading = false;
       });
 
-      if (selected != null) {
-        await _loadGroupsForChild(selected);
-      }
-    } catch (_) {
-      setState(() => _isLoading = false);
+      if (selected != null) await _loadGroupsForChild(selected);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
@@ -64,17 +73,19 @@ class _ParentDashboardState extends State<ParentDashboard> {
         child.id,
       );
       final enrolledGroupIds = enrollments.map((e) => e.groupId).toSet();
-      List<GroupEntity> groups = [];
-      if (enrolledGroupIds.isNotEmpty) {
-        final allGroups = await groupRepo.fetchGroups();
-        groups = allGroups
-            .where((g) => enrolledGroupIds.contains(g.id))
-            .toList();
-      }
-      setState(() {
-        _childGroups = groups;
-      });
-    } catch (_) {}
+      final allGroups = enrolledGroupIds.isEmpty
+          ? <GroupEntity>[]
+          : await groupRepo.fetchGroups();
+      final groups = allGroups
+          .where((group) => enrolledGroupIds.contains(group.id))
+          .toList();
+
+      if (!mounted) return;
+      setState(() => _childGroups = groups);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMessage = e.toString());
+    }
   }
 
   @override
@@ -83,60 +94,87 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Parent Guardian Portal'),
+        title: const Text('Parent Portal'),
         actions: [
           IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadLinkedChildren,
+          ),
+          IconButton(
+            tooltip: 'Sign out',
             icon: const Icon(Icons.logout),
-            onPressed: () => widget.authViewModel.signOut(),
+            onPressed: widget.authViewModel.signOut,
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: RefreshIndicator(
+        onRefresh: _loadLinkedChildren,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
           children: [
-            Card(
-              child: ListTile(
-                leading: const Icon(
-                  Icons.family_restroom,
-                  size: 36,
-                  color: Colors.orange,
-                ),
-                title: Text('Guardian: ${user?.fullName ?? "Parent"}'),
-                subtitle: Text('Linked Children (${_linkedChildren.length})'),
-              ),
+            PortalHeader(
+              eyebrow: 'Guardian Portal',
+              title: user?.fullName ?? 'Parent',
+              subtitle: '${_linkedChildren.length} linked children',
+              icon: Icons.family_restroom,
+              accentColor: AppColors.parentRole,
             ),
+            if (_isLoading) ...[
+              const SizedBox(height: 16),
+              const LinearProgressIndicator(),
+            ],
             const SizedBox(height: 16),
-            if (_linkedChildren.isNotEmpty) ...[
-              const Text(
-                'Select Linked Child:',
-                style: TextStyle(fontWeight: FontWeight.bold),
+            PortalMetricGrid(
+              children: [
+                PortalMetricCard(
+                  label: 'Linked children',
+                  value: _linkedChildren.length.toString(),
+                  icon: Icons.child_care,
+                  accentColor: AppColors.parentRole,
+                ),
+                PortalMetricCard(
+                  label: 'Active groups',
+                  value: _childGroups.length.toString(),
+                  icon: Icons.group_work,
+                  accentColor: AppColors.info,
+                ),
+              ],
+            ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 16),
+              PortalErrorBanner(
+                message: _errorMessage!,
+                onRetry: _loadLinkedChildren,
               ),
+            ],
+            const SizedBox(height: 18),
+            if (_linkedChildren.isNotEmpty) ...[
+              const PortalSectionTitle(title: 'Selected Child'),
               const SizedBox(height: 8),
-              DropdownButton<Student>(
-                value: _selectedChild,
+              DropdownButtonFormField<Student>(
+                initialValue: _selectedChild,
                 isExpanded: true,
-                items: _linkedChildren.map((c) {
-                  return DropdownMenuItem<Student>(
-                    value: c,
-                    child: Text('${c.fullName} (${c.studentCode})'),
-                  );
-                }).toList(),
-                onChanged: (Student? val) {
-                  setState(() => _selectedChild = val);
-                  if (val != null) {
-                    _loadGroupsForChild(val);
-                  }
+                items: _linkedChildren
+                    .map(
+                      (child) => DropdownMenuItem<Student>(
+                        value: child,
+                        child: Text('${child.fullName} (${child.studentCode})'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (child) {
+                  if (child == null) return;
+                  setState(() => _selectedChild = child);
+                  _loadGroupsForChild(child);
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
             ],
-            Text(
-              _selectedChild != null
-                  ? 'Groups for ${_selectedChild!.fullName}'
-                  : 'Child Enrolled Groups',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            PortalSectionTitle(
+              title: _selectedChild == null
+                  ? 'Child Enrolled Groups'
+                  : 'Groups for ${_selectedChild!.fullName}',
             ),
             const SizedBox(height: 8),
             SizedBox(

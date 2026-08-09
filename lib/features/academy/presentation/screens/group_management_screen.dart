@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
+
+Widget _dropdownText(String value) {
+  return Text(value, maxLines: 1, overflow: TextOverflow.ellipsis);
+}
 
 class GroupManagementScreen extends StatefulWidget {
   const GroupManagementScreen({super.key});
@@ -106,13 +112,14 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                   ),
                   if (_subjects.isNotEmpty)
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: selectedSubjectId,
                       decoration: const InputDecoration(labelText: 'Subject'),
                       items: _subjects
                           .map(
                             (s) => DropdownMenuItem(
                               value: s.id,
-                              child: Text(s.name),
+                              child: _dropdownText(s.name),
                             ),
                           )
                           .toList(),
@@ -121,13 +128,14 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                     ),
                   if (_branches.isNotEmpty)
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: selectedBranchId,
                       decoration: const InputDecoration(labelText: 'Branch'),
                       items: _branches
                           .map(
                             (b) => DropdownMenuItem(
                               value: b.id,
-                              child: Text(b.name),
+                              child: _dropdownText(b.name),
                             ),
                           )
                           .toList(),
@@ -215,76 +223,62 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
           g.code.toLowerCase().contains(q);
     }).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Group Management'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateGroupDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Group'),
-      ),
-      body: Column(
+    return PortalPageShell(
+      title: 'Group Management',
+      subtitle: 'Create groups, open rosters, and manage capacity.',
+      icon: Icons.group_work,
+      accentColor: AppColors.adminRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadData,
+        ),
+        PortalAction(
+          icon: Icons.add,
+          label: 'Add Group',
+          onPressed: _showCreateGroupDialog,
+          primary: true,
+        ),
+      ],
+      child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search Groups',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
+          PortalSearchField(
+            controller: _searchController,
+            label: 'Search groups',
+            onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 12),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Error: $_errorMessage',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _loadData,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                : filtered.isEmpty
-                ? const Center(child: Text('No groups found.'))
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
-                    separatorBuilder: (ctx, i) => const Divider(height: 1),
-                    itemBuilder: (ctx, i) {
-                      final g = filtered[i];
-                      return ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.group_work),
-                        ),
-                        title: Text(
-                          g.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          'Code: ${g.code} | Capacity: ${g.maxCapacity ?? "Unlimited"}',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => _openGroupDetails(g),
-                      );
-                    },
-                  ),
+            child: PortalStateView(
+              isLoading: _isLoading,
+              errorMessage: _errorMessage,
+              isEmpty: filtered.isEmpty,
+              emptyTitle: 'No groups found',
+              emptySubtitle: 'Create a subject and branch, then add a group.',
+              emptyIcon: Icons.group_work,
+              onRetry: _loadData,
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: filtered.length,
+                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) {
+                  final g = filtered[i];
+                  return PortalListCard(
+                    icon: Icons.group_work,
+                    accentColor: AppColors.adminRole,
+                    title: g.name,
+                    subtitle:
+                        'Code: ${g.code} | Capacity: ${g.maxCapacity ?? "Unlimited"}',
+                    trailing: [
+                      PortalStatusChip(status: g.status),
+                      const Icon(Icons.chevron_right),
+                    ],
+                    onTap: () => _openGroupDetails(g),
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),
@@ -313,7 +307,10 @@ class GroupDetailsScreen extends StatefulWidget {
 class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   List<Student> _allStudents = [];
   List<Teacher> _allTeachers = [];
+  List<Student> _enrolledStudents = [];
+  List<Teacher> _assignedTeachers = [];
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -322,20 +319,40 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Future<void> _loadTabResources() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       final sRes = await widget.studentRepo.fetchStudents();
       final tRes = await widget.teacherRepo.fetchTeachers();
+      final enrolled = await widget.studentRepo.fetchStudentsForGroup(
+        widget.group.id,
+      );
+      final assignments = await Supabase.instance.client
+          .from('group_teachers')
+          .select('teacher_id')
+          .eq('group_id', widget.group.id);
+      final assignedIds = (assignments as List<dynamic>)
+          .map((item) => (item as Map)['teacher_id'] as String)
+          .toSet();
       if (mounted) {
         setState(() {
           _allStudents = sRes.data;
           _allTeachers = tRes.data;
+          _enrolledStudents = enrolled;
+          _assignedTeachers = _allTeachers
+              .where((teacher) => assignedIds.contains(teacher.id))
+              .toList();
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString();
+        });
       }
     }
   }
@@ -351,27 +368,33 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         builder: (context, setStateDialog) {
           return AlertDialog(
             title: const Text('Enroll Student in Group'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_allStudents.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedStudentId,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Student',
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_allStudents.isNotEmpty)
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: selectedStudentId,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Student',
+                      ),
+                      items: _allStudents
+                          .map(
+                            (s) => DropdownMenuItem(
+                              value: s.id,
+                              child: _dropdownText(
+                                '${s.fullName} (${s.studentCode})',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) =>
+                          setStateDialog(() => selectedStudentId = v),
                     ),
-                    items: _allStudents
-                        .map(
-                          (s) => DropdownMenuItem(
-                            value: s.id,
-                            child: Text('${s.fullName} (${s.studentCode})'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) =>
-                        setStateDialog(() => selectedStudentId = v),
-                  ),
-              ],
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -388,6 +411,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       groupId: widget.group.id,
                     );
                     nav.pop();
+                    _loadTabResources();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -428,44 +452,49 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         builder: (context, setStateDialog) {
           return AlertDialog(
             title: const Text('Assign Teacher to Group'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_allTeachers.isNotEmpty)
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_allTeachers.isNotEmpty)
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: selectedTeacherId,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Teacher',
+                      ),
+                      items: _allTeachers
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t.id,
+                              child: _dropdownText(t.fullName),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) =>
+                          setStateDialog(() => selectedTeacherId = v),
+                    ),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedTeacherId,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Teacher',
-                    ),
-                    items: _allTeachers
-                        .map(
-                          (t) => DropdownMenuItem(
-                            value: t.id,
-                            child: Text(t.fullName),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) =>
-                        setStateDialog(() => selectedTeacherId = v),
+                    isExpanded: true,
+                    initialValue: role,
+                    decoration: const InputDecoration(labelText: 'Role'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'primary',
+                        child: Text('Primary Teacher'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'co_teacher',
+                        child: Text('Co-Teacher'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setStateDialog(() => role = v);
+                    },
                   ),
-                DropdownButtonFormField<String>(
-                  initialValue: role,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'primary',
-                      child: Text('Primary Teacher'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'co_teacher',
-                      child: Text('Co-Teacher'),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) setStateDialog(() => role = v);
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -486,6 +515,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       },
                     );
                     nav.pop();
+                    _loadTabResources();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -518,107 +548,150 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Group: ${widget.group.name}'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(icon: Icon(Icons.info), text: 'Overview'),
-              Tab(icon: Icon(Icons.people), text: 'Students'),
-              Tab(icon: Icon(Icons.person), text: 'Teachers'),
-            ],
+      child: PortalPageShell(
+        title: widget.group.name,
+        subtitle:
+            'Code: ${widget.group.code} | Capacity: ${widget.group.maxCapacity ?? "Unlimited"}',
+        icon: Icons.group_work,
+        accentColor: AppColors.adminRole,
+        actions: [
+          PortalAction(
+            icon: Icons.arrow_back,
+            label: 'Back',
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
-        ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                children: [
-                  // Tab 1: Overview
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
+          PortalAction(
+            icon: Icons.refresh,
+            label: 'Refresh',
+            onPressed: _loadTabResources,
+          ),
+        ],
+        child: Column(
+          children: [
+            const TabBar(
+              tabs: [
+                Tab(icon: Icon(Icons.info), text: 'Overview'),
+                Tab(icon: Icon(Icons.people), text: 'Students'),
+                Tab(icon: Icon(Icons.person), text: 'Teachers'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: PortalStateView(
+                isLoading: _isLoading,
+                errorMessage: _errorMessage,
+                isEmpty: false,
+                emptyTitle: 'No group data',
+                emptySubtitle: 'Refresh group resources and try again.',
+                emptyIcon: Icons.group_work,
+                onRetry: _loadTabResources,
+                child: TabBarView(
+                  children: [
+                    ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        PortalMetricGrid(
                           children: [
-                            Text(
-                              'Group Name: ${widget.group.name}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            PortalMetricCard(
+                              label: 'Enrolled Students',
+                              value: _enrolledStudents.length.toString(),
+                              icon: Icons.school,
+                              accentColor: AppColors.studentRole,
                             ),
-                            const SizedBox(height: 8),
-                            Text('Group Code: ${widget.group.code}'),
-                            Text(
-                              'Max Capacity: ${widget.group.maxCapacity ?? "Unlimited"}',
+                            PortalMetricCard(
+                              label: 'Assigned Teachers',
+                              value: _assignedTeachers.length.toString(),
+                              icon: Icons.person,
+                              accentColor: AppColors.teacherRole,
                             ),
-                            Text(
-                              'Status: ${widget.group.status.toUpperCase()}',
+                            PortalMetricCard(
+                              label: 'Capacity',
+                              value:
+                                  widget.group.maxCapacity?.toString() ?? '-',
+                              icon: Icons.event_seat,
+                              accentColor: AppColors.info,
+                            ),
+                            PortalMetricCard(
+                              label: 'Status',
+                              value: widget.group.status.toUpperCase(),
+                              icon: Icons.verified,
+                              accentColor: AppColors.success,
                             ),
                           ],
                         ),
-                      ),
+                      ],
                     ),
-                  ),
-                  // Tab 2: Students
-                  Scaffold(
-                    floatingActionButton: FloatingActionButton(
-                      onPressed: _showEnrollStudentDialog,
-                      child: const Icon(Icons.person_add),
-                    ),
-                    body: _allStudents.isEmpty
-                        ? const Center(child: Text('No enrolled students.'))
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _allStudents.length,
-                            itemBuilder: (ctx, i) {
-                              final s = _allStudents[i];
-                              return Card(
-                                child: ListTile(
-                                  leading: const CircleAvatar(
-                                    child: Icon(Icons.school),
-                                  ),
-                                  title: Text(s.fullName),
-                                  subtitle: Text(
-                                    'Code: ${s.studentCode} | Email: ${s.email}',
-                                  ),
-                                ),
-                              );
-                            },
+                    Stack(
+                      children: [
+                        _enrolledStudents.isEmpty
+                            ? const Center(child: Text('No enrolled students.'))
+                            : ListView.separated(
+                                padding: const EdgeInsets.only(bottom: 72),
+                                itemCount: _enrolledStudents.length,
+                                separatorBuilder: (ctx, i) =>
+                                    const SizedBox(height: 8),
+                                itemBuilder: (ctx, i) {
+                                  final s = _enrolledStudents[i];
+                                  return PortalListCard(
+                                    icon: Icons.school,
+                                    accentColor: AppColors.studentRole,
+                                    title: s.fullName,
+                                    subtitle:
+                                        'Code: ${s.studentCode} | Email: ${s.email}',
+                                    trailing: [
+                                      PortalStatusChip(status: s.status),
+                                    ],
+                                  );
+                                },
+                              ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: FilledButton.icon(
+                            onPressed: _showEnrollStudentDialog,
+                            icon: const Icon(Icons.person_add),
+                            label: const Text('Enroll'),
                           ),
-                  ),
-                  // Tab 3: Teachers
-                  Scaffold(
-                    floatingActionButton: FloatingActionButton(
-                      onPressed: _showAssignTeacherDialog,
-                      child: const Icon(Icons.person_add),
+                        ),
+                      ],
                     ),
-                    body: _allTeachers.isEmpty
-                        ? const Center(child: Text('No assigned teachers.'))
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _allTeachers.length,
-                            itemBuilder: (ctx, i) {
-                              final t = _allTeachers[i];
-                              return Card(
-                                child: ListTile(
-                                  leading: const CircleAvatar(
-                                    child: Icon(Icons.person),
-                                  ),
-                                  title: Text(t.fullName),
-                                  subtitle: Text(
-                                    'Email: ${t.email} | Specialization: ${t.specialization ?? "N/A"}',
-                                  ),
-                                ),
-                              );
-                            },
+                    Stack(
+                      children: [
+                        _assignedTeachers.isEmpty
+                            ? const Center(child: Text('No assigned teachers.'))
+                            : ListView.separated(
+                                padding: const EdgeInsets.only(bottom: 72),
+                                itemCount: _assignedTeachers.length,
+                                separatorBuilder: (ctx, i) =>
+                                    const SizedBox(height: 8),
+                                itemBuilder: (ctx, i) {
+                                  final t = _assignedTeachers[i];
+                                  return PortalListCard(
+                                    icon: Icons.person,
+                                    accentColor: AppColors.teacherRole,
+                                    title: t.fullName,
+                                    subtitle:
+                                        'Email: ${t.email} | Specialization: ${t.specialization ?? "N/A"}',
+                                  );
+                                },
+                              ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: FilledButton.icon(
+                            onPressed: _showAssignTeacherDialog,
+                            icon: const Icon(Icons.person_add),
+                            label: const Text('Assign'),
                           ),
-                  ),
-                ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../academy/data/repositories/supabase_academy_repositories.dart';
+import '../../../academy/domain/models/academy_models.dart';
+import '../../data/repositories/supabase_assessment_repositories.dart';
 import '../../domain/models/assessment_models.dart';
 
 class TeacherExamScreen extends StatefulWidget {
@@ -12,6 +17,10 @@ class TeacherExamScreen extends StatefulWidget {
 }
 
 class _TeacherExamScreenState extends State<TeacherExamScreen> {
+  late final SupabaseTeacherRepository _teacherRepo;
+  late final SupabaseExamRepository _examRepo;
+  List<GroupEntity> _groups = [];
+  GroupEntity? _selectedGroup;
   List<Exam> _exams = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -19,36 +28,60 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
   @override
   void initState() {
     super.initState();
-    _loadExams();
+    final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+    _teacherRepo = SupabaseTeacherRepository(wrapper);
+    _examRepo = SupabaseExamRepository(wrapper);
+    _loadGroupsAndExams();
   }
 
-  Future<void> _loadExams() async {
+  Future<void> _loadGroupsAndExams() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final res = await Supabase.instance.client.from('exams').select();
-      if (mounted) {
-        setState(() {
-          _exams = (res as List<dynamic>)
-              .map((e) => Exam.fromJson(e as Map<String, dynamic>))
-              .toList();
-          _isLoading = false;
-        });
+      final groups = await _teacherRepo.fetchAssignedGroups(widget.teacherId);
+      GroupEntity? selected;
+      if (_selectedGroup == null) {
+        selected = groups.isNotEmpty ? groups.first : null;
+      } else {
+        for (final group in groups) {
+          if (group.id == _selectedGroup!.id) {
+            selected = group;
+            break;
+          }
+        }
       }
+      final exams = selected == null
+          ? <Exam>[]
+          : await _examRepo.fetchExamsForGroup(selected.id);
+
+      if (!mounted) return;
+      setState(() {
+        _groups = groups;
+        _selectedGroup = selected;
+        _exams = exams;
+        _isLoading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
+  Future<void> _selectGroup(GroupEntity? group) async {
+    setState(() => _selectedGroup = group);
+    await _loadGroupsAndExams();
+  }
+
   void _showCreateExamDialog() {
+    final group = _selectedGroup;
+    if (group == null) return;
+
     final titleCtrl = TextEditingController();
     final durationCtrl = TextEditingController(text: '60');
     final passCtrl = TextEditingController(text: '60');
@@ -56,27 +89,25 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Create & Publish Exam for Group'),
+        title: Text('Create Exam for ${group.name}'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Exam Title (e.g. Midterm Exam)',
-                ),
+                decoration: const InputDecoration(labelText: 'Exam title'),
               ),
               TextField(
                 controller: durationCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Duration (Minutes)',
+                  labelText: 'Duration minutes',
                 ),
                 keyboardType: TextInputType.number,
               ),
               TextField(
                 controller: passCtrl,
-                decoration: const InputDecoration(labelText: 'Pass Score'),
+                decoration: const InputDecoration(labelText: 'Pass score'),
                 keyboardType: TextInputType.number,
               ),
             ],
@@ -90,15 +121,14 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
           ElevatedButton(
             onPressed: () async {
               if (titleCtrl.text.trim().isEmpty) return;
-
               final nav = Navigator.of(ctx);
               try {
                 await Supabase.instance.client.rpc(
                   'create_exam_assignment',
                   params: {
                     'p_title': titleCtrl.text.trim(),
-                    'p_subject_id': '30000000-0000-0000-0000-000000000001',
-                    'p_group_id': 'c1000000-0000-0000-0000-000000000001',
+                    'p_subject_id': group.subjectId,
+                    'p_group_id': group.id,
                     'p_duration_minutes': int.tryParse(durationCtrl.text) ?? 60,
                     'p_pass_score': double.tryParse(passCtrl.text) ?? 60.0,
                     'p_max_score': 100,
@@ -106,27 +136,19 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                   },
                 );
                 nav.pop();
-                _loadExams();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Exam published successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
+                await _loadGroupsAndExams();
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Exam published.')),
+                );
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Creation failed: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
+                if (!mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Creation failed: $e')));
               }
             },
-            child: const Text('Publish Exam'),
+            child: const Text('Publish'),
           ),
         ],
       ),
@@ -139,53 +161,113 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
       appBar: AppBar(
         title: const Text('Teacher Exam & Quiz Workspace'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadExams),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadGroupsAndExams,
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateExamDialog,
+        onPressed: _selectedGroup == null ? null : _showCreateExamDialog,
         icon: const Icon(Icons.quiz),
         label: const Text('Create Exam'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Error: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadExams,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          : _exams.isEmpty
-          ? const Center(child: Text('No exams published yet.'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _exams.length,
-              separatorBuilder: (ctx, i) => const Divider(height: 1),
-              itemBuilder: (ctx, i) {
-                final e = _exams[i];
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.quiz)),
-                  title: Text(
-                    e.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    'Duration: ${e.durationMinutes} min | Pass Score: ${e.passScore} | Status: ${e.status.toUpperCase()}',
-                  ),
-                );
-              },
-            ),
+      body: Column(
+        children: [
+          _GroupPicker(
+            groups: _groups,
+            selectedGroup: _selectedGroup,
+            onChanged: _selectGroup,
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_errorMessage != null) {
+      return _ErrorState(message: _errorMessage!, onRetry: _loadGroupsAndExams);
+    }
+    if (_selectedGroup == null) {
+      return const Center(child: Text('No assigned groups found.'));
+    }
+    if (_exams.isEmpty) {
+      return const Center(child: Text('No exams published yet.'));
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _exams.length,
+      separatorBuilder: (ctx, i) => const Divider(height: 1),
+      itemBuilder: (ctx, i) {
+        final exam = _exams[i];
+        return ListTile(
+          leading: const CircleAvatar(child: Icon(Icons.quiz)),
+          title: Text(
+            exam.title,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(
+            'Duration: ${exam.durationMinutes} min | Pass Score: ${exam.passScore} | Status: ${exam.status.toUpperCase()}',
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GroupPicker extends StatelessWidget {
+  final List<GroupEntity> groups;
+  final GroupEntity? selectedGroup;
+  final ValueChanged<GroupEntity?> onChanged;
+
+  const _GroupPicker({
+    required this.groups,
+    required this.selectedGroup,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: DropdownButtonFormField<GroupEntity>(
+        initialValue: selectedGroup,
+        decoration: const InputDecoration(
+          labelText: 'Assigned group',
+          border: OutlineInputBorder(),
+        ),
+        items: groups
+            .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))
+            .toList(),
+        onChanged: groups.isEmpty ? null : onChanged,
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorState({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
     );
   }
 }

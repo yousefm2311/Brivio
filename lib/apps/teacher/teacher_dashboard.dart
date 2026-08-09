@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/network/supabase_client_wrapper.dart';
+import '../../design_system/tokens/colors.dart';
+import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
 import '../../features/academy/presentation/screens/teacher_groups_screen.dart';
@@ -48,15 +50,24 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     try {
       final wrapper = SupabaseClientWrapper(Supabase.instance.client);
       final teacherRepo = SupabaseTeacherRepository(wrapper);
-      final teacherId =
-          widget.authViewModel.bootstrap?.teacherId ??
-          '70000000-0000-0000-0000-000000000001';
+      final teacherId = widget.authViewModel.bootstrap?.teacherId;
+      final profileId = widget.authViewModel.currentUser?.id;
+
+      if (teacherId == null || profileId == null) {
+        throw Exception(
+          'Teacher account is missing its linked teacher profile. Contact an admin to complete provisioning.',
+        );
+      }
 
       final groups = await teacherRepo.fetchAssignedGroups(teacherId);
       final hwRes = await Supabase.instance.client
           .from('homework')
-          .select('id');
-      final exRes = await Supabase.instance.client.from('exams').select('id');
+          .select('id')
+          .eq('assigned_by', profileId);
+      final exRes = await Supabase.instance.client
+          .from('exams')
+          .select('id')
+          .eq('created_by', profileId);
 
       if (mounted) {
         setState(() {
@@ -83,39 +94,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     Color color,
     VoidCallback onTap,
   ) {
-    return Card(
-      elevation: 2,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 36, color: color),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return PortalMetricCard(
+      label: title,
+      value: value,
+      icon: icon,
+      accentColor: color,
+      onTap: onTap,
     );
   }
 
@@ -127,23 +111,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Card(
-            color: Colors.purple.shade50,
-            child: ListTile(
-              leading: const CircleAvatar(
-                radius: 28,
-                child: Icon(Icons.school, size: 32),
-              ),
-              title: Text(
-                'Welcome, ${user?.fullName ?? "Educator Teacher"}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              subtitle: Text(
-                'Role: ${(user?.role ?? "teacher").toString().toUpperCase()} | Email: ${user?.email ?? "teacher@academy.com"}',
-              ),
+          PortalHeader(
+            eyebrow: 'Teacher Portal',
+            title: 'Welcome, ${user?.fullName ?? "Educator Teacher"}',
+            subtitle:
+                '${(user?.role ?? "teacher").toString().toUpperCase()} - ${user?.email ?? "No email"}',
+            icon: Icons.school,
+            accentColor: AppColors.teacherRole,
+            trailing: IconButton.filledTonal(
+              tooltip: 'Refresh',
+              onPressed: _loadTeacherMetrics,
+              icon: const Icon(Icons.refresh),
             ),
           ),
           const SizedBox(height: 16),
@@ -155,23 +133,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           if (_errorMessage != null)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text(
-                'Error: $_errorMessage',
-                style: const TextStyle(color: Colors.red),
+              child: PortalErrorBanner(
+                message: _errorMessage!,
+                onRetry: _loadTeacherMetrics,
               ),
             ),
-          const Text(
-            'Teacher Live Operational Summary',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          const PortalSectionTitle(
+            title: 'Teaching Operations',
+            subtitle: 'Groups, assignments, exams, attendance, and grading.',
           ),
           const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.3,
+          PortalMetricGrid(
             children: [
               _buildSummaryCard(
                 'Assigned Groups',
@@ -224,9 +196,31 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final teacherId =
-        widget.authViewModel.bootstrap?.teacherId ??
-        '70000000-0000-0000-0000-000000000001';
+    final teacherId = widget.authViewModel.bootstrap?.teacherId;
+
+    if (teacherId == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Teacher Portal'),
+          actions: [
+            IconButton(
+              tooltip: 'Sign out',
+              icon: const Icon(Icons.logout),
+              onPressed: () => widget.authViewModel.signOut(),
+            ),
+          ],
+        ),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'This account is not linked to a teacher profile yet. Ask an admin to provision the teacher record before using the teacher portal.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
 
     final List<Widget> pages = [
       _buildOverviewTab(teacherId),
@@ -271,8 +265,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           ),
           body: TabBarView(
             children: [
-              const TeacherCurriculumScreen(),
-              const TeacherQuestionBankScreen(),
+              TeacherCurriculumScreen(teacherId: teacherId),
+              TeacherQuestionBankScreen(teacherId: teacherId),
               TeacherHomeworkScreen(teacherId: teacherId),
               TeacherExamScreen(teacherId: teacherId),
             ],
@@ -304,74 +298,23 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       TeacherProfileScreen(authViewModel: widget.authViewModel),
     ];
 
-    final isWide = MediaQuery.of(context).size.width >= 800;
-
-    return Scaffold(
-      body: isWide
-          ? Row(
-              children: [
-                NavigationRail(
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: (i) =>
-                      setState(() => _selectedIndex = i),
-                  labelType: NavigationRailLabelType.all,
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.dashboard),
-                      label: Text('Home'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.school),
-                      label: Text('Teaching'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.book),
-                      label: Text('Academic'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.grading),
-                      label: Text('Operations'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.person),
-                      label: Text('Account'),
-                    ),
-                  ],
-                ),
-                const VerticalDivider(width: 1, thickness: 1),
-                Expanded(child: pages[_selectedIndex]),
-              ],
-            )
-          : pages[_selectedIndex],
-      bottomNavigationBar: isWide
-          ? null
-          : BottomNavigationBar(
-              currentIndex: _selectedIndex,
-              onTap: (i) => setState(() => _selectedIndex = i),
-              type: BottomNavigationBarType.fixed,
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.dashboard),
-                  label: 'Home',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.school),
-                  label: 'Teaching',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.book),
-                  label: 'Academic',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.grading),
-                  label: 'Operations',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.person),
-                  label: 'Account',
-                ),
-              ],
-            ),
+    return PortalScaffold(
+      title: 'Teacher Studio',
+      subtitle: 'Teaching workspace',
+      icon: Icons.school,
+      accentColor: AppColors.teacherRole,
+      selectedIndex: _selectedIndex,
+      destinations: const [
+        PortalDestination(icon: Icons.dashboard, label: 'Home'),
+        PortalDestination(icon: Icons.school, label: 'Teaching'),
+        PortalDestination(icon: Icons.book, label: 'Academic'),
+        PortalDestination(icon: Icons.grading, label: 'Operations'),
+        PortalDestination(icon: Icons.person, label: 'Account'),
+      ],
+      onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+      onRefresh: _loadTeacherMetrics,
+      onSignOut: widget.authViewModel.signOut,
+      body: pages[_selectedIndex],
     );
   }
 }

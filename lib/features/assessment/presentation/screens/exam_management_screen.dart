@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
+import '../../../academy/data/repositories/supabase_academy_repositories.dart';
+import '../../../academy/domain/models/academy_models.dart';
 import '../../domain/models/assessment_models.dart';
 
 class ExamManagementScreen extends StatefulWidget {
@@ -10,6 +15,9 @@ class ExamManagementScreen extends StatefulWidget {
 }
 
 class _ExamManagementScreenState extends State<ExamManagementScreen> {
+  late final SupabaseGroupRepository _groupRepo;
+  List<GroupEntity> _groups = [];
+  GroupEntity? _selectedGroup;
   List<Exam> _exams = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -17,6 +25,9 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
   @override
   void initState() {
     super.initState();
+    _groupRepo = SupabaseGroupRepository(
+      SupabaseClientWrapper(Supabase.instance.client),
+    );
     _loadExams();
   }
 
@@ -27,10 +38,20 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     });
 
     try {
-      final res = await Supabase.instance.client.from('exams').select();
+      final groups = await _groupRepo.fetchGroups(status: 'active');
+      final selected = _selectedGroup ?? (groups.isEmpty ? null : groups.first);
+      final res = selected == null
+          ? <dynamic>[]
+          : await Supabase.instance.client
+                .from('exams')
+                .select()
+                .eq('group_id', selected.id)
+                .order('created_at', ascending: false);
       if (mounted) {
         setState(() {
-          _exams = (res as List<dynamic>)
+          _groups = groups;
+          _selectedGroup = selected;
+          _exams = res
               .map((e) => Exam.fromJson(e as Map<String, dynamic>))
               .toList();
           _isLoading = false;
@@ -47,9 +68,17 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
   }
 
   void _showCreateExamDialog() {
+    final selectedGroup = _selectedGroup;
+    if (selectedGroup == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Create an active group first.')),
+      );
+      return;
+    }
     final titleCtrl = TextEditingController();
-    final durationCtrl = TextEditingController(text: '60');
-    final passCtrl = TextEditingController(text: '60');
+    final durationCtrl = TextEditingController();
+    final maxScoreCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -61,15 +90,18 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
             children: [
               TextField(
                 controller: titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Exam Title (e.g. Midterm Exam)',
-                ),
+                decoration: const InputDecoration(labelText: 'Exam Title'),
               ),
               TextField(
                 controller: durationCtrl,
                 decoration: const InputDecoration(
                   labelText: 'Duration (Minutes)',
                 ),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: maxScoreCtrl,
+                decoration: const InputDecoration(labelText: 'Max Score'),
                 keyboardType: TextInputType.number,
               ),
               TextField(
@@ -87,16 +119,29 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty) return;
+              final duration = int.tryParse(durationCtrl.text);
+              final maxScore = double.tryParse(maxScoreCtrl.text);
+              final passScore = double.tryParse(passCtrl.text);
+              if (titleCtrl.text.trim().isEmpty ||
+                  duration == null ||
+                  duration <= 0 ||
+                  maxScore == null ||
+                  maxScore <= 0 ||
+                  passScore == null ||
+                  passScore < 0 ||
+                  passScore > maxScore) {
+                return;
+              }
 
               final nav = Navigator.of(ctx);
               try {
                 await Supabase.instance.client.from('exams').insert({
-                  'subject_id': '30000000-0000-0000-0000-000000000001',
+                  'subject_id': selectedGroup.subjectId,
+                  'group_id': selectedGroup.id,
                   'title': titleCtrl.text.trim(),
-                  'duration_minutes': int.tryParse(durationCtrl.text) ?? 60,
-                  'pass_score': double.tryParse(passCtrl.text) ?? 60.0,
-                  'max_score': 100,
+                  'duration_minutes': duration,
+                  'pass_score': passScore,
+                  'max_score': maxScore,
                   'status': 'published',
                   'published_at': DateTime.now().toIso8601String(),
                 });
@@ -130,57 +175,81 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Exam & Quiz Management'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadExams),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateExamDialog,
-        icon: const Icon(Icons.quiz),
-        label: const Text('Add Exam'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Error: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadExams,
-                    child: const Text('Retry'),
-                  ),
-                ],
+    return PortalPageShell(
+      title: 'Exam & Quiz Management',
+      subtitle: 'Publish group exams with explicit duration and scoring.',
+      icon: Icons.quiz,
+      accentColor: AppColors.adminRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadExams,
+        ),
+        if (_selectedGroup != null)
+          PortalAction(
+            icon: Icons.quiz,
+            label: 'Add Exam',
+            onPressed: _showCreateExamDialog,
+            primary: true,
+          ),
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: false,
+        emptyTitle: 'No exam data',
+        emptySubtitle: 'Create an active group first.',
+        emptyIcon: Icons.quiz,
+        onRetry: _loadExams,
+        child: Column(
+          children: [
+            if (_groups.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DropdownButtonFormField<GroupEntity>(
+                  initialValue: _selectedGroup,
+                  decoration: const InputDecoration(labelText: 'Group'),
+                  items: _groups
+                      .map(
+                        (g) => DropdownMenuItem(
+                          value: g,
+                          child: Text('${g.name} (${g.code})'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (group) {
+                    if (group == null) return;
+                    setState(() => _selectedGroup = group);
+                    _loadExams();
+                  },
+                ),
               ),
-            )
-          : _exams.isEmpty
-          ? const Center(child: Text('No exams found.'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _exams.length,
-              separatorBuilder: (ctx, i) => const Divider(height: 1),
-              itemBuilder: (ctx, i) {
-                final e = _exams[i];
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.quiz)),
-                  title: Text(
-                    e.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    'Duration: ${e.durationMinutes} min | Pass Score: ${e.passScore}',
-                  ),
-                );
-              },
+            Expanded(
+              child: _selectedGroup == null
+                  ? const Center(child: Text('No active groups found.'))
+                  : _exams.isEmpty
+                  ? const Center(child: Text('No exams found.'))
+                  : ListView.separated(
+                      padding: EdgeInsets.zero,
+                      itemCount: _exams.length,
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                      itemBuilder: (ctx, i) {
+                        final e = _exams[i];
+                        return PortalListCard(
+                          icon: Icons.quiz,
+                          accentColor: AppColors.adminRole,
+                          title: e.title,
+                          subtitle:
+                              'Duration: ${e.durationMinutes} min | Pass Score: ${e.passScore}',
+                          trailing: [PortalStatusChip(status: e.status)],
+                        );
+                      },
+                    ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }

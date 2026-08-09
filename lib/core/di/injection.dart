@@ -36,7 +36,7 @@ Future<void> setupDependencyInjection({
     AppConfig.printSafeDiagnostics();
     final wrapper = await SupabaseClientWrapper.initialize(
       url: AppConfig.effectiveSupabaseUrl,
-      anonKey: AppConfig.supabaseAnonKey,
+      anonKey: AppConfig.effectiveSupabaseAnonKey,
     );
     getIt.registerSingleton<SupabaseClientWrapper>(wrapper);
   }

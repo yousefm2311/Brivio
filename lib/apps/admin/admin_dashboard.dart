@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../core/network/supabase_client_wrapper.dart';
+import '../../design_system/tokens/colors.dart';
+import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
 import '../../features/academy/presentation/screens/branch_management_screen.dart';
@@ -40,6 +43,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   List<Branch> _branches = [];
   List<SubjectEntity> _subjects = [];
   List<GroupEntity> _groups = [];
+  AcademyCoreSummary? _summary;
+  int _parentTotal = 0;
 
   @override
   void initState() {
@@ -61,24 +66,33 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final branchRepo = SupabaseBranchRepository(wrapper);
       final subjectRepo = SupabaseSubjectRepository(wrapper);
       final groupRepo = SupabaseGroupRepository(wrapper);
+      final summaryRepo = SupabaseAcademySummaryRepository(wrapper);
 
-      final studentRes = await studentRepo.fetchStudents();
-      final parentRes = await parentRepo.fetchParents();
-      final teacherRes = await teacherRepo.fetchTeachers();
-      final branchesRes = await branchRepo.fetchBranches();
-      final subjectsRes = await subjectRepo.fetchSubjects();
-      final groupsRes = await groupRepo.fetchGroups();
+      final results = await Future.wait([
+        studentRepo.fetchStudents(),
+        parentRepo.fetchParents(),
+        teacherRepo.fetchTeachers(),
+        branchRepo.fetchBranches(),
+        subjectRepo.fetchSubjects(),
+        groupRepo.fetchGroups(),
+        summaryRepo.fetchSummary(),
+      ]);
 
+      if (!mounted) return;
       setState(() {
-        _students = studentRes.data;
-        _parents = parentRes.data;
-        _teachers = teacherRes.data;
-        _branches = branchesRes;
-        _subjects = subjectsRes;
-        _groups = groupsRes;
+        _students = (results[0] as PaginatedResult<Student>).data;
+        final parentResult = results[1] as PaginatedResult<Parent>;
+        _parents = parentResult.data;
+        _parentTotal = parentResult.total;
+        _teachers = (results[2] as PaginatedResult<Teacher>).data;
+        _branches = results[3] as List<Branch>;
+        _subjects = results[4] as List<SubjectEntity>;
+        _groups = results[5] as List<GroupEntity>;
+        _summary = results[6] as AcademyCoreSummary;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = e.toString();
@@ -88,270 +102,185 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final user = widget.authViewModel.currentUser;
-
-    final List<Widget> tabs = [
-      // 0: Overview Dashboard Summary
-      SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Colors.blue,
-                  child: Icon(Icons.admin_panel_settings, color: Colors.white),
-                ),
-                title: Text(
-                  'Welcome, ${user?.fullName ?? "Administrator"}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  'Role: ${widget.authViewModel.userRole?.displayName ?? "Admin"} | Branch: ${user?.branchId ?? "Global"}',
-                ),
-                trailing: ElevatedButton.icon(
-                  onPressed: () => widget.authViewModel.signOut(),
-                  icon: const Icon(Icons.logout, size: 16),
-                  label: const Text('Sign Out'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.shade400,
-                  ),
-                ),
-              ),
-            ),
-            if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16.0),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(
-                  'Error loading summary: $_errorMessage',
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ),
-            const SizedBox(height: 16),
-            const Text(
-              'Academy Operations Live Dashboard',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 3,
-              shrinkWrap: true,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildSummaryCard(
-                  'Branches',
-                  _branches.length.toString(),
-                  Icons.domain,
-                  Colors.indigo,
-                  () => setState(() => _selectedIndex = 1),
-                ),
-                _buildSummaryCard(
-                  'Subjects',
-                  _subjects.length.toString(),
-                  Icons.book,
-                  Colors.deepOrange,
-                  () => setState(() => _selectedIndex = 2),
-                ),
-                _buildSummaryCard(
-                  'Groups',
-                  _groups.length.toString(),
-                  Icons.group_work,
-                  Colors.blue,
-                  () => setState(() => _selectedIndex = 3),
-                ),
-                _buildSummaryCard(
-                  'Students',
-                  _students.length.toString(),
-                  Icons.school,
-                  Colors.green,
-                  () => setState(() => _selectedIndex = 5),
-                ),
-                _buildSummaryCard(
-                  'Parents',
-                  _parents.length.toString(),
-                  Icons.family_restroom,
-                  Colors.orange,
-                  () => setState(() => _selectedIndex = 6),
-                ),
-                _buildSummaryCard(
-                  'Teachers',
-                  _teachers.length.toString(),
-                  Icons.person,
-                  Colors.purple,
-                  () => setState(() => _selectedIndex = 7),
-                ),
-              ],
-            ),
-          ],
-        ),
+    final pages = [
+      _AdminOverview(
+        authViewModel: widget.authViewModel,
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        students: _students,
+        parents: _parents,
+        teachers: _teachers,
+        branches: _branches,
+        subjects: _subjects,
+        groups: _groups,
+        summary: _summary,
+        parentTotal: _parentTotal,
+        onRetry: _loadSummaryData,
+        onNavigate: (index) => setState(() => _selectedIndex = index),
       ),
-      // 1: Branches
       const BranchManagementScreen(),
-      // 2: Subjects
       const SubjectManagementScreen(),
-      // 3: Groups
       const GroupManagementScreen(),
-      // 4: Schedules
       const ScheduleManagementScreen(),
-      // 5: Students
       const StudentManagementScreen(),
-      // 6: Parents
       const ParentManagementScreen(),
-      // 7: Teachers
       const TeacherManagementScreen(),
-      // 8: Staff
       const StaffManagementScreen(),
-      // 9: Curriculum
       const CurriculumEditorScreen(),
-      // 10: Question Bank
       const QuestionBankScreen(),
-      // 11: Homework
       const HomeworkManagementScreen(),
-      // 12: Exams
       const ExamManagementScreen(),
-      // 13: Attendance
       const AttendanceOperationsScreen(),
-      // 14: Finance
       const FinanceManagementScreen(),
-      // 15: Security RBAC
       const RbacManagementScreen(),
     ];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Academy Management Suite — Admin Portal'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadSummaryData,
-          ),
-        ],
-      ),
-      body: Row(
-        children: [
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (int index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
-            labelType: NavigationRailLabelType.all,
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.dashboard),
-                label: Text('Overview'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.domain),
-                label: Text('Branches'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.book),
-                label: Text('Subjects'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.group_work),
-                label: Text('Groups'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.schedule),
-                label: Text('Schedules'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.school),
-                label: Text('Students'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.family_restroom),
-                label: Text('Parents'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.person),
-                label: Text('Teachers'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.badge),
-                label: Text('Staff'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.auto_stories),
-                label: Text('Curriculum'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.help_outline),
-                label: Text('Questions'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.assignment),
-                label: Text('Homework'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.quiz),
-                label: Text('Exams'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.event_note),
-                label: Text('Attendance'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.monetization_on),
-                label: Text('Finance'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.security),
-                label: Text('Security'),
-              ),
-            ],
-          ),
-          const VerticalDivider(thickness: 1, width: 1),
-          Expanded(child: tabs[_selectedIndex]),
-        ],
-      ),
+    return PortalScaffold(
+      title: 'Academy Suite',
+      subtitle: 'Admin operations',
+      icon: Icons.admin_panel_settings,
+      accentColor: AppColors.adminRole,
+      selectedIndex: _selectedIndex,
+      destinations: const [
+        PortalDestination(icon: Icons.dashboard, label: 'Overview'),
+        PortalDestination(icon: Icons.domain, label: 'Branches'),
+        PortalDestination(icon: Icons.book, label: 'Subjects'),
+        PortalDestination(icon: Icons.group_work, label: 'Groups'),
+        PortalDestination(icon: Icons.schedule, label: 'Schedules'),
+        PortalDestination(icon: Icons.school, label: 'Students'),
+        PortalDestination(icon: Icons.family_restroom, label: 'Parents'),
+        PortalDestination(icon: Icons.person, label: 'Teachers'),
+        PortalDestination(icon: Icons.badge, label: 'Staff'),
+        PortalDestination(icon: Icons.auto_stories, label: 'Curriculum'),
+        PortalDestination(icon: Icons.help_outline, label: 'Questions'),
+        PortalDestination(icon: Icons.assignment, label: 'Homework'),
+        PortalDestination(icon: Icons.quiz, label: 'Exams'),
+        PortalDestination(icon: Icons.event_note, label: 'Attendance'),
+        PortalDestination(icon: Icons.monetization_on, label: 'Finance'),
+        PortalDestination(icon: Icons.security, label: 'Security'),
+      ],
+      onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+      onRefresh: _loadSummaryData,
+      onSignOut: widget.authViewModel.signOut,
+      body: pages[_selectedIndex],
     );
   }
+}
 
-  Widget _buildSummaryCard(
-    String title,
-    String count,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+class _AdminOverview extends StatelessWidget {
+  final AuthViewModel authViewModel;
+  final bool isLoading;
+  final String? errorMessage;
+  final List<Student> students;
+  final List<Parent> parents;
+  final List<Teacher> teachers;
+  final List<Branch> branches;
+  final List<SubjectEntity> subjects;
+  final List<GroupEntity> groups;
+  final AcademyCoreSummary? summary;
+  final int parentTotal;
+  final VoidCallback onRetry;
+  final ValueChanged<int> onNavigate;
+
+  const _AdminOverview({
+    required this.authViewModel,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.students,
+    required this.parents,
+    required this.teachers,
+    required this.branches,
+    required this.subjects,
+    required this.groups,
+    required this.summary,
+    required this.parentTotal,
+    required this.onRetry,
+    required this.onNavigate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final user = authViewModel.currentUser;
+    return RefreshIndicator(
+      onRefresh: () async => onRetry(),
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          PortalHeader(
+            eyebrow: 'Admin Portal',
+            title: 'Welcome, ${user?.fullName ?? "Administrator"}',
+            subtitle:
+                '${authViewModel.userRole?.displayName ?? "Admin"} - ${user?.branchId ?? "Global access"}',
+            icon: Icons.admin_panel_settings,
+            accentColor: AppColors.adminRole,
+            trailing: IconButton.filledTonal(
+              tooltip: 'Refresh',
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+            ),
+          ),
+          if (isLoading) ...[
+            const SizedBox(height: 16),
+            const LinearProgressIndicator(),
+          ],
+          if (errorMessage != null) ...[
+            const SizedBox(height: 16),
+            PortalErrorBanner(message: errorMessage!, onRetry: onRetry),
+          ],
+          const SizedBox(height: 18),
+          const PortalSectionTitle(
+            title: 'Academy Operations',
+            subtitle: 'Live counts from the production database.',
+          ),
+          const SizedBox(height: 12),
+          PortalMetricGrid(
             children: [
-              Icon(icon, size: 32, color: color),
-              const SizedBox(height: 8),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(
-                count,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+              PortalMetricCard(
+                label: 'Branches',
+                value: (summary?.activeBranches ?? branches.length).toString(),
+                icon: Icons.domain,
+                accentColor: Colors.indigo,
+                onTap: () => onNavigate(1),
+              ),
+              PortalMetricCard(
+                label: 'Subjects',
+                value: (summary?.activeSubjects ?? subjects.length).toString(),
+                icon: Icons.book,
+                accentColor: Colors.deepOrange,
+                onTap: () => onNavigate(2),
+              ),
+              PortalMetricCard(
+                label: 'Groups',
+                value: (summary?.activeGroups ?? groups.length).toString(),
+                icon: Icons.group_work,
+                accentColor: Colors.blue,
+                onTap: () => onNavigate(3),
+              ),
+              PortalMetricCard(
+                label: 'Students',
+                value: (summary?.activeStudents ?? students.length).toString(),
+                icon: Icons.school,
+                accentColor: Colors.green,
+                onTap: () => onNavigate(5),
+              ),
+              PortalMetricCard(
+                label: 'Parents',
+                value: (parentTotal == 0 ? parents.length : parentTotal)
+                    .toString(),
+                icon: Icons.family_restroom,
+                accentColor: Colors.orange,
+                onTap: () => onNavigate(6),
+              ),
+              PortalMetricCard(
+                label: 'Teachers',
+                value: (summary?.activeTeachers ?? teachers.length).toString(),
+                icon: Icons.person,
+                accentColor: Colors.purple,
+                onTap: () => onNavigate(7),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

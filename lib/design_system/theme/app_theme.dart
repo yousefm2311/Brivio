@@ -4,6 +4,8 @@ import '../tokens/typography.dart';
 
 /// Centralized light and dark ThemeData builder.
 class AppTheme {
+  static const _radius = 8.0;
+
   static ThemeData darkTheme() {
     return ThemeData(
       useMaterial3: true,
@@ -23,9 +25,32 @@ class AppTheme {
         color: AppColors.darkSurface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(_radius),
           side: const BorderSide(color: AppColors.darkBorder, width: 1),
         ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_radius),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.darkCard,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_radius),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_radius),
+          borderSide: const BorderSide(color: AppColors.darkBorder),
+        ),
+      ),
+      navigationBarTheme: const NavigationBarThemeData(
+        height: 68,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.darkBackground,
@@ -56,9 +81,32 @@ class AppTheme {
         color: AppColors.lightSurface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(_radius),
           side: const BorderSide(color: AppColors.lightBorder, width: 1),
         ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_radius),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.lightCard,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_radius),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_radius),
+          borderSide: const BorderSide(color: AppColors.lightBorder),
+        ),
+      ),
+      navigationBarTheme: const NavigationBarThemeData(
+        height: 68,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.lightBackground,

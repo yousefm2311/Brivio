@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
+
 class RbacManagementScreen extends StatefulWidget {
   const RbacManagementScreen({super.key});
 
@@ -61,107 +64,97 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('RBAC Security Governance & Permissions Inspector'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(icon: Icon(Icons.security), text: 'Permissions Catalog'),
-              Tab(icon: Icon(Icons.admin_panel_settings), text: 'System Roles'),
-            ],
+      child: PortalPageShell(
+        title: 'Security Governance',
+        subtitle: 'Inspect enforced permissions and system roles.',
+        icon: Icons.security,
+        accentColor: AppColors.adminRole,
+        actions: [
+          PortalAction(
+            icon: Icons.refresh,
+            label: 'Refresh',
+            onPressed: _loadRbacData,
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _loadRbacData,
+        ],
+        child: Column(
+          children: [
+            const TabBar(
+              tabs: [
+                Tab(icon: Icon(Icons.security), text: 'Permissions Catalog'),
+                Tab(
+                  icon: Icon(Icons.admin_panel_settings),
+                  text: 'System Roles',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: PortalStateView(
+                isLoading: _isLoading,
+                errorMessage: _errorMessage,
+                isEmpty: false,
+                emptyTitle: 'No security data',
+                emptySubtitle: 'Run migrations to seed roles and permissions.',
+                emptyIcon: Icons.security,
+                onRetry: _loadRbacData,
+                child: TabBarView(
+                  children: [
+                    _permissions.isEmpty
+                        ? const Center(
+                            child: Text('No system permissions found.'),
+                          )
+                        : ListView.separated(
+                            padding: EdgeInsets.zero,
+                            itemCount: _permissions.length,
+                            separatorBuilder: (ctx, i) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (ctx, i) {
+                              final p = _permissions[i];
+                              return PortalListCard(
+                                icon: Icons.lock_open,
+                                accentColor: AppColors.adminRole,
+                                title:
+                                    p['code'] as String? ?? 'permission.code',
+                                subtitle:
+                                    'Module: ${(p['module'] as String? ?? "core").toUpperCase()} | Action: ${p['action']}',
+                                trailing: const [
+                                  PortalStatusChip(status: 'enforced'),
+                                ],
+                              );
+                            },
+                          ),
+                    _roles.isEmpty
+                        ? const Center(child: Text('No system roles found.'))
+                        : ListView.separated(
+                            padding: EdgeInsets.zero,
+                            itemCount: _roles.length,
+                            separatorBuilder: (ctx, i) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (ctx, i) {
+                              final r = _roles[i];
+                              return PortalListCard(
+                                icon: Icons.admin_panel_settings,
+                                accentColor: AppColors.success,
+                                title: (r['name'] as String? ?? 'role')
+                                    .toUpperCase(),
+                                subtitle:
+                                    (r['description'] as String?) ??
+                                    'System Role',
+                                trailing: const [
+                                  Icon(
+                                    Icons.verified_user,
+                                    color: AppColors.success,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Error: $_errorMessage',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: _loadRbacData,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              )
-            : TabBarView(
-                children: [
-                  // Tab 1: Permissions Catalog
-                  _permissions.isEmpty
-                      ? const Center(
-                          child: Text('No system permissions found.'),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _permissions.length,
-                          separatorBuilder: (ctx, i) =>
-                              const Divider(height: 1),
-                          itemBuilder: (ctx, i) {
-                            final p = _permissions[i];
-                            return ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.lock_open),
-                              ),
-                              title: Text(
-                                p['code'] as String? ?? 'permission.code',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Text(
-                                'Module: ${(p['module'] as String? ?? "core").toUpperCase()} | Action: ${p['action']}',
-                              ),
-                              trailing: Chip(
-                                label: const Text('ENFORCED'),
-                                backgroundColor: Colors.blue.shade100,
-                              ),
-                            );
-                          },
-                        ),
-                  // Tab 2: System Roles
-                  _roles.isEmpty
-                      ? const Center(child: Text('No system roles found.'))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _roles.length,
-                          separatorBuilder: (ctx, i) =>
-                              const Divider(height: 1),
-                          itemBuilder: (ctx, i) {
-                            final r = _roles[i];
-                            return ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.admin_panel_settings),
-                              ),
-                              title: Text(
-                                (r['name'] as String? ?? 'role').toUpperCase(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Text(
-                                (r['description'] as String?) ?? 'System Role',
-                              ),
-                              trailing: const Icon(
-                                Icons.verified_user,
-                                color: Colors.green,
-                              ),
-                            );
-                          },
-                        ),
-                ],
-              ),
       ),
     );
   }

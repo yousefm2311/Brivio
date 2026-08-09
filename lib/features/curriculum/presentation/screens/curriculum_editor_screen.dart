@@ -1,7 +1,10 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
+import '../../../academy/data/repositories/supabase_academy_repositories.dart';
+import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_curriculum_repositories.dart';
 import '../../domain/models/curriculum_models.dart';
 
@@ -17,7 +20,10 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
   late final SupabaseUnitRepository _unitRepo;
   late final SupabaseLessonRepository _lessonRepo;
   late final SupabaseLessonResourceRepository _resourceRepo;
+  late final SupabaseSubjectRepository _subjectRepo;
 
+  List<SubjectEntity> _subjects = [];
+  SubjectEntity? _selectedSubject;
   List<Semester> _semesters = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -30,6 +36,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     _unitRepo = SupabaseUnitRepository(wrapper);
     _lessonRepo = SupabaseLessonRepository(wrapper);
     _resourceRepo = SupabaseLessonResourceRepository(wrapper);
+    _subjectRepo = SupabaseSubjectRepository(wrapper);
     _loadCurriculum();
   }
 
@@ -40,9 +47,12 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     });
 
     try {
-      final sList = await _semesterRepo.fetchSemestersForSubject(
-        '30000000-0000-0000-0000-000000000001',
-      );
+      final subjects = await _subjectRepo.fetchSubjects(status: 'active');
+      final selected =
+          _selectedSubject ?? (subjects.isEmpty ? null : subjects.first);
+      final sList = selected == null
+          ? <Semester>[]
+          : await _semesterRepo.fetchSemestersForSubject(selected.id);
       final List<Semester> populatedSemesters = [];
 
       for (final sem in sList) {
@@ -81,6 +91,8 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
 
       if (mounted) {
         setState(() {
+          _subjects = subjects;
+          _selectedSubject = selected;
           _semesters = populatedSemesters;
           _isLoading = false;
         });
@@ -96,6 +108,13 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
   }
 
   void _showCreateSemesterDialog() {
+    final selectedSubject = _selectedSubject;
+    if (selectedSubject == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Create an active subject first.')),
+      );
+      return;
+    }
     final nameCtrl = TextEditingController();
     final codeCtrl = TextEditingController();
 
@@ -135,7 +154,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
               try {
                 final newSem = Semester(
                   id: '',
-                  subjectId: '30000000-0000-0000-0000-000000000001',
+                  subjectId: selectedSubject.id,
                   name: nameCtrl.text.trim(),
                   code: codeCtrl.text.trim(),
                   orderNumber: _semesters.length + 1,
@@ -256,7 +275,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                   items: const [
                     DropdownMenuItem(value: 'video', child: Text('Video')),
                     DropdownMenuItem(
-                      value: 'document',
+                      value: 'pdf',
                       child: Text('PDF / Document'),
                     ),
                     DropdownMenuItem(
@@ -316,12 +335,12 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     final titleCtrl = TextEditingController(
       text: '${lesson.title} Resource PDF',
     );
-    final filenameCtrl = TextEditingController(text: 'sample_lecture.pdf');
+    final objectPathCtrl = TextEditingController(text: 'lessons/${lesson.id}/');
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Upload PDF Resource to Private Bucket (${lesson.title})'),
+        title: Text('Attach PDF Resource (${lesson.title})'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -329,16 +348,13 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
               controller: titleCtrl,
               decoration: const InputDecoration(labelText: 'Resource Title'),
             ),
-            TextField(
-              controller: filenameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Target File Name in curriculum_assets',
-              ),
-            ),
             const SizedBox(height: 12),
-            const Text(
-              'Uploads binary PDF stream directly to private Supabase Storage bucket: curriculum_assets',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+            TextField(
+              controller: objectPathCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Storage object path',
+                hintText: 'lessons/<lesson-id>/lecture.pdf',
+              ),
             ),
           ],
         ),
@@ -349,31 +365,17 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.cloud_upload),
-            label: const Text('Upload & Attach'),
+            label: const Text('Attach Resource'),
             onPressed: () async {
               if (titleCtrl.text.trim().isEmpty ||
-                  filenameCtrl.text.trim().isEmpty)
+                  objectPathCtrl.text.trim().isEmpty) {
                 return;
+              }
 
               final nav = Navigator.of(ctx);
               try {
-                // Generate canonical PDF bytes for test upload
-                final samplePdfContent =
-                    '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000052 00000 n\n0000000102 00000 n\ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF';
-                final bytes = Uint8List.fromList(samplePdfContent.codeUnits);
-                final objectPath =
-                    'lessons/${lesson.id}/${filenameCtrl.text.trim()}';
+                final objectPath = objectPathCtrl.text.trim();
 
-                // Upload to private bucket curriculum_assets
-                await Supabase.instance.client.storage
-                    .from('curriculum_assets')
-                    .uploadBinary(
-                      objectPath,
-                      bytes,
-                      fileOptions: const FileOptions(upsert: true),
-                    );
-
-                // Create LessonResource DB record
                 final res = LessonResource(
                   id: '',
                   lessonId: lesson.id,
@@ -390,9 +392,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                        'PDF uploaded to private storage & attached!',
-                      ),
+                      content: Text('PDF resource attached!'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -416,154 +416,193 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Curriculum Hierarchy Editor'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadCurriculum,
+    return PortalPageShell(
+      title: 'Curriculum Editor',
+      subtitle: 'Build semesters, units, lessons, and protected resources.',
+      icon: Icons.auto_stories,
+      accentColor: AppColors.adminRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadCurriculum,
+        ),
+        if (_selectedSubject != null)
+          PortalAction(
+            icon: Icons.add,
+            label: 'Add Semester',
+            onPressed: _showCreateSemesterDialog,
+            primary: true,
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateSemesterDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Semester'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Error: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadCurriculum,
-                    child: const Text('Retry'),
-                  ),
-                ],
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: false,
+        emptyTitle: 'No curriculum data',
+        emptySubtitle: 'Create an active subject first.',
+        emptyIcon: Icons.auto_stories,
+        onRetry: _loadCurriculum,
+        child: Column(
+          children: [
+            if (_subjects.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DropdownButtonFormField<SubjectEntity>(
+                  initialValue: _selectedSubject,
+                  decoration: const InputDecoration(labelText: 'Subject'),
+                  items: _subjects
+                      .map(
+                        (s) => DropdownMenuItem(
+                          value: s,
+                          child: Text('${s.name} (${s.code})'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (subject) {
+                    if (subject == null) return;
+                    setState(() => _selectedSubject = subject);
+                    _loadCurriculum();
+                  },
+                ),
               ),
-            )
-          : _semesters.isEmpty
-          ? const Center(
-              child: Text('No semesters found. Add a semester to start!'),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _semesters.length,
-              itemBuilder: (ctx, semIdx) {
-                final sem = _semesters[semIdx];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: ExpansionTile(
-                    leading: const Icon(Icons.school, color: Colors.blue),
-                    title: Text(
-                      sem.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+            Expanded(
+              child: _selectedSubject == null
+                  ? const Center(child: Text('No active subjects found.'))
+                  : _semesters.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No semesters found. Add a semester to start.',
                       ),
-                    ),
-                    subtitle: Text(
-                      'Code: ${sem.code} | Units: ${sem.units.length}',
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.add_circle, color: Colors.blue),
-                      onPressed: () => _showCreateUnitDialog(sem),
-                      tooltip: 'Add Unit',
-                    ),
-                    children: sem.units.map((unit) {
-                      return Padding(
-                        padding: const EdgeInsets.only(left: 16.0),
-                        child: ExpansionTile(
-                          leading: const Icon(
-                            Icons.folder,
-                            color: Colors.orange,
-                          ),
-                          title: Text(
-                            unit.name,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text('Lessons: ${unit.lessons.length}'),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.add_circle_outline,
-                              color: Colors.orange,
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: _semesters.length,
+                      itemBuilder: (ctx, semIdx) {
+                        final sem = _semesters[semIdx];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: ExpansionTile(
+                            leading: const Icon(
+                              Icons.school,
+                              color: Colors.blue,
                             ),
-                            onPressed: () => _showCreateLessonDialog(unit),
-                            tooltip: 'Add Lesson',
-                          ),
-                          children: unit.lessons.map((lesson) {
-                            final isPublished =
-                                lesson.status == LessonStatus.published;
-
-                            return ExpansionTile(
-                              leading: const Icon(
-                                Icons.play_circle_outline,
-                                color: Colors.green,
+                            title: Text(
+                              sem.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
-                              title: Text(lesson.title),
-                              subtitle: Text(
-                                'Type: ${lesson.lessonType.name.toUpperCase()} | Status: ${lesson.status.name.toUpperCase()} | Attachments: ${lesson.resources.length}',
+                            ),
+                            subtitle: Text(
+                              'Code: ${sem.code} | Units: ${sem.units.length}',
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(
+                                Icons.add_circle,
+                                color: Colors.blue,
                               ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
+                              onPressed: () => _showCreateUnitDialog(sem),
+                              tooltip: 'Add Unit',
+                            ),
+                            children: sem.units.map((unit) {
+                              return Padding(
+                                padding: const EdgeInsets.only(left: 16.0),
+                                child: ExpansionTile(
+                                  leading: const Icon(
+                                    Icons.folder,
+                                    color: Colors.orange,
+                                  ),
+                                  title: Text(
+                                    unit.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    'Lessons: ${unit.lessons.length}',
+                                  ),
+                                  trailing: IconButton(
                                     icon: const Icon(
-                                      Icons.attach_file,
-                                      color: Colors.purple,
+                                      Icons.add_circle_outline,
+                                      color: Colors.orange,
                                     ),
                                     onPressed: () =>
-                                        _showUploadResourceDialog(lesson),
-                                    tooltip: 'Upload Private PDF Resource',
+                                        _showCreateLessonDialog(unit),
+                                    tooltip: 'Add Lesson',
                                   ),
-                                  IconButton(
-                                    icon: Icon(
-                                      isPublished
-                                          ? Icons.visibility
-                                          : Icons.visibility_off,
-                                      color: isPublished
-                                          ? Colors.green
-                                          : Colors.grey,
-                                    ),
-                                    onPressed: () async {
-                                      await _lessonRepo.publishLesson(
-                                        lesson.id,
-                                      );
-                                      _loadCurriculum();
-                                    },
-                                    tooltip: 'Toggle Publish',
-                                  ),
-                                ],
-                              ),
-                              children: lesson.resources.map((res) {
-                                return ListTile(
-                                  leading: const Icon(
-                                    Icons.picture_as_pdf,
-                                    color: Colors.red,
-                                  ),
-                                  title: Text(res.title),
-                                  subtitle: Text(
-                                    'Path: ${res.bucket}/${res.objectPath}',
-                                  ),
-                                );
-                              }).toList(),
-                            );
-                          }).toList(),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
+                                  children: unit.lessons.map((lesson) {
+                                    final isPublished =
+                                        lesson.status == LessonStatus.published;
+
+                                    return ExpansionTile(
+                                      leading: const Icon(
+                                        Icons.play_circle_outline,
+                                        color: Colors.green,
+                                      ),
+                                      title: Text(lesson.title),
+                                      subtitle: Text(
+                                        'Type: ${lesson.lessonType.name.toUpperCase()} | Status: ${lesson.status.name.toUpperCase()} | Attachments: ${lesson.resources.length}',
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.attach_file,
+                                              color: Colors.purple,
+                                            ),
+                                            onPressed: () =>
+                                                _showUploadResourceDialog(
+                                                  lesson,
+                                                ),
+                                            tooltip:
+                                                'Upload Private PDF Resource',
+                                          ),
+                                          IconButton(
+                                            icon: Icon(
+                                              isPublished
+                                                  ? Icons.visibility
+                                                  : Icons.visibility_off,
+                                              color: isPublished
+                                                  ? Colors.green
+                                                  : Colors.grey,
+                                            ),
+                                            onPressed: () async {
+                                              await _lessonRepo.publishLesson(
+                                                lesson.id,
+                                              );
+                                              _loadCurriculum();
+                                            },
+                                            tooltip: 'Toggle Publish',
+                                          ),
+                                        ],
+                                      ),
+                                      children: lesson.resources.map((res) {
+                                        return ListTile(
+                                          leading: const Icon(
+                                            Icons.picture_as_pdf,
+                                            color: Colors.red,
+                                          ),
+                                          title: Text(res.title),
+                                          subtitle: Text(
+                                            'Path: ${res.bucket}/${res.objectPath}',
+                                          ),
+                                        );
+                                      }).toList(),
+                                    );
+                                  }).toList(),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        );
+                      },
+                    ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }

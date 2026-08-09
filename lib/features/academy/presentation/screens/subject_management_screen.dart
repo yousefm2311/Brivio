@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
 
@@ -243,88 +245,65 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
           s.code.toLowerCase().contains(q);
     }).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Subject Management'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadSubjects),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateSubjectDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Subject'),
-      ),
-      body: Column(
+    return PortalPageShell(
+      title: 'Subject Management',
+      subtitle: 'Manage the curriculum subjects used by groups and content.',
+      icon: Icons.book,
+      accentColor: AppColors.adminRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadSubjects,
+        ),
+        PortalAction(
+          icon: Icons.add,
+          label: 'Add Subject',
+          onPressed: _showCreateSubjectDialog,
+          primary: true,
+        ),
+      ],
+      child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search Subjects',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
+          PortalSearchField(
+            controller: _searchController,
+            label: 'Search subjects',
+            onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 12),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Error: $_errorMessage',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _loadSubjects,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                : filtered.isEmpty
-                ? const Center(child: Text('No subjects found.'))
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
-                    separatorBuilder: (ctx, i) => const Divider(height: 1),
-                    itemBuilder: (ctx, i) {
-                      final s = filtered[i];
-                      return ListTile(
-                        leading: const CircleAvatar(child: Icon(Icons.book)),
-                        title: Text(
-                          s.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          'Code: ${s.code} | Description: ${s.description ?? "N/A"}',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Chip(
-                              label: Text(s.status.toUpperCase()),
-                              backgroundColor: s.status == 'active'
-                                  ? Colors.green.shade100
-                                  : Colors.grey.shade200,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _showEditSubjectDialog(s),
-                              tooltip: 'Edit Subject',
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+            child: PortalStateView(
+              isLoading: _isLoading,
+              errorMessage: _errorMessage,
+              isEmpty: filtered.isEmpty,
+              emptyTitle: 'No subjects found',
+              emptySubtitle: 'Add a subject or change your search.',
+              emptyIcon: Icons.book,
+              onRetry: _loadSubjects,
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: filtered.length,
+                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) {
+                  final s = filtered[i];
+                  return PortalListCard(
+                    icon: Icons.book,
+                    accentColor: AppColors.adminRole,
+                    title: s.name,
+                    subtitle:
+                        'Code: ${s.code} | Description: ${s.description ?? "N/A"}',
+                    trailing: [
+                      PortalStatusChip(status: s.status),
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () => _showEditSubjectDialog(s),
+                        tooltip: 'Edit Subject',
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),

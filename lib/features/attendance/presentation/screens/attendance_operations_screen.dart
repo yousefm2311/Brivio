@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
+import '../../../academy/data/repositories/supabase_academy_repositories.dart';
+import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_attendance_repositories.dart';
 import '../../domain/models/attendance_models.dart';
 
@@ -17,7 +21,11 @@ class _AttendanceOperationsScreenState
   late final SupabaseClassSessionRepository _sessionRepo;
   late final SupabaseAttendanceRepository _attendanceRepo;
   late final SupabaseLeaveRepository _leaveRepo;
+  late final SupabaseGroupRepository _groupRepo;
+  late final SupabaseStudentRepository _studentRepo;
 
+  List<GroupEntity> _groups = [];
+  GroupEntity? _selectedGroup;
   List<ClassSession> _sessions = [];
   List<LeaveRequest> _leaveRequests = [];
   bool _isLoading = false;
@@ -30,6 +38,8 @@ class _AttendanceOperationsScreenState
     _sessionRepo = SupabaseClassSessionRepository(wrapper);
     _attendanceRepo = SupabaseAttendanceRepository(wrapper);
     _leaveRepo = SupabaseLeaveRepository(wrapper);
+    _groupRepo = SupabaseGroupRepository(wrapper);
+    _studentRepo = SupabaseStudentRepository(wrapper);
     _loadData();
   }
 
@@ -40,14 +50,22 @@ class _AttendanceOperationsScreenState
     });
 
     try {
-      final s = await _sessionRepo.fetchSessionsForGroup(
-        'c1000000-0000-0000-0000-000000000001',
-      );
-      final leaves = await _leaveRepo.fetchLeaveRequestsForStudent(
-        '90000000-0000-0000-0000-000000000001',
-      );
+      final groups = await _groupRepo.fetchGroups(status: 'active');
+      final selected = _selectedGroup ?? (groups.isEmpty ? null : groups.first);
+      final s = selected == null
+          ? <ClassSession>[]
+          : await _sessionRepo.fetchSessionsForGroup(selected.id);
+      final rawLeaves = await Supabase.instance.client
+          .from('leave_requests')
+          .select()
+          .order('submitted_at', ascending: false);
+      final leaves = (rawLeaves as List)
+          .map((j) => LeaveRequest.fromJson(j as Map<String, dynamic>))
+          .toList();
       if (mounted) {
         setState(() {
+          _groups = groups;
+          _selectedGroup = selected;
           _sessions = s;
           _leaveRequests = leaves;
           _isLoading = false;
@@ -64,60 +82,126 @@ class _AttendanceOperationsScreenState
   }
 
   void _openAttendanceRoster(ClassSession session) {
+    final statuses = <String, String>{};
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Session Roster (${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day})',
-        ),
-        content: const Text('Mark Student Attendance for active session.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: Text(
+            'Session Roster (${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day})',
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final nav = Navigator.of(ctx);
-              try {
-                await _attendanceRepo.markSessionAttendance(
-                  sessionId: session.id,
-                  records: [
-                    {
-                      'student_id': '90000000-0000-0000-0000-000000000001',
-                      'status': 'present',
-                    },
-                  ],
+          content: SizedBox(
+            width: 420,
+            child: FutureBuilder<List<Student>>(
+              future: _studentRepo.fetchStudentsForGroup(session.groupId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Text('Failed to load roster: ${snapshot.error}');
+                }
+                final students = snapshot.data ?? [];
+                if (students.isEmpty) {
+                  return const Text('No enrolled students in this group.');
+                }
+                for (final student in students) {
+                  statuses.putIfAbsent(student.id, () => 'present');
+                }
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: students
+                      .map(
+                        (student) => DropdownButtonFormField<String>(
+                          initialValue: statuses[student.id],
+                          decoration: InputDecoration(
+                            labelText: student.fullName.isEmpty
+                                ? student.studentCode
+                                : student.fullName,
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'present',
+                              child: Text('Present'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'late',
+                              child: Text('Late'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'absent',
+                              child: Text('Absent'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'excused',
+                              child: Text('Excused'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setStateDialog(() => statuses[student.id] = value);
+                          },
+                        ),
+                      )
+                      .toList(),
                 );
-                nav.pop();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Attendance recorded & finalized!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Recording failed: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Mark Present & Finalize'),
+              },
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (statuses.isEmpty) return;
+                final nav = Navigator.of(ctx);
+                try {
+                  await _attendanceRepo.markSessionAttendance(
+                    sessionId: session.id,
+                    records: statuses.entries
+                        .map(
+                          (entry) => {
+                            'student_id': entry.key,
+                            'status': entry.value,
+                          },
+                        )
+                        .toList(),
+                  );
+                  nav.pop();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Attendance recorded & finalized!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Recording failed: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save Attendance'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   void _showReviewLeaveDialog(LeaveRequest leave) {
-    final noteCtrl = TextEditingController(text: 'Approved by Branch Admin');
+    final noteCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -208,113 +292,139 @@ class _AttendanceOperationsScreenState
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Attendance & Operations'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(icon: Icon(Icons.event_note), text: 'Sessions & Rosters'),
-              Tab(icon: Icon(Icons.event_busy), text: 'Leave Requests'),
-            ],
+      child: PortalPageShell(
+        title: 'Attendance & Operations',
+        subtitle: 'Review sessions, mark rosters, and process leave requests.',
+        icon: Icons.event_note,
+        accentColor: AppColors.adminRole,
+        actions: [
+          PortalAction(
+            icon: Icons.refresh,
+            label: 'Refresh',
+            onPressed: _loadData,
           ),
-          actions: [
-            IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
-          ],
-        ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+        ],
+        child: Column(
+          children: [
+            const TabBar(
+              tabs: [
+                Tab(icon: Icon(Icons.event_note), text: 'Sessions & Rosters'),
+                Tab(icon: Icon(Icons.event_busy), text: 'Leave Requests'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: PortalStateView(
+                isLoading: _isLoading,
+                errorMessage: _errorMessage,
+                isEmpty: false,
+                emptyTitle: 'No attendance data',
+                emptySubtitle: 'Create groups and class sessions first.',
+                emptyIcon: Icons.event_note,
+                onRetry: _loadData,
+                child: TabBarView(
                   children: [
-                    Text(
-                      'Error: $_errorMessage',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: _loadData,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              )
-            : TabBarView(
-                children: [
-                  // Tab 1: Sessions
-                  _sessions.isEmpty
-                      ? const Center(
-                          child: Text('No class sessions found for today.'),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _sessions.length,
-                          separatorBuilder: (ctx, i) =>
-                              const Divider(height: 1),
-                          itemBuilder: (ctx, i) {
-                            final s = _sessions[i];
-                            return ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.event_note),
+                    Column(
+                      children: [
+                        if (_groups.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: DropdownButtonFormField<GroupEntity>(
+                              initialValue: _selectedGroup,
+                              decoration: const InputDecoration(
+                                labelText: 'Group',
                               ),
-                              title: Text(
-                                'Session: ${s.location ?? "Main Hall"}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                              items: _groups
+                                  .map(
+                                    (g) => DropdownMenuItem(
+                                      value: g,
+                                      child: Text('${g.name} (${g.code})'),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (group) {
+                                if (group == null) return;
+                                setState(() => _selectedGroup = group);
+                                _loadData();
+                              },
+                            ),
+                          ),
+                        Expanded(
+                          child: _selectedGroup == null
+                              ? const Center(
+                                  child: Text('No active groups found.'),
+                                )
+                              : _sessions.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No class sessions found for this group.',
+                                  ),
+                                )
+                              : ListView.separated(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: _sessions.length,
+                                  separatorBuilder: (ctx, i) =>
+                                      const SizedBox(height: 8),
+                                  itemBuilder: (ctx, i) {
+                                    final s = _sessions[i];
+                                    return PortalListCard(
+                                      icon: Icons.event_note,
+                                      accentColor: AppColors.adminRole,
+                                      title:
+                                          'Session: ${s.location ?? "No location assigned"}',
+                                      subtitle:
+                                          'Date: ${s.sessionDate.year}-${s.sessionDate.month}-${s.sessionDate.day} | Status: ${s.status.name.toUpperCase()}',
+                                      trailing: [
+                                        FilledButton(
+                                          onPressed: () =>
+                                              _openAttendanceRoster(s),
+                                          child: const Text('Take Attendance'),
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
-                              ),
-                              subtitle: Text(
-                                'Date: ${s.sessionDate.year}-${s.sessionDate.month}-${s.sessionDate.day} | Status: ${s.status.name.toUpperCase()}',
-                              ),
-                              trailing: ElevatedButton(
-                                onPressed: () => _openAttendanceRoster(s),
-                                child: const Text('Take Attendance'),
-                              ),
-                            );
-                          },
                         ),
-                  // Tab 2: Leave Requests
-                  _leaveRequests.isEmpty
-                      ? const Center(child: Text('No pending leave requests.'))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _leaveRequests.length,
-                          separatorBuilder: (ctx, i) =>
-                              const Divider(height: 1),
-                          itemBuilder: (ctx, i) {
-                            final l = _leaveRequests[i];
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: l.status == 'pending'
-                                    ? Colors.orange.shade100
-                                    : Colors.blue.shade100,
-                                child: Icon(
-                                  Icons.event_busy,
-                                  color: l.status == 'pending'
-                                      ? Colors.orange
-                                      : Colors.blue,
-                                ),
-                              ),
-                              title: Text(
-                                'Leave Request (${l.status.toUpperCase()})',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Text('Reason: ${l.reason}'),
-                              trailing: l.status == 'pending'
-                                  ? ElevatedButton(
+                      ],
+                    ),
+                    _leaveRequests.isEmpty
+                        ? const Center(
+                            child: Text('No pending leave requests.'),
+                          )
+                        : ListView.separated(
+                            padding: EdgeInsets.zero,
+                            itemCount: _leaveRequests.length,
+                            separatorBuilder: (ctx, i) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (ctx, i) {
+                              final l = _leaveRequests[i];
+                              return PortalListCard(
+                                icon: Icons.event_busy,
+                                accentColor: l.status == 'pending'
+                                    ? AppColors.warning
+                                    : AppColors.info,
+                                title:
+                                    'Leave Request (${l.status.toUpperCase()})',
+                                subtitle: 'Reason: ${l.reason}',
+                                trailing: [
+                                  if (l.status == 'pending')
+                                    FilledButton(
                                       onPressed: () =>
                                           _showReviewLeaveDialog(l),
                                       child: const Text('Review'),
                                     )
-                                  : Chip(label: Text(l.status.toUpperCase())),
-                            );
-                          },
-                        ),
-                ],
+                                  else
+                                    PortalStatusChip(status: l.status),
+                                ],
+                              );
+                            },
+                          ),
+                  ],
+                ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }

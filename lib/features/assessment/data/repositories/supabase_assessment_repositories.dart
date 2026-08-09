@@ -42,39 +42,39 @@ class SupabaseQuestionBankRepository implements IQuestionBankRepository {
     List<QuestionOption> options,
   ) async {
     try {
-      final qRes = await _wrapper.client
-          .from('questions')
-          .insert({
-            'subject_id': question.subjectId,
-            'unit_id': question.unitId,
-            'lesson_id': question.lessonId,
-            'question_type': question.questionType.toDbValue(),
-            'prompt': question.prompt,
-            'explanation': question.explanation,
-            'difficulty': question.difficulty,
-            'default_points': question.defaultPoints,
-          })
-          .select()
-          .single();
+      final response = await _wrapper.client.rpc(
+        'create_question_with_options',
+        params: {
+          'p_subject_id': question.subjectId,
+          'p_unit_id': question.unitId,
+          'p_lesson_id': question.lessonId,
+          'p_question_type': question.questionType.toDbValue(),
+          'p_prompt': question.prompt,
+          'p_explanation': question.explanation,
+          'p_difficulty': question.difficulty,
+          'p_default_points': question.defaultPoints,
+          'p_options': [
+            for (int i = 0; i < options.length; i++)
+              {
+                'text': options[i].text,
+                'order_number': i + 1,
+                'is_correct': options[i].isCorrect,
+              },
+          ],
+        },
+      );
 
-      final createdQId = qRes['id'] as String;
-      final List<QuestionOption> createdOpts = [];
-
-      for (int i = 0; i < options.length; i++) {
-        final opt = options[i];
-        final optRes = await _wrapper.client
-            .from('student_question_options')
-            .insert({
-              'question_id': createdQId,
-              'text': opt.text,
-              'order_number': i + 1,
-            })
-            .select()
-            .single();
-        createdOpts.add(QuestionOption.fromJson(optRes));
-      }
+      final qRes = Map<String, dynamic>.from(response as Map);
+      final rawOpts = qRes['student_question_options'] as List<dynamic>? ?? [];
+      final createdOpts = rawOpts
+          .map(
+            (o) => QuestionOption.fromJson(Map<String, dynamic>.from(o as Map)),
+          )
+          .toList();
 
       return Question.fromJson(qRes, createdOpts);
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: 'Failed to create question: ${e.message}');
     } catch (e) {
       throw DatabaseFailure(
         message: 'Failed to create question: ${e.toString()}',

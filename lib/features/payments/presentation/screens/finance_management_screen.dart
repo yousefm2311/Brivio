@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
+import '../../../academy/data/repositories/supabase_academy_repositories.dart';
+import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_payment_repositories.dart';
 import '../../domain/models/payment_models.dart';
 
@@ -17,11 +21,15 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   late final SupabaseInvoiceRepository _invoiceRepo;
   late final SupabasePaymentRepository _paymentRepo;
   late final SupabaseReceiptRepository _receiptRepo;
+  late final SupabaseStudentRepository _studentRepo;
 
+  List<Student> _students = [];
+  Student? _selectedStudent;
   List<SubscriptionPlan> _plans = [];
   List<Invoice> _invoices = [];
   List<Receipt> _receipts = [];
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -31,25 +39,33 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     _invoiceRepo = SupabaseInvoiceRepository(wrapper);
     _paymentRepo = SupabasePaymentRepository(wrapper);
     _receiptRepo = SupabaseReceiptRepository(wrapper);
+    _studentRepo = SupabaseStudentRepository(wrapper);
     _loadFinanceData();
   }
 
   Future<void> _loadFinanceData() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
     try {
       final p = await _planRepo.fetchPlans();
-      final inv = await _invoiceRepo.fetchInvoicesForStudent(
-        '90000000-0000-0000-0000-000000000001',
-      );
-      final rec = await _receiptRepo.fetchReceiptsForStudent(
-        '90000000-0000-0000-0000-000000000001',
-      );
+      final studentsPage = await _studentRepo.fetchStudents(pageSize: 100);
+      final selected =
+          _selectedStudent ??
+          (studentsPage.data.isEmpty ? null : studentsPage.data.first);
+      final inv = selected == null
+          ? <Invoice>[]
+          : await _invoiceRepo.fetchInvoicesForStudent(selected.id);
+      final rec = selected == null
+          ? <Receipt>[]
+          : await _receiptRepo.fetchReceiptsForStudent(selected.id);
 
       if (mounted) {
         setState(() {
+          _students = studentsPage.data;
+          _selectedStudent = selected;
           _plans = p;
           _invoices = inv;
           _receipts = rec;
@@ -59,6 +75,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
+          _errorMessage = e.toString();
           _isLoading = false;
         });
       }
@@ -68,7 +85,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   void _showCreatePlanDialog() {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final amountCtrl = TextEditingController(text: '3000');
+    final amountCtrl = TextEditingController();
     String billingType = 'installment';
 
     showDialog(
@@ -130,7 +147,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                   if (nameCtrl.text.trim().isEmpty) return;
 
                   final nav = Navigator.of(ctx);
-                  final amtEgp = int.tryParse(amountCtrl.text) ?? 3000;
+                  final amtEgp = int.tryParse(amountCtrl.text);
+                  if (amtEgp == null || amtEgp <= 0) return;
                   try {
                     await Supabase.instance.client
                         .from('subscription_plans')
@@ -176,6 +194,13 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   }
 
   void _showAssignSubscriptionDialog() {
+    final selectedStudent = _selectedStudent;
+    if (selectedStudent == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Create an active student first.')),
+      );
+      return;
+    }
     String? selectedPlanId = _plans.isNotEmpty ? _plans.first.id : null;
 
     showDialog(
@@ -216,7 +241,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     await Supabase.instance.client.rpc(
                       'assign_student_subscription',
                       params: {
-                        'p_student_id': '90000000-0000-0000-0000-000000000001',
+                        'p_student_id': selectedStudent.id,
                         'p_plan_id': selectedPlanId,
                       },
                     );
@@ -256,7 +281,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     final amountCtrl = TextEditingController(
       text: (inv.totalMinor / 100).toStringAsFixed(0),
     );
-    final notesCtrl = TextEditingController(text: 'Authorized Cash Settlement');
+    final notesCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -327,172 +352,211 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 4,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Finance & Billing Management'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(icon: Icon(Icons.card_membership), text: 'Plans'),
-              Tab(icon: Icon(Icons.assignment_ind), text: 'Assign'),
-              Tab(icon: Icon(Icons.receipt_long), text: 'Invoices'),
-              Tab(icon: Icon(Icons.receipt), text: 'Receipts'),
-            ],
+      child: PortalPageShell(
+        title: 'Finance & Billing',
+        subtitle: 'Plans, subscriptions, invoices, payments, and receipts.',
+        icon: Icons.monetization_on,
+        accentColor: AppColors.adminRole,
+        actions: [
+          PortalAction(
+            icon: Icons.refresh,
+            label: 'Refresh',
+            onPressed: _loadFinanceData,
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _loadFinanceData,
+          PortalAction(
+            icon: Icons.add,
+            label: 'Add Plan',
+            onPressed: _showCreatePlanDialog,
+            primary: true,
+          ),
+        ],
+        child: Column(
+          children: [
+            const TabBar(
+              tabs: [
+                Tab(icon: Icon(Icons.card_membership), text: 'Plans'),
+                Tab(icon: Icon(Icons.assignment_ind), text: 'Assign'),
+                Tab(icon: Icon(Icons.receipt_long), text: 'Invoices'),
+                Tab(icon: Icon(Icons.receipt), text: 'Receipts'),
+              ],
             ),
-          ],
-        ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                children: [
-                  // Tab 1: Subscription Plans
-                  Scaffold(
-                    floatingActionButton: FloatingActionButton.extended(
-                      onPressed: _showCreatePlanDialog,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Plan'),
-                    ),
-                    body: _plans.isEmpty
+            const SizedBox(height: 12),
+            Expanded(
+              child: PortalStateView(
+                isLoading: _isLoading,
+                errorMessage: _errorMessage,
+                isEmpty: false,
+                emptyTitle: 'No finance data',
+                emptySubtitle: 'Create plans and students before billing.',
+                emptyIcon: Icons.monetization_on,
+                onRetry: _loadFinanceData,
+                child: TabBarView(
+                  children: [
+                    _plans.isEmpty
                         ? const Center(
                             child: Text('No subscription plans found.'),
                           )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
+                        : ListView.separated(
+                            padding: EdgeInsets.zero,
                             itemCount: _plans.length,
+                            separatorBuilder: (ctx, i) =>
+                                const SizedBox(height: 8),
                             itemBuilder: (ctx, i) {
                               final p = _plans[i];
-                              return Card(
-                                child: ListTile(
-                                  leading: const CircleAvatar(
-                                    child: Icon(Icons.card_membership),
-                                  ),
-                                  title: Text(
-                                    p.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  subtitle: Text(
+                              return PortalListCard(
+                                icon: Icons.card_membership,
+                                accentColor: AppColors.adminRole,
+                                title: p.name,
+                                subtitle:
                                     '${p.description ?? ""}\nBilling: ${p.billingType.toUpperCase()} | Total: ${(p.totalAmountMinor / 100).toStringAsFixed(0)} EGP',
+                                trailing: [PortalStatusChip(status: p.status)],
+                              );
+                            },
+                          ),
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_students.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 8,
+                              ),
+                              child: DropdownButtonFormField<Student>(
+                                initialValue: _selectedStudent,
+                                decoration: const InputDecoration(
+                                  labelText: 'Student',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items: _students
+                                    .map(
+                                      (s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(
+                                          '${s.fullName} (${s.studentCode})',
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (student) {
+                                  if (student == null) return;
+                                  setState(() => _selectedStudent = student);
+                                  _loadFinanceData();
+                                },
+                              ),
+                            ),
+                          const Icon(
+                            Icons.assignment_ind,
+                            size: 64,
+                            color: Colors.blue,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Assign Tuition & Subscription Plans to Students',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed:
+                                _selectedStudent == null || _plans.isEmpty
+                                ? null
+                                : _showAssignSubscriptionDialog,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Assign Subscription to Student'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Tab 3: Invoices
+                    _invoices.isEmpty
+                        ? const Center(child: Text('No invoices found.'))
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _invoices.length,
+                            separatorBuilder: (ctx, i) =>
+                                const Divider(height: 1),
+                            itemBuilder: (ctx, i) {
+                              final inv = _invoices[i];
+                              final isUnpaid = inv.status != 'paid';
+
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: isUnpaid
+                                      ? Colors.orange.shade100
+                                      : Colors.green.shade100,
+                                  child: Icon(
+                                    Icons.receipt_long,
+                                    color: isUnpaid
+                                        ? Colors.orange
+                                        : Colors.green,
                                   ),
+                                ),
+                                title: Text(
+                                  inv.invoiceNumber,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  'Total: ${(inv.totalMinor / 100).toStringAsFixed(0)} EGP | Paid: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} EGP\nStatus: ${inv.status.toUpperCase()}',
+                                ),
+                                trailing: isUnpaid
+                                    ? ElevatedButton(
+                                        onPressed: () =>
+                                            _showRecordPaymentDialog(inv),
+                                        child: const Text('Record Payment'),
+                                      )
+                                    : const Chip(
+                                        label: Text(
+                                          'SETTLED',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                        backgroundColor: Colors.green,
+                                      ),
+                              );
+                            },
+                          ),
+                    // Tab 4: Receipts
+                    _receipts.isEmpty
+                        ? const Center(
+                            child: Text('No payment receipts generated yet.'),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _receipts.length,
+                            separatorBuilder: (ctx, i) =>
+                                const Divider(height: 1),
+                            itemBuilder: (ctx, i) {
+                              final rec = _receipts[i];
+                              return ListTile(
+                                leading: const CircleAvatar(
+                                  child: Icon(Icons.receipt),
+                                ),
+                                title: Text(
+                                  'Receipt #${rec.id.substring(0, 8)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  'Amount Paid: ${(rec.amountMinor / 100).toStringAsFixed(0)} ${rec.currency}\nIssued: ${rec.issuedAt.year}-${rec.issuedAt.month}-${rec.issuedAt.day}',
                                 ),
                               );
                             },
                           ),
-                  ),
-                  // Tab 2: Assign Subscription
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.assignment_ind,
-                          size: 64,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Assign Tuition & Subscription Plans to Students',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: _showAssignSubscriptionDialog,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Assign Subscription to Student'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Tab 3: Invoices
-                  _invoices.isEmpty
-                      ? const Center(child: Text('No invoices found.'))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _invoices.length,
-                          separatorBuilder: (ctx, i) =>
-                              const Divider(height: 1),
-                          itemBuilder: (ctx, i) {
-                            final inv = _invoices[i];
-                            final isUnpaid = inv.status != 'paid';
-
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: isUnpaid
-                                    ? Colors.orange.shade100
-                                    : Colors.green.shade100,
-                                child: Icon(
-                                  Icons.receipt_long,
-                                  color: isUnpaid
-                                      ? Colors.orange
-                                      : Colors.green,
-                                ),
-                              ),
-                              title: Text(
-                                inv.invoiceNumber,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Text(
-                                'Total: ${(inv.totalMinor / 100).toStringAsFixed(0)} EGP | Paid: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} EGP\nStatus: ${inv.status.toUpperCase()}',
-                              ),
-                              trailing: isUnpaid
-                                  ? ElevatedButton(
-                                      onPressed: () =>
-                                          _showRecordPaymentDialog(inv),
-                                      child: const Text('Record Payment'),
-                                    )
-                                  : const Chip(
-                                      label: Text(
-                                        'SETTLED',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                      backgroundColor: Colors.green,
-                                    ),
-                            );
-                          },
-                        ),
-                  // Tab 4: Receipts
-                  _receipts.isEmpty
-                      ? const Center(
-                          child: Text('No payment receipts generated yet.'),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _receipts.length,
-                          separatorBuilder: (ctx, i) =>
-                              const Divider(height: 1),
-                          itemBuilder: (ctx, i) {
-                            final rec = _receipts[i];
-                            return ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.receipt),
-                              ),
-                              title: Text(
-                                'Receipt #${rec.id.substring(0, 8)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Text(
-                                'Amount Paid: ${(rec.amountMinor / 100).toStringAsFixed(0)} ${rec.currency}\nIssued: ${rec.issuedAt.year}-${rec.issuedAt.month}-${rec.issuedAt.day}',
-                              ),
-                            );
-                          },
-                        ),
-                ],
+                  ],
+                ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }

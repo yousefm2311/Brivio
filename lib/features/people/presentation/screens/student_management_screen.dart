@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 
@@ -179,72 +181,59 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           s.studentCode.toLowerCase().contains(q);
     }).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Student Management'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadStudents),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showProvisionStudentDialog,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Provision Student'),
-      ),
-      body: Column(
+    return PortalPageShell(
+      title: 'Student Management',
+      subtitle:
+          'Provision student accounts and review academy enrollment data.',
+      icon: Icons.school,
+      accentColor: AppColors.studentRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadStudents,
+        ),
+        PortalAction(
+          icon: Icons.person_add,
+          label: 'Provision Student',
+          onPressed: _showProvisionStudentDialog,
+          primary: true,
+        ),
+      ],
+      child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search Students',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
+          PortalSearchField(
+            controller: _searchController,
+            label: 'Search students',
+            onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 12),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Error: $_errorMessage',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _loadStudents,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                : filtered.isEmpty
-                ? const Center(child: Text('No students found.'))
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
-                    separatorBuilder: (ctx, i) => const Divider(height: 1),
-                    itemBuilder: (ctx, i) {
-                      final s = filtered[i];
-                      return ListTile(
-                        leading: const CircleAvatar(child: Icon(Icons.school)),
-                        title: Text(
-                          s.fullName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          'Code: ${s.studentCode} | Email: ${s.email}',
-                        ),
-                      );
-                    },
-                  ),
+            child: PortalStateView(
+              isLoading: _isLoading,
+              errorMessage: _errorMessage,
+              isEmpty: filtered.isEmpty,
+              emptyTitle: 'No students found',
+              emptySubtitle:
+                  'Provision students from here after branches exist.',
+              emptyIcon: Icons.school,
+              onRetry: _loadStudents,
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: filtered.length,
+                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) {
+                  final s = filtered[i];
+                  return PortalListCard(
+                    icon: Icons.school,
+                    accentColor: AppColors.studentRole,
+                    title: s.fullName,
+                    subtitle: 'Code: ${s.studentCode} | Email: ${s.email}',
+                    trailing: [PortalStatusChip(status: s.status)],
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),

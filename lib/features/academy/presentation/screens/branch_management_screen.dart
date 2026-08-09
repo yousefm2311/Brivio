@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
 
@@ -256,88 +258,65 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
           b.code.toLowerCase().contains(q);
     }).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Branch Management'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadBranches),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateBranchDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Branch'),
-      ),
-      body: Column(
+    return PortalPageShell(
+      title: 'Branch Management',
+      subtitle: 'Create, edit, search, and archive academy branches.',
+      icon: Icons.domain,
+      accentColor: AppColors.adminRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadBranches,
+        ),
+        PortalAction(
+          icon: Icons.add,
+          label: 'Add Branch',
+          onPressed: _showCreateBranchDialog,
+          primary: true,
+        ),
+      ],
+      child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search Branches',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
+          PortalSearchField(
+            controller: _searchController,
+            label: 'Search branches',
+            onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 12),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Error: $_errorMessage',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _loadBranches,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                : filtered.isEmpty
-                ? const Center(child: Text('No branches found.'))
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
-                    separatorBuilder: (ctx, i) => const Divider(height: 1),
-                    itemBuilder: (ctx, i) {
-                      final b = filtered[i];
-                      return ListTile(
-                        leading: const CircleAvatar(child: Icon(Icons.domain)),
-                        title: Text(
-                          b.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          'Code: ${b.code} | Address: ${b.address ?? "N/A"}',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Chip(
-                              label: Text(b.status.toUpperCase()),
-                              backgroundColor: b.status == 'active'
-                                  ? Colors.green.shade100
-                                  : Colors.grey.shade200,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _showEditBranchDialog(b),
-                              tooltip: 'Edit Branch',
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+            child: PortalStateView(
+              isLoading: _isLoading,
+              errorMessage: _errorMessage,
+              isEmpty: filtered.isEmpty,
+              emptyTitle: 'No branches found',
+              emptySubtitle: 'Add the first branch or change your search.',
+              emptyIcon: Icons.domain,
+              onRetry: _loadBranches,
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: filtered.length,
+                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) {
+                  final b = filtered[i];
+                  return PortalListCard(
+                    icon: Icons.domain,
+                    accentColor: AppColors.adminRole,
+                    title: b.name,
+                    subtitle:
+                        'Code: ${b.code} | Address: ${b.address ?? "N/A"}',
+                    trailing: [
+                      PortalStatusChip(status: b.status),
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () => _showEditBranchDialog(b),
+                        tooltip: 'Edit Branch',
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),

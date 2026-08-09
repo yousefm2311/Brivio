@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 
@@ -178,72 +180,57 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           t.email.toLowerCase().contains(q);
     }).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Teacher Management'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadTeachers),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showProvisionTeacherDialog,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Provision Teacher'),
-      ),
-      body: Column(
+    return PortalPageShell(
+      title: 'Teacher Management',
+      subtitle: 'Provision teachers and monitor their subject assignments.',
+      icon: Icons.person,
+      accentColor: AppColors.teacherRole,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadTeachers,
+        ),
+        PortalAction(
+          icon: Icons.person_add,
+          label: 'Provision Teacher',
+          onPressed: _showProvisionTeacherDialog,
+          primary: true,
+        ),
+      ],
+      child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search Teachers',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
+          PortalSearchField(
+            controller: _searchController,
+            label: 'Search teachers',
+            onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 12),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Error: $_errorMessage',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _loadTeachers,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                : filtered.isEmpty
-                ? const Center(child: Text('No teachers found.'))
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
-                    separatorBuilder: (ctx, i) => const Divider(height: 1),
-                    itemBuilder: (ctx, i) {
-                      final t = filtered[i];
-                      return ListTile(
-                        leading: const CircleAvatar(child: Icon(Icons.person)),
-                        title: Text(
-                          t.fullName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          'Email: ${t.email} | Specialization: ${t.specialization ?? "N/A"}',
-                        ),
-                      );
-                    },
-                  ),
+            child: PortalStateView(
+              isLoading: _isLoading,
+              errorMessage: _errorMessage,
+              isEmpty: filtered.isEmpty,
+              emptyTitle: 'No teachers found',
+              emptySubtitle: 'Provision teacher accounts after branches exist.',
+              emptyIcon: Icons.person,
+              onRetry: _loadTeachers,
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: filtered.length,
+                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) {
+                  final t = filtered[i];
+                  return PortalListCard(
+                    icon: Icons.person,
+                    accentColor: AppColors.teacherRole,
+                    title: t.fullName,
+                    subtitle:
+                        'Email: ${t.email} | Specialization: ${t.specialization ?? "N/A"}',
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),

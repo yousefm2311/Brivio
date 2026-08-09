@@ -68,18 +68,12 @@ class TeacherProfileScreen extends StatelessWidget {
                     ListTile(
                       leading: const Icon(Icons.badge),
                       title: const Text('Teacher Domain ID'),
-                      subtitle: Text(
-                        bootstrap?.teacherId ??
-                            '70000000-0000-0000-0000-000000000001',
-                      ),
+                      subtitle: Text(bootstrap?.teacherId ?? 'Not provisioned'),
                     ),
                     ListTile(
                       leading: const Icon(Icons.domain),
                       title: const Text('Primary Branch ID'),
-                      subtitle: Text(
-                        user?.branchId ??
-                            '20000000-0000-0000-0000-000000000001',
-                      ),
+                      subtitle: Text(user?.branchId ?? 'Not assigned'),
                     ),
                     ListTile(
                       leading: const Icon(Icons.security),

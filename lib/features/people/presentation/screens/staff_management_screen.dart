@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 
@@ -185,63 +187,51 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Staff & Admin Management'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadStaff),
-        ],
+    return PortalPageShell(
+      title: 'Staff & Admin Management',
+      subtitle: 'Provision operations staff and branch admin accounts.',
+      icon: Icons.badge,
+      accentColor: AppColors.info,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'Refresh',
+          onPressed: _loadStaff,
+        ),
+        PortalAction(
+          icon: Icons.person_add,
+          label: 'Provision Staff',
+          onPressed: _showProvisionStaffDialog,
+          primary: true,
+        ),
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: _staffProfiles.isEmpty,
+        emptyTitle: 'No staff accounts found',
+        emptySubtitle: 'Provision staff or admin users from here.',
+        emptyIcon: Icons.badge,
+        onRetry: _loadStaff,
+        child: ListView.separated(
+          padding: EdgeInsets.zero,
+          itemCount: _staffProfiles.length,
+          separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+          itemBuilder: (ctx, i) {
+            final p = _staffProfiles[i];
+            return PortalListCard(
+              icon: Icons.badge,
+              accentColor: AppColors.info,
+              title: (p['full_name'] as String?) ?? 'Staff Member',
+              subtitle:
+                  'Email: ${p['email']} | Role: ${(p['role'] as String? ?? "staff").toUpperCase()}',
+              trailing: [
+                PortalStatusChip(status: (p['status'] as String? ?? "active")),
+              ],
+            );
+          },
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showProvisionStaffDialog,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Provision Staff'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Error: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadStaff,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          : _staffProfiles.isEmpty
-          ? const Center(child: Text('No staff or admin accounts found.'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _staffProfiles.length,
-              separatorBuilder: (ctx, i) => const Divider(height: 1),
-              itemBuilder: (ctx, i) {
-                final p = _staffProfiles[i];
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.badge)),
-                  title: Text(
-                    (p['full_name'] as String?) ?? 'Staff Member',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    'Email: ${p['email']} | Role: ${(p['role'] as String? ?? "staff").toUpperCase()}',
-                  ),
-                  trailing: Chip(
-                    label: Text(
-                      (p['status'] as String? ?? "active").toUpperCase(),
-                    ),
-                    backgroundColor: Colors.blue.shade100,
-                  ),
-                );
-              },
-            ),
     );
   }
 }
