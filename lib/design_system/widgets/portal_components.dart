@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
 import '../tokens/colors.dart';
 
 class PortalDestination {
@@ -57,11 +58,11 @@ class PortalScaffold extends StatelessWidget {
       appBar: isWide
           ? null
           : AppBar(
-              title: Text(destinations[selectedIndex].label),
+              title: Text(context.l10n.t(destinations[selectedIndex].label)),
               actions: [
                 if (onRefresh != null)
                   IconButton(
-                    tooltip: 'Refresh',
+                    tooltip: context.tr('refresh'),
                     onPressed: onRefresh,
                     icon: const Icon(Icons.refresh),
                   ),
@@ -136,7 +137,7 @@ class _PortalNavigation extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          title,
+                          context.l10n.t(title),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.titleMedium?.copyWith(
@@ -144,7 +145,7 @@ class _PortalNavigation extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          subtitle,
+                          context.l10n.t(subtitle),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall,
@@ -180,7 +181,7 @@ class _PortalNavigation extends StatelessWidget {
                           color: selected ? accentColor : null,
                         ),
                         title: Text(
-                          item.label,
+                          context.l10n.t(item.label),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -202,7 +203,7 @@ class _PortalNavigation extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onSignOut,
                   icon: const Icon(Icons.logout),
-                  label: const Text('Sign out'),
+                  label: Text(context.tr('sign_out')),
                 ),
               ),
           ],
@@ -257,7 +258,7 @@ class PortalHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  eyebrow.toUpperCase(),
+                  context.l10n.t(eyebrow).toUpperCase(),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: accentColor,
                     fontWeight: FontWeight.w900,
@@ -265,7 +266,7 @@ class PortalHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  title,
+                  context.l10n.t(title),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.headlineSmall?.copyWith(
@@ -274,7 +275,7 @@ class PortalHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  subtitle,
+                  context.l10n.t(subtitle),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium,
@@ -338,7 +339,7 @@ class PortalMetricCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                label,
+                context.l10n.t(label),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -397,14 +398,14 @@ class PortalSectionTitle extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          title,
+          context.l10n.t(title),
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w900,
           ),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 4),
-          Text(subtitle!, style: theme.textTheme.bodyMedium),
+          Text(context.l10n.t(subtitle!), style: theme.textTheme.bodyMedium),
         ],
       ],
     );
@@ -431,7 +432,7 @@ class PortalErrorBanner extends StatelessWidget {
             const Icon(Icons.error_outline, color: AppColors.error),
             const SizedBox(width: 10),
             Expanded(child: Text(message)),
-            TextButton(onPressed: onRetry, child: const Text('Retry')),
+            TextButton(onPressed: onRetry, child: Text(context.tr('retry'))),
           ],
         ),
       ),
@@ -483,11 +484,11 @@ class PortalPageShell extends StatelessWidget {
         return FilledButton.icon(
           onPressed: action.onPressed,
           icon: Icon(action.icon),
-          label: Text(action.label),
+          label: Text(context.l10n.t(action.label)),
         );
       }
       return IconButton.filledTonal(
-        tooltip: action.label,
+        tooltip: context.l10n.t(action.label),
         onPressed: action.onPressed,
         icon: Icon(action.icon),
       );
@@ -542,12 +543,12 @@ class PortalSearchField extends StatelessWidget {
     return TextField(
       controller: controller,
       decoration: InputDecoration(
-        labelText: label,
+        labelText: context.l10n.t(label),
         prefixIcon: const Icon(Icons.search),
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
-                tooltip: 'Clear search',
+                tooltip: context.l10n.t('Clear search'),
                 icon: const Icon(Icons.close),
                 onPressed: () {
                   controller.clear();
@@ -609,7 +610,7 @@ class PortalStateView extends StatelessWidget {
                   Icon(emptyIcon, size: 40, color: theme.colorScheme.primary),
                   const SizedBox(height: 12),
                   Text(
-                    emptyTitle,
+                    context.l10n.t(emptyTitle),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w900,
@@ -617,7 +618,7 @@ class PortalStateView extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    emptySubtitle,
+                    context.l10n.t(emptySubtitle),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium,
                   ),

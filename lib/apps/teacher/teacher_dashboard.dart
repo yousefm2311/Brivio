@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/network/supabase_client_wrapper.dart';
+import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
@@ -379,6 +380,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       TeacherFinanceScreen(teacherId: teacherId),
       // Tab 4: Profile Account
       TeacherProfileScreen(authViewModel: widget.authViewModel),
+      const AppSettingsScreen(),
     ];
 
     return PortalScaffold(
@@ -394,6 +396,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         PortalDestination(icon: Icons.grading, label: 'Operations'),
         PortalDestination(icon: Icons.payments, label: 'Finance'),
         PortalDestination(icon: Icons.person, label: 'Account'),
+        PortalDestination(icon: Icons.settings, label: 'Settings'),
       ],
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
       onRefresh: _loadTeacherMetrics,

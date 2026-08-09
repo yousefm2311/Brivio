@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/security/permission.dart';
+import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
@@ -36,6 +37,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
     PortalDestination(icon: Icons.assignment_late, label: 'Queues'),
     PortalDestination(icon: Icons.school, label: 'Students'),
     PortalDestination(icon: Icons.group_work, label: 'Groups'),
+    PortalDestination(icon: Icons.settings, label: 'Settings'),
   ];
 
   @override
@@ -478,6 +480,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       1 => _queuesPage(),
       2 => _studentsPage(),
       3 => _groupsPage(),
+      4 => const AppSettingsPanel(),
       _ => _overviewPage(),
     };
   }

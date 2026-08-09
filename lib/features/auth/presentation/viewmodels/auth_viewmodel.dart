@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_application_1/core/errors/failures.dart';
 import 'package:flutter_application_1/core/logging/app_logger.dart';
+import 'package:flutter_application_1/core/notifications/push_notification_service.dart';
 import 'package:flutter_application_1/core/security/permission.dart';
 import 'package:flutter_application_1/features/auth/domain/models/auth_user_bootstrap.dart';
 import 'package:flutter_application_1/features/auth/domain/models/user_profile.dart';
@@ -53,10 +54,11 @@ class AuthViewModel extends ChangeNotifier {
   static const _sessionRestoreTimeout = Duration(seconds: 12);
 
   final IAuthRepository _authRepository;
+  final PushNotificationService? pushNotificationService;
   AuthState _state = AuthState.initial();
   bool _isRestoringSession = false;
 
-  AuthViewModel(this._authRepository);
+  AuthViewModel(this._authRepository, {this.pushNotificationService});
 
   AuthState get state => _state;
   UserProfile? get currentUser => _state.profile;
@@ -87,6 +89,7 @@ class AuthViewModel extends ChangeNotifier {
           _sessionRestoreTimeout,
         );
         _state = AuthState.authenticated(bootstrap);
+        unawaited(pushNotificationService?.syncCurrentToken());
         AppLogger.info('Auth session restored for role ${bootstrap.role}.');
       }
     } on TimeoutException {
@@ -125,6 +128,7 @@ class AuthViewModel extends ChangeNotifier {
       );
       final bootstrap = await _authRepository.fetchUserBootstrap();
       _state = AuthState.authenticated(bootstrap);
+      unawaited(pushNotificationService?.syncCurrentToken());
     } on Failure catch (f) {
       _state = AuthState.error(f);
     } catch (e) {
@@ -159,6 +163,7 @@ class AuthViewModel extends ChangeNotifier {
       );
       final bootstrap = await _authRepository.fetchUserBootstrap();
       _state = AuthState.authenticated(bootstrap);
+      unawaited(pushNotificationService?.syncCurrentToken());
     } on Failure catch (f) {
       _state = AuthState.error(f);
     } catch (e) {
@@ -191,6 +196,7 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await pushNotificationService?.unregisterCurrentToken();
       await _authRepository.signOut();
       _state = AuthState.unauthenticated();
     } on Failure catch (f) {

@@ -4,6 +4,7 @@ import 'apps/parent/parent_dashboard.dart';
 import 'apps/staff/staff_dashboard.dart';
 import 'apps/student/student_dashboard.dart';
 import 'apps/teacher/teacher_dashboard.dart';
+import 'core/app/academy_material_app.dart';
 import 'core/di/injection.dart';
 import 'core/logging/app_logger.dart';
 import 'core/security/access_denied_screen.dart';
@@ -112,12 +113,8 @@ class _MainAppSelectorState extends State<MainAppSelector> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Academy Platform',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme(),
-      darkTheme: AppTheme.darkTheme(),
-      themeMode: ThemeMode.system,
+    return AcademyMaterialApp(
+      titleKey: 'academy_platform',
       home: ListenableBuilder(
         listenable: _viewModel,
         builder: (context, _) {

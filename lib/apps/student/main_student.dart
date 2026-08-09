@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/app/academy_material_app.dart';
 import '../../core/di/injection.dart';
 import '../../core/security/access_denied_screen.dart';
-import '../../design_system/theme/app_theme.dart';
 import '../../features/auth/domain/models/user_role.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
@@ -32,12 +32,8 @@ class _StudentAppState extends State<StudentApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Academy - Student Portal',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme(),
-      darkTheme: AppTheme.darkTheme(),
-      themeMode: ThemeMode.system,
+    return AcademyMaterialApp(
+      titleKey: 'student_portal',
       home: ListenableBuilder(
         listenable: _viewModel,
         builder: (context, _) {

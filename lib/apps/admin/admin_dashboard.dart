@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/network/supabase_client_wrapper.dart';
+import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/admin/presentation/screens/data_import_screen.dart';
@@ -280,6 +281,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const AuditLogScreen(),
       const StudyReplayScreen(),
       const DataImportScreen(),
+      const AppSettingsScreen(),
     ];
 
     return PortalScaffold(
@@ -308,6 +310,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         PortalDestination(icon: Icons.manage_search, label: 'Audit'),
         PortalDestination(icon: Icons.video_library, label: 'Replay'),
         PortalDestination(icon: Icons.upload_file, label: 'Import'),
+        PortalDestination(icon: Icons.settings, label: 'Settings'),
       ],
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
       onRefresh: _loadSummaryData,

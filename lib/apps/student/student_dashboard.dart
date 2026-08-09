@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/network/supabase_client_wrapper.dart';
+import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
@@ -551,6 +552,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         onSignOut: widget.authViewModel.signOut,
         onProfileChanged: widget.authViewModel.restoreSession,
       ),
+      const AppSettingsScreen(),
     ];
 
     return PortalScaffold(
@@ -570,6 +572,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         PortalDestination(icon: Icons.notifications, label: 'Notifications'),
         PortalDestination(icon: Icons.receipt_long, label: 'Billing'),
         PortalDestination(icon: Icons.account_circle, label: 'Account'),
+        PortalDestination(icon: Icons.settings, label: 'Settings'),
       ],
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
       onRefresh: _loadStudentLearning,

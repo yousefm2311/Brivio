@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.8.3
@@ -31,6 +33,9 @@ dependencies:
   xml: ^7.0.1
   device_info_plus: ^12.4.0
   geolocator: ^14.0.2
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
+  flutter_local_notifications: ^22.3.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/network/supabase_client_wrapper.dart';
+import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
@@ -46,6 +47,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     PortalDestination(icon: Icons.receipt_long, label: 'Payments'),
     PortalDestination(icon: Icons.summarize, label: 'Report'),
     PortalDestination(icon: Icons.notifications, label: 'Notifications'),
+    PortalDestination(icon: Icons.settings, label: 'Settings'),
   ];
 
   @override
@@ -384,6 +386,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       3 => _buildPaymentsPage(),
       4 => _buildMonthlyReportPage(),
       5 => _buildNotificationsPage(),
+      6 => const AppSettingsPanel(),
       _ => _buildOverviewPage(),
     };
   }

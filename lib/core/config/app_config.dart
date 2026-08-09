@@ -24,6 +24,43 @@ class AppConfig {
     defaultValue: '',
   );
 
+  static const String firebaseApiKey = String.fromEnvironment(
+    'FIREBASE_API_KEY',
+    defaultValue: '',
+  );
+
+  static const String firebaseAppId = String.fromEnvironment(
+    'FIREBASE_APP_ID',
+    defaultValue: '',
+  );
+
+  static const String firebaseMessagingSenderId = String.fromEnvironment(
+    'FIREBASE_MESSAGING_SENDER_ID',
+    defaultValue: '',
+  );
+
+  static const String firebaseProjectId = String.fromEnvironment(
+    'FIREBASE_PROJECT_ID',
+    defaultValue: '',
+  );
+
+  static const String firebaseStorageBucket = String.fromEnvironment(
+    'FIREBASE_STORAGE_BUCKET',
+    defaultValue: '',
+  );
+
+  static const String firebaseIosBundleId = String.fromEnvironment(
+    'FIREBASE_IOS_BUNDLE_ID',
+    defaultValue: '',
+  );
+
+  static bool get hasFirebaseConfig {
+    return firebaseApiKey.trim().isNotEmpty &&
+        firebaseAppId.trim().isNotEmpty &&
+        firebaseMessagingSenderId.trim().isNotEmpty &&
+        firebaseProjectId.trim().isNotEmpty;
+  }
+
   static Map<String, String> get codeSandboxHeaders {
     final headers = {'Content-Type': 'application/json'};
     if (codeSandboxApiKey.trim().isNotEmpty) {

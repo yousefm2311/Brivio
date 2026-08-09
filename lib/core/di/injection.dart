@@ -13,7 +13,9 @@ import '../../features/communication/domain/repositories/i_conversation_reposito
 import '../../features/communication/domain/repositories/i_message_repository.dart';
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
 import '../config/app_config.dart';
+import '../localization/app_locale_controller.dart';
 import '../network/supabase_client_wrapper.dart';
+import '../notifications/push_notification_service.dart';
 
 final getIt = GetIt.instance;
 
@@ -41,6 +43,20 @@ Future<void> setupDependencyInjection({
     getIt.registerSingleton<SupabaseClientWrapper>(wrapper);
   }
 
+  if (!getIt.isRegistered<AppLocaleController>()) {
+    final localeController = AppLocaleController();
+    await localeController.load();
+    getIt.registerSingleton<AppLocaleController>(localeController);
+  }
+
+  if (AppConfig.hasFirebaseConfig &&
+      !getIt.isRegistered<PushNotificationService>() &&
+      getIt.isRegistered<SupabaseClientWrapper>()) {
+    final pushService = PushNotificationService(getIt<SupabaseClientWrapper>());
+    await pushService.initialize();
+    getIt.registerSingleton<PushNotificationService>(pushService);
+  }
+
   if (authRepository != null) {
     if (getIt.isRegistered<IAuthRepository>()) {
       getIt.unregister<IAuthRepository>();
@@ -58,7 +74,12 @@ Future<void> setupDependencyInjection({
   }
   if (getIt.isRegistered<IAuthRepository>()) {
     getIt.registerFactory<AuthViewModel>(
-      () => AuthViewModel(getIt<IAuthRepository>()),
+      () => AuthViewModel(
+        getIt<IAuthRepository>(),
+        pushNotificationService: getIt.isRegistered<PushNotificationService>()
+            ? getIt<PushNotificationService>()
+            : null,
+      ),
     );
   }
 
