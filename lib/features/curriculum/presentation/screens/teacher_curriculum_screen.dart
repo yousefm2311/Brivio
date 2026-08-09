@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
@@ -214,83 +217,145 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
     final titleCtrl = TextEditingController(
       text: '${lesson.title} PDF Resource',
     );
-    final objectPathCtrl = TextEditingController(text: 'lessons/${lesson.id}/');
+    XFile? selectedFile;
+    bool isUploading = false;
+    final messenger = ScaffoldMessenger.of(context);
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Attach Resource (${lesson.title})'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Resource Title'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: objectPathCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Storage object path',
-                hintText: 'lessons/<lesson-id>/lecture.pdf',
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Upload PDF (${lesson.title})'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Resource Title'),
               ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: isUploading
+                    ? null
+                    : () async {
+                        final file = await openFile(
+                          acceptedTypeGroups: const [
+                            XTypeGroup(
+                              label: 'PDF',
+                              extensions: ['pdf'],
+                              mimeTypes: ['application/pdf'],
+                            ),
+                          ],
+                        );
+                        if (file == null) return;
+                        setDialogState(() {
+                          selectedFile = file;
+                          if (titleCtrl.text.trim().isEmpty) {
+                            titleCtrl.text = file.name;
+                          }
+                        });
+                      },
+                icon: const Icon(Icons.picture_as_pdf),
+                label: const Text('Choose PDF'),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                selectedFile == null
+                    ? 'No PDF selected.'
+                    : 'Selected: ${selectedFile!.name}',
+                textAlign: TextAlign.center,
+              ),
+              if (isUploading) ...[
+                const SizedBox(height: 16),
+                const LinearProgressIndicator(),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isUploading ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.cloud_upload),
+              label: const Text('Upload & Attach'),
+              onPressed: isUploading
+                  ? null
+                  : () async {
+                      final file = selectedFile;
+                      final bytes = file == null
+                          ? null
+                          : await file.readAsBytes();
+                      if (titleCtrl.text.trim().isEmpty ||
+                          file == null ||
+                          bytes == null) {
+                        return;
+                      }
+
+                      final nav = Navigator.of(ctx);
+                      setDialogState(() => isUploading = true);
+                      try {
+                        final objectPath = _buildLessonResourcePath(
+                          lesson.id,
+                          file.name,
+                        );
+                        await Supabase.instance.client.storage
+                            .from('curriculum_assets')
+                            .uploadBinary(
+                              objectPath,
+                              Uint8List.fromList(bytes),
+                              fileOptions: const FileOptions(
+                                contentType: 'application/pdf',
+                                upsert: true,
+                              ),
+                            );
+
+                        final res = LessonResource(
+                          id: '',
+                          lessonId: lesson.id,
+                          title: titleCtrl.text.trim(),
+                          resourceType: 'pdf',
+                          bucket: 'curriculum_assets',
+                          objectPath: objectPath,
+                          orderNumber: lesson.resources.length + 1,
+                        );
+
+                        await _resourceRepo.createResource(res);
+                        nav.pop();
+                        await _loadCurriculum();
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('PDF uploaded and attached.'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() => isUploading = false);
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Upload failed: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.cloud_upload),
-            label: const Text('Attach Resource'),
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty ||
-                  objectPathCtrl.text.trim().isEmpty) {
-                return;
-              }
-
-              final nav = Navigator.of(ctx);
-              try {
-                final objectPath = objectPathCtrl.text.trim();
-
-                final res = LessonResource(
-                  id: '',
-                  lessonId: lesson.id,
-                  title: titleCtrl.text.trim(),
-                  resourceType: 'pdf',
-                  bucket: 'curriculum_assets',
-                  objectPath: objectPath,
-                  orderNumber: lesson.resources.length + 1,
-                );
-
-                await _resourceRepo.createResource(res);
-                nav.pop();
-                _loadCurriculum();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Resource attached!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Upload failed: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-        ],
       ),
     );
+  }
+
+  String _buildLessonResourcePath(String lessonId, String fileName) {
+    final safeName = fileName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9._-]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+    return 'lessons/$lessonId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
   }
 
   @override

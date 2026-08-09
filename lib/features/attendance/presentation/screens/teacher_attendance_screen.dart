@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/network/supabase_client_wrapper.dart';
@@ -173,6 +177,13 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     );
   }
 
+  void _openQrAttendance(ClassSession session) {
+    showDialog(
+      context: context,
+      builder: (_) => _TeacherAttendanceQrDialog(session: session),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -257,6 +268,12 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 },
                 icon: const Icon(Icons.draw),
               ),
+              if (!isFinalized)
+                IconButton.filledTonal(
+                  tooltip: 'Show rotating attendance QR',
+                  onPressed: () => _openQrAttendance(session),
+                  icon: const Icon(Icons.qr_code_2),
+                ),
               if (isFinalized)
                 const Chip(label: Text('FINALIZED'))
               else
@@ -268,6 +285,141 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _TeacherAttendanceQrDialog extends StatefulWidget {
+  final ClassSession session;
+
+  const _TeacherAttendanceQrDialog({required this.session});
+
+  @override
+  State<_TeacherAttendanceQrDialog> createState() =>
+      _TeacherAttendanceQrDialogState();
+}
+
+class _TeacherAttendanceQrDialogState
+    extends State<_TeacherAttendanceQrDialog> {
+  Timer? _timer;
+  bool _isLoading = true;
+  String? _error;
+  String? _token;
+  DateTime? _expiresAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadQr();
+    _timer = Timer.periodic(const Duration(seconds: 20), (_) => _loadQr());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadQr() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = _token == null;
+      _error = null;
+    });
+
+    try {
+      final response = await Supabase.instance.client.rpc(
+        'get_current_attendance_qr',
+        params: {'p_class_session_id': widget.session.id},
+      );
+      final json = Map<String, dynamic>.from(response as Map);
+      if (!mounted) return;
+      setState(() {
+        _token = json['token']?.toString();
+        _expiresAt = DateTime.tryParse(json['expires_at']?.toString() ?? '');
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final token = _token;
+    final qrPayload = token == null
+        ? null
+        : jsonEncode({'type': 'attendance_qr', 'token': token});
+    final secondsLeft = _expiresAt
+        ?.difference(DateTime.now())
+        .inSeconds
+        .clamp(0, 999);
+
+    return AlertDialog(
+      title: const Text('Attendance QR'),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Students scan this QR to mark themselves present. It rotates every minute.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.all(48),
+                child: CircularProgressIndicator(),
+              )
+            else if (_error != null)
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red),
+              )
+            else if (qrPayload != null)
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: QrImageView(
+                    data: qrPayload,
+                    version: QrVersions.auto,
+                    size: 240,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Text(
+              secondsLeft == null
+                  ? 'Waiting for token'
+                  : 'Expires in ${secondsLeft}s',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+        FilledButton.icon(
+          onPressed: _loadQr,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Refresh'),
+        ),
+      ],
     );
   }
 }

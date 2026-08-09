@@ -10,6 +10,7 @@ import '../../features/academy/presentation/screens/academy_screens.dart';
 import '../../features/assessment/data/repositories/supabase_assessment_repositories.dart';
 import '../../features/assessment/domain/models/assessment_models.dart';
 import '../../features/assessment/presentation/screens/assessment_screens.dart';
+import '../../features/attendance/presentation/screens/student_qr_attendance_screen.dart';
 import '../../features/auth/data/repositories/supabase_auth_repository.dart';
 import '../../features/auth/domain/models/user_profile.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
@@ -517,6 +518,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         attendanceItems: _attendanceItems,
         leaveItems: _leaveItems,
         onCreateLeaveRequest: _createLeaveRequest,
+        onScanQr: _scanAttendanceQr,
       ),
       _StudentGroupsPage(isLoading: _isLoading, groups: _enrolledGroups),
       _StudentSessionBoardsPage(
@@ -574,6 +576,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
       onSignOut: widget.authViewModel.signOut,
       body: pages[_selectedIndex],
     );
+  }
+
+  Future<void> _scanAttendanceQr() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const StudentQrAttendanceScreen()),
+    );
+    await _loadStudentLearning();
   }
 }
 
@@ -926,12 +935,14 @@ class _StudentAttendancePage extends StatelessWidget {
   final List<_StudentAttendanceItem> attendanceItems;
   final List<_StudentLeaveItem> leaveItems;
   final VoidCallback onCreateLeaveRequest;
+  final VoidCallback onScanQr;
 
   const _StudentAttendancePage({
     required this.isLoading,
     required this.attendanceItems,
     required this.leaveItems,
     required this.onCreateLeaveRequest,
+    required this.onScanQr,
   });
 
   @override
@@ -958,10 +969,15 @@ class _StudentAttendancePage extends StatelessWidget {
       accentColor: AppColors.studentRole,
       actions: [
         PortalAction(
+          icon: Icons.qr_code_scanner,
+          label: 'Scan QR',
+          onPressed: onScanQr,
+          primary: true,
+        ),
+        PortalAction(
           icon: Icons.event_busy,
           label: 'Request Leave',
           onPressed: onCreateLeaveRequest,
-          primary: true,
         ),
       ],
       child: PortalStateView(
