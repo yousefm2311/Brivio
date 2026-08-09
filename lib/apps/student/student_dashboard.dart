@@ -623,6 +623,7 @@ class _StudentOverviewPage extends StatelessWidget {
             studentName: userName,
             isLoading: isLoading,
             lesson: nextLesson,
+            gamification: snapshot?.gamification,
             onOpenWorkspace: onOpenWorkspace,
           ),
           const SizedBox(height: 18),
@@ -669,6 +670,10 @@ class _StudentOverviewPage extends StatelessWidget {
             const SizedBox(height: 18),
             _MetricGrid(metrics: snapshot?.metrics ?? const []),
           ],
+          if (snapshot != null) ...[
+            const SizedBox(height: 18),
+            _GamificationPanel(summary: snapshot!.gamification),
+          ],
           const SizedBox(height: 18),
           _SectionHeader(
             title: 'Today',
@@ -712,9 +717,14 @@ class _StudentLessonsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lessonsByPath = <String, List<StudyLessonSummary>>{};
+    for (final lesson in lessons) {
+      lessonsByPath.putIfAbsent(lesson.pathName, () => []).add(lesson);
+    }
+
     return PortalPageShell(
       title: 'My Lessons',
-      subtitle: 'Published lessons assigned to your active groups.',
+      subtitle: 'Published learning paths assigned to your active groups.',
       icon: Icons.menu_book,
       accentColor: AppColors.studentRole,
       child: PortalStateView(
@@ -725,30 +735,72 @@ class _StudentLessonsPage extends StatelessWidget {
         emptySubtitle: 'Lessons appear here after your teacher publishes them.',
         emptyIcon: Icons.menu_book,
         onRetry: () {},
-        child: ListView.separated(
-          itemCount: lessons.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final lesson = lessons[index];
-            return PortalListCard(
-              icon: Icons.play_circle_outline,
-              accentColor: AppColors.studentRole,
-              title: lesson.title,
-              subtitle:
-                  '${lesson.pathName} | ${lesson.unitName} | ${lesson.estimatedMinutes} min | ${lesson.progressPercentage}% complete',
-              trailing: [
-                if (lesson.hasPdf)
-                  const Icon(Icons.picture_as_pdf, color: AppColors.error),
-                if (lesson.hasCodePlayground)
-                  const Icon(Icons.terminal, color: AppColors.success),
-                IconButton(
-                  tooltip: 'Open lesson',
-                  onPressed: () => onOpenLesson(lesson),
-                  icon: const Icon(Icons.chevron_right),
+        child: ListView(
+          children: lessonsByPath.entries.map((entry) {
+            final pathLessons = entry.value;
+            final completeCount = pathLessons
+                .where((lesson) => lesson.progressPercentage >= 100)
+                .length;
+            final progress = pathLessons.isEmpty
+                ? 0.0
+                : completeCount / pathLessons.length;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Card(
+                child: ExpansionTile(
+                  initiallyExpanded: true,
+                  leading: const Icon(Icons.route),
+                  title: Text(entry.key),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 6),
+                      LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 6,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      const SizedBox(height: 6),
+                      Text('$completeCount/${pathLessons.length} completed'),
+                    ],
+                  ),
+                  children: pathLessons
+                      .map(
+                        (lesson) => Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                          child: PortalListCard(
+                            icon: Icons.play_circle_outline,
+                            accentColor: lesson.progressPercentage >= 100
+                                ? AppColors.success
+                                : AppColors.studentRole,
+                            title: lesson.title,
+                            subtitle:
+                                '${lesson.unitName} | ${lesson.estimatedMinutes} min | ${lesson.progressPercentage}% complete',
+                            trailing: [
+                              if (lesson.hasPdf)
+                                const Icon(
+                                  Icons.picture_as_pdf,
+                                  color: AppColors.error,
+                                ),
+                              if (lesson.hasCodePlayground)
+                                const Icon(
+                                  Icons.terminal,
+                                  color: AppColors.success,
+                                ),
+                              IconButton(
+                                tooltip: 'Open lesson',
+                                onPressed: () => onOpenLesson(lesson),
+                                icon: const Icon(Icons.chevron_right),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
-              ],
+              ),
             );
-          },
+          }).toList(),
         ),
       ),
     );
@@ -2101,12 +2153,14 @@ class _HeroPanel extends StatelessWidget {
   final String studentName;
   final bool isLoading;
   final StudyLessonSummary? lesson;
+  final StudentGamificationSummary? gamification;
   final VoidCallback? onOpenWorkspace;
 
   const _HeroPanel({
     required this.studentName,
     required this.isLoading,
     required this.lesson,
+    required this.gamification,
     required this.onOpenWorkspace,
   });
 
@@ -2154,6 +2208,7 @@ class _HeroPanel extends StatelessWidget {
           final progress = _HeroProgressCard(
             isLoading: isLoading,
             lesson: lesson,
+            gamification: gamification,
           );
 
           if (isWide) {
@@ -2179,8 +2234,13 @@ class _HeroPanel extends StatelessWidget {
 class _HeroProgressCard extends StatelessWidget {
   final bool isLoading;
   final StudyLessonSummary? lesson;
+  final StudentGamificationSummary? gamification;
 
-  const _HeroProgressCard({required this.isLoading, required this.lesson});
+  const _HeroProgressCard({
+    required this.isLoading,
+    required this.lesson,
+    required this.gamification,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2210,6 +2270,29 @@ class _HeroProgressCard extends StatelessWidget {
               style: TextStyle(color: Colors.white),
             ),
           ] else ...[
+            if (gamification != null) ...[
+              Text(
+                'Level ${gamification!.level} | ${gamification!.totalXp} XP',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: gamification!.levelProgressPercentage / 100,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(8),
+                backgroundColor: Colors.white24,
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '${gamification!.xpToNextLevel} XP to next level | ${gamification!.streakDays}d streak',
+                style: const TextStyle(color: Colors.white),
+              ),
+              const SizedBox(height: 14),
+            ],
             Text(
               lesson!.pathName,
               style: const TextStyle(
@@ -2232,6 +2315,85 @@ class _HeroProgressCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _GamificationPanel extends StatelessWidget {
+  final StudentGamificationSummary summary;
+
+  const _GamificationPanel({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final badges = summary.badges.take(4).toList();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const PortalSectionTitle(
+              title: 'Learning progress',
+              subtitle: 'XP is awarded from real completed lessons.',
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: AppColors.studentRole.withValues(alpha: .12),
+                  foregroundColor: AppColors.studentRole,
+                  child: Text(
+                    summary.level.toString(),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${summary.totalXp} XP',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: summary.levelProgressPercentage / 100,
+                        minHeight: 8,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${summary.xpToNextLevel} XP to level ${summary.level + 1}',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _FeaturePill(
+                  icon: Icons.local_fire_department,
+                  label: '${summary.streakDays}d streak',
+                ),
+                _FeaturePill(
+                  icon: Icons.workspace_premium,
+                  label: '${summary.badgeCount} badges',
+                ),
+                for (final badge in badges)
+                  _FeaturePill(icon: Icons.military_tech, label: badge),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

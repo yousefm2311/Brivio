@@ -28,6 +28,7 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
       }
 
       final lessons = await _fetchPublishedLessons();
+      final gamification = await _fetchGamificationSummary();
       final completed = lessons
           .where((lesson) => lesson.progressPercentage >= 100)
           .length;
@@ -59,13 +60,35 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
             value: _formatMinutes(totalMinutes),
             helper: 'Planned content',
           ),
+          StudyMetric(
+            label: 'XP',
+            value: gamification.totalXp.toString(),
+            helper: 'Level ${gamification.level}',
+          ),
+          StudyMetric(
+            label: 'Streak',
+            value: '${gamification.streakDays}d',
+            helper: 'Learning days',
+          ),
         ],
         enrolledGroupCount: groups.length,
+        gamification: gamification,
       );
     } catch (e) {
       throw DatabaseFailure(
         message: 'Failed to load student learning snapshot: ${e.toString()}',
       );
+    }
+  }
+
+  Future<StudentGamificationSummary> _fetchGamificationSummary() async {
+    try {
+      final response = await _wrapper.client.rpc(
+        'get_current_student_gamification_summary',
+      );
+      return StudentGamificationSummary.fromJson(response as Map);
+    } catch (_) {
+      return StudentGamificationSummary.empty;
     }
   }
 

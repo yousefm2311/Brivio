@@ -80,15 +80,87 @@ class StudyMetric extends Equatable {
   List<Object?> get props => [label, value, helper];
 }
 
+class StudentGamificationSummary extends Equatable {
+  final int totalXp;
+  final int level;
+  final int levelProgressPercentage;
+  final int xpToNextLevel;
+  final int streakDays;
+  final int badgeCount;
+  final DateTime? lastXpAt;
+  final List<String> badges;
+
+  const StudentGamificationSummary({
+    required this.totalXp,
+    required this.level,
+    required this.levelProgressPercentage,
+    required this.xpToNextLevel,
+    required this.streakDays,
+    required this.badgeCount,
+    required this.lastXpAt,
+    required this.badges,
+  });
+
+  static const empty = StudentGamificationSummary(
+    totalXp: 0,
+    level: 1,
+    levelProgressPercentage: 0,
+    xpToNextLevel: 500,
+    streakDays: 0,
+    badgeCount: 0,
+    lastXpAt: null,
+    badges: [],
+  );
+
+  factory StudentGamificationSummary.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    final badgeNames = (json['badges'] as List<dynamic>? ?? const [])
+        .map((badge) {
+          if (badge is Map) {
+            return badge['name']?.toString() ?? '';
+          }
+          return badge.toString();
+        })
+        .where((name) => name.trim().isNotEmpty)
+        .toList();
+
+    return StudentGamificationSummary(
+      totalXp: (json['total_xp'] as num?)?.round() ?? 0,
+      level: (json['level'] as num?)?.round() ?? 1,
+      levelProgressPercentage:
+          (json['level_progress_percentage'] as num?)?.round() ?? 0,
+      xpToNextLevel: (json['xp_to_next_level'] as num?)?.round() ?? 500,
+      streakDays: (json['streak_days'] as num?)?.round() ?? 0,
+      badgeCount: (json['badge_count'] as num?)?.round() ?? badgeNames.length,
+      lastXpAt: DateTime.tryParse(json['last_xp_at']?.toString() ?? ''),
+      badges: badgeNames,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    totalXp,
+    level,
+    levelProgressPercentage,
+    xpToNextLevel,
+    streakDays,
+    badgeCount,
+    lastXpAt,
+    badges,
+  ];
+}
+
 class StudentLearningSnapshot extends Equatable {
   final List<StudyLessonSummary> availableLessons;
   final List<StudyMetric> metrics;
   final int enrolledGroupCount;
+  final StudentGamificationSummary gamification;
 
   const StudentLearningSnapshot({
     required this.availableLessons,
     required this.metrics,
     required this.enrolledGroupCount,
+    this.gamification = StudentGamificationSummary.empty,
   });
 
   StudyLessonSummary? get nextLesson {
@@ -104,7 +176,12 @@ class StudentLearningSnapshot extends Equatable {
   bool get hasContent => availableLessons.isNotEmpty;
 
   @override
-  List<Object?> get props => [availableLessons, metrics, enrolledGroupCount];
+  List<Object?> get props => [
+    availableLessons,
+    metrics,
+    enrolledGroupCount,
+    gamification,
+  ];
 }
 
 class CodeRunResult extends Equatable {
