@@ -88,8 +88,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   Future<void> _openRollCall(ClassSession session) async {
     final roster = await _studentRepo.fetchStudentsForGroup(session.groupId);
     if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     if (roster.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('No enrolled students in this group.')),
       );
       return;
@@ -154,12 +155,12 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   nav.pop();
                   await _loadGroupsAndSessions();
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Attendance finalized.')),
                   );
                 } catch (e) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(content: Text('Finalization error: $e')),
                   );
                 }

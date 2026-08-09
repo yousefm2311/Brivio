@@ -577,7 +577,10 @@ BEGIN
   RETURN QUERY
   SELECT
     b.id,
-    COALESCE(cs.title, 'Published session board')::TEXT AS title,
+    COALESCE(
+      NULLIF(trim(cs.location), ''),
+      'Session board - ' || to_char(cs.session_date, 'YYYY-MM-DD')
+    )::TEXT AS title,
     trim(COALESCE(g.name, 'Group') || ' ' || COALESCE(g.code, ''))::TEXT AS group_name,
     cs.session_date,
     b.updated_at,

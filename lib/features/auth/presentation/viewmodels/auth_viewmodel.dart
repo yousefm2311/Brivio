@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_application_1/core/errors/failures.dart';
+import 'package:flutter_application_1/core/logging/app_logger.dart';
 import 'package:flutter_application_1/core/security/permission.dart';
 import 'package:flutter_application_1/features/auth/domain/models/auth_user_bootstrap.dart';
 import 'package:flutter_application_1/features/auth/domain/models/user_profile.dart';
@@ -49,6 +50,8 @@ class AuthState {
 }
 
 class AuthViewModel extends ChangeNotifier {
+  static const _sessionRestoreTimeout = Duration(seconds: 12);
+
   final IAuthRepository _authRepository;
   AuthState _state = AuthState.initial();
   bool _isRestoringSession = false;
@@ -71,13 +74,28 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final user = await _authRepository.getCurrentUser();
+      AppLogger.info('Restoring auth session...');
+      final user = await _authRepository.getCurrentUser().timeout(
+        _sessionRestoreTimeout,
+      );
       if (user == null) {
+        AppLogger.info('No active auth session found.');
         _state = AuthState.unauthenticated();
       } else {
-        final bootstrap = await _authRepository.fetchUserBootstrap();
+        AppLogger.info('Active session found. Fetching user bootstrap...');
+        final bootstrap = await _authRepository.fetchUserBootstrap().timeout(
+          _sessionRestoreTimeout,
+        );
         _state = AuthState.authenticated(bootstrap);
+        AppLogger.info('Auth session restored for role ${bootstrap.role}.');
       }
+    } on TimeoutException {
+      _state = AuthState.error(
+        const NetworkFailure(
+          message:
+              'Session restore timed out. Check your internet connection and Supabase project availability.',
+        ),
+      );
     } on Failure catch (f) {
       _state = AuthState.error(f);
     } catch (e) {

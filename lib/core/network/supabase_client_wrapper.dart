@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../logging/app_logger.dart';
 
@@ -25,7 +27,8 @@ class SupabaseClientWrapper {
     final supabase = await Supabase.initialize(
       url: url,
       publishableKey: anonKey,
-    );
+    ).timeout(const Duration(seconds: 15));
+    AppLogger.info('Supabase client initialization completed.');
     return SupabaseClientWrapper(supabase.client);
   }
 }

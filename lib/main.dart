@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'apps/admin/admin_dashboard.dart';
 import 'apps/parent/parent_dashboard.dart';
@@ -52,10 +50,7 @@ class StartupFailureApp extends StatelessWidget {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    error.toString(),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text(error.toString(), textAlign: TextAlign.center),
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: () {

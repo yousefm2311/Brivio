@@ -83,6 +83,7 @@ class _AttendanceOperationsScreenState
 
   void _openAttendanceRoster(ClassSession session) {
     final statuses = <String, String>{};
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -174,7 +175,7 @@ class _AttendanceOperationsScreenState
                   );
                   nav.pop();
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       const SnackBar(
                         content: Text('Attendance recorded & finalized!'),
                         backgroundColor: Colors.green,
@@ -183,7 +184,7 @@ class _AttendanceOperationsScreenState
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text('Recording failed: $e'),
                         backgroundColor: Colors.red,
@@ -202,6 +203,7 @@ class _AttendanceOperationsScreenState
 
   void _showReviewLeaveDialog(LeaveRequest leave) {
     final noteCtrl = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
 
     showDialog(
       context: context,
@@ -229,9 +231,9 @@ class _AttendanceOperationsScreenState
                   reviewerNote: noteCtrl.text.trim(),
                 );
                 nav.pop();
-                _loadData();
+                await _loadData();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(
                       content: Text('Leave request rejected.'),
                       backgroundColor: Colors.orange,
@@ -240,7 +242,7 @@ class _AttendanceOperationsScreenState
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text('Review failed: $e'),
                       backgroundColor: Colors.red,
@@ -261,9 +263,9 @@ class _AttendanceOperationsScreenState
                   reviewerNote: noteCtrl.text.trim(),
                 );
                 nav.pop();
-                _loadData();
+                await _loadData();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(
                       content: Text('Leave request approved!'),
                       backgroundColor: Colors.green,
@@ -272,7 +274,7 @@ class _AttendanceOperationsScreenState
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text('Review failed: $e'),
                       backgroundColor: Colors.red,

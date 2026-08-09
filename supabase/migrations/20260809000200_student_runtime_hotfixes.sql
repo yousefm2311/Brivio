@@ -6,6 +6,19 @@ ALTER TABLE public.lesson_resources
 ALTER TABLE public.groups
   ADD COLUMN IF NOT EXISTS max_capacity INT;
 
+ALTER TABLE public.units
+  ADD COLUMN IF NOT EXISTS subject_id UUID REFERENCES public.subjects(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active',
+  ADD COLUMN IF NOT EXISTS order_number INT NOT NULL DEFAULT 1;
+
+ALTER TABLE public.subjects
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+
+ALTER TABLE public.lessons
+  ADD COLUMN IF NOT EXISTS estimated_duration_minutes INT,
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'draft',
+  ADD COLUMN IF NOT EXISTS order_number INT NOT NULL DEFAULT 1;
+
 UPDATE public.groups
 SET max_capacity = COALESCE(max_capacity, capacity)
 WHERE max_capacity IS NULL;
@@ -165,9 +178,9 @@ BEGIN
     lr.object_path::TEXT AS pdf_object_path
   FROM public.enrollments e
   JOIN public.groups g ON g.id = e.group_id
-  JOIN public.subjects s ON s.id = g.subject_id
-  JOIN public.units u ON u.subject_id = s.id
+  JOIN public.units u ON u.subject_id = g.subject_id
   JOIN public.lessons l ON l.unit_id = u.id
+  LEFT JOIN public.subjects s ON s.id = g.subject_id
   LEFT JOIN public.lesson_progress lp
     ON lp.lesson_id = l.id
    AND lp.student_id = v_student_id
@@ -177,7 +190,6 @@ BEGIN
   WHERE e.student_id = v_student_id
     AND e.status = 'active'
     AND g.status = 'active'
-    AND s.status = 'active'
     AND u.status = 'active'
     AND l.status = 'published'
   ORDER BY l.id, u.order_number, l.order_number, lr.order_number;
@@ -188,5 +200,51 @@ REVOKE EXECUTE ON FUNCTION public.mark_session_attendance(UUID, JSONB) FROM PUBL
 REVOKE EXECUTE ON FUNCTION public.get_current_student_lessons() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.mark_session_attendance(UUID, JSONB) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_current_student_lessons() TO authenticated;
+
+DROP FUNCTION IF EXISTS public.get_student_published_session_boards();
+CREATE OR REPLACE FUNCTION public.get_student_published_session_boards()
+RETURNS TABLE (
+  id UUID,
+  title TEXT,
+  group_name TEXT,
+  session_date DATE,
+  updated_at TIMESTAMPTZ,
+  board_data JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_student_id UUID := public.current_student_id();
+BEGIN
+  IF v_student_id IS NULL THEN
+    RAISE EXCEPTION 'Student profile is not linked to this account' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT DISTINCT
+    b.id,
+    COALESCE(
+      NULLIF(trim(cs.location), ''),
+      'Session board - ' || to_char(cs.session_date, 'YYYY-MM-DD')
+    )::TEXT AS title,
+    trim(COALESCE(g.name, 'Group') || ' ' || COALESCE(g.code, ''))::TEXT AS group_name,
+    cs.session_date,
+    b.updated_at,
+    COALESCE(b.board_data, '{}'::jsonb) AS board_data
+  FROM public.class_session_boards b
+  JOIN public.class_sessions cs ON cs.id = b.class_session_id
+  JOIN public.groups g ON g.id = b.group_id
+  JOIN public.attendance_records ar ON ar.class_session_id = b.class_session_id
+  WHERE b.is_published = true
+    AND ar.student_id = v_student_id
+    AND ar.attendance_status IN ('present', 'late')
+  ORDER BY b.updated_at DESC;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.get_student_published_session_boards() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_student_published_session_boards() TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
