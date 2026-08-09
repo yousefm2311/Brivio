@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
+import '../../features/admin/presentation/screens/data_import_screen.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
 import '../../features/academy/presentation/screens/branch_management_screen.dart';
@@ -278,6 +279,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const RbacManagementScreen(),
       const AuditLogScreen(),
       const StudyReplayScreen(),
+      const DataImportScreen(),
     ];
 
     return PortalScaffold(
@@ -305,6 +307,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         PortalDestination(icon: Icons.security, label: 'Security'),
         PortalDestination(icon: Icons.manage_search, label: 'Audit'),
         PortalDestination(icon: Icons.video_library, label: 'Replay'),
+        PortalDestination(icon: Icons.upload_file, label: 'Import'),
       ],
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
       onRefresh: _loadSummaryData,

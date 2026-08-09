@@ -16,6 +16,7 @@ import '../../features/attendance/presentation/screens/teacher_attendance_screen
 import '../../features/curriculum/presentation/screens/teacher_curriculum_screen.dart';
 import '../../features/people/presentation/screens/teacher_profile_screen.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import '../../features/payments/presentation/screens/teacher_finance_screen.dart';
 import '../../features/study_workspace/presentation/screens/study_replay_screen.dart';
 
 class TeacherDashboard extends StatefulWidget {
@@ -242,6 +243,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 Colors.blueGrey,
                 () => setState(() => _selectedIndex = 3),
               ),
+              _buildSummaryCard(
+                'Group Finance',
+                'Cash',
+                Icons.payments,
+                Colors.green.shade700,
+                () => setState(() => _selectedIndex = 4),
+              ),
             ],
           ),
           const SizedBox(height: 18),
@@ -367,6 +375,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           ),
         ),
       ),
+      // Tab 4: Finance
+      TeacherFinanceScreen(teacherId: teacherId),
       // Tab 4: Profile Account
       TeacherProfileScreen(authViewModel: widget.authViewModel),
     ];
@@ -382,6 +392,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         PortalDestination(icon: Icons.school, label: 'Teaching'),
         PortalDestination(icon: Icons.book, label: 'Academic'),
         PortalDestination(icon: Icons.grading, label: 'Operations'),
+        PortalDestination(icon: Icons.payments, label: 'Finance'),
         PortalDestination(icon: Icons.person, label: 'Account'),
       ],
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),

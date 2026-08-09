@@ -28,6 +28,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   List<SubscriptionPlan> _plans = [];
   List<Invoice> _invoices = [];
   List<Receipt> _receipts = [];
+  List<_PaymentAdjustmentRequest> _adjustmentRequests = [];
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -61,6 +62,16 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       final rec = selected == null
           ? <Receipt>[]
           : await _receiptRepo.fetchReceiptsForStudent(selected.id);
+      final adjustmentsResponse = await Supabase.instance.client.rpc(
+        'get_payment_adjustment_requests',
+        params: {'p_status': null},
+      );
+      final adjustments = adjustmentsResponse is List
+          ? adjustmentsResponse
+                .whereType<Map>()
+                .map((row) => _PaymentAdjustmentRequest.fromJson(row))
+                .toList()
+          : <_PaymentAdjustmentRequest>[];
 
       if (mounted) {
         setState(() {
@@ -69,6 +80,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
           _plans = p;
           _invoices = inv;
           _receipts = rec;
+          _adjustmentRequests = adjustments;
           _isLoading = false;
         });
       }
@@ -348,10 +360,48 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     );
   }
 
+  Future<void> _decideAdjustment(
+    _PaymentAdjustmentRequest request,
+    bool approve,
+  ) async {
+    try {
+      await Supabase.instance.client.rpc(
+        'apply_payment_adjustment_request',
+        params: {
+          'p_request_id': request.id,
+          'p_approve': approve,
+          'p_decision_note': approve
+              ? 'Approved from finance management.'
+              : 'Rejected from finance management.',
+        },
+      );
+      await _loadFinanceData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              approve ? 'Adjustment applied.' : 'Request rejected.',
+            ),
+            backgroundColor: approve ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Adjustment decision failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: PortalPageShell(
         title: 'Finance & Billing',
         subtitle: 'Plans, subscriptions, invoices, payments, and receipts.',
@@ -373,11 +423,13 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
         child: Column(
           children: [
             const TabBar(
+              isScrollable: true,
               tabs: [
                 Tab(icon: Icon(Icons.card_membership), text: 'Plans'),
                 Tab(icon: Icon(Icons.assignment_ind), text: 'Assign'),
                 Tab(icon: Icon(Icons.receipt_long), text: 'Invoices'),
                 Tab(icon: Icon(Icons.receipt), text: 'Receipts'),
+                Tab(icon: Icon(Icons.percent), text: 'Adjustments'),
               ],
             ),
             const SizedBox(height: 12),
@@ -551,6 +603,48 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               );
                             },
                           ),
+                    _adjustmentRequests.isEmpty
+                        ? const Center(
+                            child: Text('No discount or exemption requests.'),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _adjustmentRequests.length,
+                            separatorBuilder: (ctx, i) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (ctx, i) {
+                              final req = _adjustmentRequests[i];
+                              final isPending = req.status == 'pending';
+                              return PortalListCard(
+                                icon: req.adjustmentType == 'exemption'
+                                    ? Icons.volunteer_activism
+                                    : Icons.percent,
+                                accentColor: isPending
+                                    ? Colors.orange
+                                    : AppColors.adminRole,
+                                title: '${req.studentName} - ${req.groupName}',
+                                subtitle:
+                                    'Teacher: ${req.teacherName}\nOriginal ${_money(req.originalPriceMinor, req.currency)} | Discount ${_money(req.requestedDiscountMinor, req.currency)} | Final ${_money(req.requestedFinalPriceMinor, req.currency)}${req.reason.isEmpty ? '' : '\nReason: ${req.reason}'}',
+                                trailing: [
+                                  PortalStatusChip(status: req.status),
+                                  if (isPending)
+                                    IconButton.filledTonal(
+                                      tooltip: 'Reject',
+                                      onPressed: () =>
+                                          _decideAdjustment(req, false),
+                                      icon: const Icon(Icons.close),
+                                    ),
+                                  if (isPending)
+                                    FilledButton.icon(
+                                      onPressed: () =>
+                                          _decideAdjustment(req, true),
+                                      icon: const Icon(Icons.check),
+                                      label: const Text('Approve'),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
                   ],
                 ),
               ),
@@ -560,4 +654,63 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       ),
     );
   }
+}
+
+class _PaymentAdjustmentRequest {
+  final String id;
+  final String studentName;
+  final String groupName;
+  final String teacherName;
+  final String adjustmentType;
+  final int originalPriceMinor;
+  final int requestedDiscountMinor;
+  final int requestedFinalPriceMinor;
+  final String currency;
+  final String reason;
+  final String status;
+
+  const _PaymentAdjustmentRequest({
+    required this.id,
+    required this.studentName,
+    required this.groupName,
+    required this.teacherName,
+    required this.adjustmentType,
+    required this.originalPriceMinor,
+    required this.requestedDiscountMinor,
+    required this.requestedFinalPriceMinor,
+    required this.currency,
+    required this.reason,
+    required this.status,
+  });
+
+  factory _PaymentAdjustmentRequest.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    return _PaymentAdjustmentRequest(
+      id: json['request_id']?.toString() ?? '',
+      studentName: json['student_name']?.toString() ?? 'Student',
+      groupName: json['group_name']?.toString() ?? 'Group',
+      teacherName: json['teacher_name']?.toString() ?? 'Teacher',
+      adjustmentType: json['adjustment_type']?.toString() ?? 'discount',
+      originalPriceMinor: _asInt(json['original_price_minor']),
+      requestedDiscountMinor: _asInt(json['requested_discount_minor']),
+      requestedFinalPriceMinor: _asInt(json['requested_final_price_minor']),
+      currency: json['currency']?.toString() ?? 'EGP',
+      reason: json['reason']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'pending',
+    );
+  }
+}
+
+int _asInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+String _money(int minor, [String currency = 'EGP']) {
+  final amount = minor / 100;
+  final formatted = amount == amount.roundToDouble()
+      ? amount.toStringAsFixed(0)
+      : amount.toStringAsFixed(2);
+  return '$formatted $currency';
 }

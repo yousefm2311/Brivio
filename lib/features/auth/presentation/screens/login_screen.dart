@@ -33,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   String? _qrMessage;
+  String? _pendingQrToken;
 
   @override
   void dispose() {
@@ -68,7 +69,24 @@ class _LoginScreenState extends State<LoginScreen> {
       password: _passwordController.text,
     );
     if (widget.viewModel.state.status == AuthStatus.authenticated) {
+      await _consumePendingQrToken();
       widget.onLoginSuccess?.call();
+    }
+  }
+
+  Future<void> _consumePendingQrToken() async {
+    final token = _pendingQrToken;
+    if (token == null) return;
+
+    try {
+      await Supabase.instance.client.rpc(
+        'consume_account_login_qr',
+        params: {'p_token': token},
+      );
+      _pendingQrToken = null;
+    } catch (_) {
+      // The account is already authenticated; token cleanup failures should not
+      // block entering the app.
     }
   }
 
@@ -82,6 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() {
       _emailController.text = result.email;
+      _pendingQrToken = result.token;
       _qrMessage =
           'QR matched ${result.fullName}. Enter the account password from the invite to continue.';
     });
@@ -386,11 +405,13 @@ class _BrandPill extends StatelessWidget {
 }
 
 class _QrLoginResult {
+  final String token;
   final String email;
   final String fullName;
   final String role;
 
   const _QrLoginResult({
+    required this.token,
     required this.email,
     required this.fullName,
     required this.role,
@@ -445,6 +466,7 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
       Navigator.pop(
         context,
         _QrLoginResult(
+          token: token,
           email: json['email']?.toString() ?? '',
           fullName: json['full_name']?.toString() ?? 'Account',
           role: json['role']?.toString() ?? '',
