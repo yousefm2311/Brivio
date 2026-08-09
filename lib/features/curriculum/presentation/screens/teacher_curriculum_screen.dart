@@ -358,6 +358,13 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
     return 'lessons/$lessonId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
   }
 
+  void _showCodeChallengesDialog(Lesson lesson) {
+    showDialog(
+      context: context,
+      builder: (_) => _LessonCodeChallengeDialog(lesson: lesson),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -483,6 +490,15 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                           tooltip: 'Upload Resource',
                                         ),
                                         IconButton(
+                                          icon: const Icon(
+                                            Icons.code,
+                                            color: Colors.indigo,
+                                          ),
+                                          onPressed: () =>
+                                              _showCodeChallengesDialog(lesson),
+                                          tooltip: 'Code Challenges',
+                                        ),
+                                        IconButton(
                                           icon: Icon(
                                             isPublished
                                                 ? Icons.visibility
@@ -525,6 +541,467 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+class _LessonCodeChallengeDialog extends StatefulWidget {
+  final Lesson lesson;
+
+  const _LessonCodeChallengeDialog({required this.lesson});
+
+  @override
+  State<_LessonCodeChallengeDialog> createState() =>
+      _LessonCodeChallengeDialogState();
+}
+
+class _LessonCodeChallengeDialogState
+    extends State<_LessonCodeChallengeDialog> {
+  final _titleCtrl = TextEditingController();
+  final _descriptionCtrl = TextEditingController();
+  final _xpCtrl = TextEditingController(text: '50');
+  final List<_ChallengeCaseDraft> _caseDrafts = [_ChallengeCaseDraft()];
+
+  bool _isLoading = true;
+  bool _isSaving = false;
+  String? _errorMessage;
+  String _difficulty = 'medium';
+  String _status = 'published';
+  List<_TeacherCodeChallenge> _challenges = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChallenges();
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descriptionCtrl.dispose();
+    _xpCtrl.dispose();
+    for (final draft in _caseDrafts) {
+      draft.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _loadChallenges() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final rows = await Supabase.instance.client.rpc(
+        'get_teacher_lesson_code_challenges',
+        params: {'p_lesson_id': widget.lesson.id},
+      );
+      if (!mounted) return;
+      setState(() {
+        _challenges = (rows as List)
+            .whereType<Map>()
+            .map(_TeacherCodeChallenge.fromJson)
+            .toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _createChallenge() async {
+    final title = _titleCtrl.text.trim();
+    final validCases = _caseDrafts
+        .where((draft) => draft.expectedCtrl.text.trim().isNotEmpty)
+        .toList();
+    if (title.isEmpty || validCases.isEmpty) {
+      setState(() {
+        _errorMessage =
+            'Challenge title and at least one expected output are required.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await Supabase.instance.client.rpc(
+        'create_code_challenge_with_cases',
+        params: {
+          'p_lesson_id': widget.lesson.id,
+          'p_title': title,
+          'p_description': _descriptionCtrl.text.trim(),
+          'p_difficulty': _difficulty,
+          'p_xp_reward': int.tryParse(_xpCtrl.text.trim()) ?? 50,
+          'p_status': _status,
+          'p_test_cases': validCases
+              .asMap()
+              .entries
+              .map(
+                (entry) => {
+                  'name': entry.value.nameCtrl.text.trim().isEmpty
+                      ? 'Case ${entry.key + 1}'
+                      : entry.value.nameCtrl.text.trim(),
+                  'stdin': entry.value.stdinCtrl.text,
+                  'expected_stdout': entry.value.expectedCtrl.text,
+                  'is_hidden': entry.value.isHidden,
+                },
+              )
+              .toList(),
+        },
+      );
+
+      _titleCtrl.clear();
+      _descriptionCtrl.clear();
+      _xpCtrl.text = '50';
+      for (final draft in _caseDrafts) {
+        draft.dispose();
+      }
+      _caseDrafts
+        ..clear()
+        ..add(_ChallengeCaseDraft());
+      _difficulty = 'medium';
+      _status = 'published';
+      await _loadChallenges();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMessage = e.toString());
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _changeStatus(
+    _TeacherCodeChallenge challenge,
+    String status,
+  ) async {
+    try {
+      await Supabase.instance.client.rpc(
+        'update_code_challenge_status',
+        params: {'p_challenge_id': challenge.id, 'p_status': status},
+      );
+      await _loadChallenges();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMessage = e.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Code Challenges - ${widget.lesson.title}'),
+      content: SizedBox(
+        width: 760,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_errorMessage != null) ...[
+                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 12),
+              ],
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Published challenges appear in the student code workspace.',
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    onPressed: _isLoading ? null : _loadChallenges,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (_isLoading)
+                const LinearProgressIndicator()
+              else if (_challenges.isEmpty)
+                const Text('No challenges created for this lesson yet.')
+              else
+                ..._challenges.map(
+                  (challenge) => Card(
+                    child: ListTile(
+                      leading: Icon(
+                        challenge.status == 'published'
+                            ? Icons.verified
+                            : Icons.pending_outlined,
+                        color: challenge.status == 'published'
+                            ? Colors.green
+                            : Colors.grey,
+                      ),
+                      title: Text(challenge.title),
+                      subtitle: Text(
+                        '${challenge.difficulty} | ${challenge.xpReward} XP | '
+                        '${challenge.testCaseCount} cases | '
+                        '${challenge.passedCount}/${challenge.attemptsCount} passed',
+                      ),
+                      trailing: DropdownButton<String>(
+                        value: challenge.status,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'draft',
+                            child: Text('Draft'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'published',
+                            child: Text('Published'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'archived',
+                            child: Text('Archived'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null || value == challenge.status) {
+                            return;
+                          }
+                          _changeStatus(challenge, value);
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              const Divider(height: 28),
+              const Text(
+                'Create Challenge',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              TextField(
+                controller: _titleCtrl,
+                decoration: const InputDecoration(labelText: 'Title'),
+              ),
+              TextField(
+                controller: _descriptionCtrl,
+                decoration: const InputDecoration(labelText: 'Description'),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  SizedBox(
+                    width: 180,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _difficulty,
+                      decoration: const InputDecoration(
+                        labelText: 'Difficulty',
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'easy', child: Text('Easy')),
+                        DropdownMenuItem(
+                          value: 'medium',
+                          child: Text('Medium'),
+                        ),
+                        DropdownMenuItem(value: 'hard', child: Text('Hard')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _difficulty = value);
+                        }
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 140,
+                    child: TextField(
+                      controller: _xpCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'XP'),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 180,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _status,
+                      decoration: const InputDecoration(labelText: 'Status'),
+                      items: const [
+                        DropdownMenuItem(value: 'draft', child: Text('Draft')),
+                        DropdownMenuItem(
+                          value: 'published',
+                          child: Text('Published'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setState(() => _status = value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              for (var i = 0; i < _caseDrafts.length; i++)
+                _ChallengeCaseEditor(
+                  index: i,
+                  draft: _caseDrafts[i],
+                  canRemove: _caseDrafts.length > 1,
+                  onChanged: () => setState(() {}),
+                  onRemove: () {
+                    setState(() {
+                      final removed = _caseDrafts.removeAt(i);
+                      removed.dispose();
+                    });
+                  },
+                ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () =>
+                      setState(() => _caseDrafts.add(_ChallengeCaseDraft())),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Test Case'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+        ElevatedButton.icon(
+          onPressed: _isSaving ? null : _createChallenge,
+          icon: _isSaving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.save),
+          label: const Text('Create Challenge'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChallengeCaseEditor extends StatelessWidget {
+  final int index;
+  final _ChallengeCaseDraft draft;
+  final bool canRemove;
+  final VoidCallback onChanged;
+  final VoidCallback onRemove;
+
+  const _ChallengeCaseEditor({
+    required this.index,
+    required this.draft,
+    required this.canRemove,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Test Case ${index + 1}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                Checkbox(
+                  value: draft.isHidden,
+                  onChanged: (value) {
+                    draft.isHidden = value ?? false;
+                    onChanged();
+                  },
+                ),
+                const Text('Hidden'),
+                IconButton(
+                  onPressed: canRemove ? onRemove : null,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+            TextField(
+              controller: draft.nameCtrl,
+              decoration: const InputDecoration(labelText: 'Case Name'),
+            ),
+            TextField(
+              controller: draft.stdinCtrl,
+              decoration: const InputDecoration(labelText: 'Input stdin'),
+              minLines: 1,
+              maxLines: 4,
+            ),
+            TextField(
+              controller: draft.expectedCtrl,
+              decoration: const InputDecoration(labelText: 'Expected stdout'),
+              minLines: 1,
+              maxLines: 4,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChallengeCaseDraft {
+  final TextEditingController nameCtrl = TextEditingController();
+  final TextEditingController stdinCtrl = TextEditingController();
+  final TextEditingController expectedCtrl = TextEditingController();
+  bool isHidden = false;
+
+  void dispose() {
+    nameCtrl.dispose();
+    stdinCtrl.dispose();
+    expectedCtrl.dispose();
+  }
+}
+
+class _TeacherCodeChallenge {
+  final String id;
+  final String title;
+  final String difficulty;
+  final int xpReward;
+  final String status;
+  final int testCaseCount;
+  final int attemptsCount;
+  final int passedCount;
+
+  const _TeacherCodeChallenge({
+    required this.id,
+    required this.title,
+    required this.difficulty,
+    required this.xpReward,
+    required this.status,
+    required this.testCaseCount,
+    required this.attemptsCount,
+    required this.passedCount,
+  });
+
+  factory _TeacherCodeChallenge.fromJson(Map<dynamic, dynamic> json) {
+    final testCases = json['test_cases'];
+    return _TeacherCodeChallenge(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Challenge',
+      difficulty: json['difficulty']?.toString() ?? 'medium',
+      xpReward: (json['xp_reward'] as num?)?.toInt() ?? 0,
+      status: json['status']?.toString() ?? 'draft',
+      testCaseCount: testCases is List ? testCases.length : 0,
+      attemptsCount: (json['attempts_count'] as num?)?.toInt() ?? 0,
+      passedCount: (json['passed_count'] as num?)?.toInt() ?? 0,
     );
   }
 }

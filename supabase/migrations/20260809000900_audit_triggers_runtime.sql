@@ -12,6 +12,34 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE public.audit_logs
+  ADD COLUMN IF NOT EXISTS actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS table_name TEXT,
+  ADD COLUMN IF NOT EXISTS record_id UUID,
+  ADD COLUMN IF NOT EXISTS action TEXT,
+  ADD COLUMN IF NOT EXISTS old_data JSONB,
+  ADD COLUMN IF NOT EXISTS new_data JSONB,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE public.audit_logs
+  ALTER COLUMN table_name SET NOT NULL,
+  ALTER COLUMN action SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'audit_logs_action_check'
+      AND conrelid = 'public.audit_logs'::regclass
+  ) THEN
+    ALTER TABLE public.audit_logs
+      ADD CONSTRAINT audit_logs_action_check
+      CHECK (action IN ('insert', 'update', 'delete'));
+  END IF;
+END;
+$$;
+
 CREATE INDEX IF NOT EXISTS idx_audit_logs_table_created
 ON public.audit_logs(table_name, created_at DESC);
 
