@@ -112,6 +112,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           .whereType<Map>()
           .map(
             (row) => _StaffQueueItem(
+              type: _StaffQueueType.leave,
               id: row['id']?.toString() ?? '',
               title: _studentLabel(row['students']),
               subtitle:
@@ -141,6 +142,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
         final paid = row['amount_paid_minor'] as int? ?? 0;
         final currency = row['currency']?.toString() ?? 'EGP';
         return _StaffQueueItem(
+          type: _StaffQueueType.invoice,
           id: row['id']?.toString() ?? '',
           title: row['invoice_number']?.toString().isNotEmpty == true
               ? row['invoice_number'].toString()
@@ -149,6 +151,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
               '${_studentLabel(row['students'])} • ${_money(total - paid, currency)} remaining',
           status: row['status']?.toString() ?? 'issued',
           createdAt: DateTime.tryParse(row['due_at']?.toString() ?? ''),
+          amountMinor: total - paid,
+          currency: currency,
         );
       }).toList();
     });
@@ -168,6 +172,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           .whereType<Map>()
           .map(
             (row) => _StaffQueueItem(
+              type: _StaffQueueType.attendance,
               id: row['id']?.toString() ?? '',
               title: _studentLabel(row['students']),
               subtitle: _sessionLabel(row['class_sessions']),
@@ -192,6 +197,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           .whereType<Map>()
           .map(
             (row) => _StaffQueueItem(
+              type: _StaffQueueType.enrollment,
               id: row['id']?.toString() ?? '',
               title: _studentLabel(row['students']),
               subtitle: _groupLabel(row['groups']),
@@ -210,6 +216,177 @@ class _StaffDashboardState extends State<StaffDashboard> {
       return await query();
     } catch (_) {
       return [];
+    }
+  }
+
+  Future<void> _reviewLeaveQueueItem(_StaffQueueItem item, String decision) {
+    final noteController = TextEditingController();
+    return _runQueueDialog(
+      title: decision == 'approved'
+          ? 'Approve leave request'
+          : 'Reject leave request',
+      content: TextField(
+        controller: noteController,
+        decoration: const InputDecoration(
+          labelText: 'Reviewer note',
+          prefixIcon: Icon(Icons.notes),
+        ),
+        minLines: 2,
+        maxLines: 4,
+      ),
+      confirmLabel: decision == 'approved' ? 'Approve' : 'Reject',
+      confirmIcon: decision == 'approved' ? Icons.check : Icons.close,
+      action: () => Supabase.instance.client.rpc(
+        'review_leave_request',
+        params: {
+          'p_request_id': item.id,
+          'p_decision': decision,
+          'p_reviewer_note': noteController.text.trim(),
+        },
+      ),
+      successMessage: decision == 'approved'
+          ? 'Leave request approved.'
+          : 'Leave request rejected.',
+      onDispose: noteController.dispose,
+    );
+  }
+
+  Future<void> _recordCashPayment(_StaffQueueItem item) {
+    final amountController = TextEditingController(
+      text: (item.amountMinor / 100).toStringAsFixed(
+        item.amountMinor % 100 == 0 ? 0 : 2,
+      ),
+    );
+    final noteController = TextEditingController(text: 'Recorded by staff');
+    return _runQueueDialog(
+      title: 'Record cash payment',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: amountController,
+            decoration: InputDecoration(
+              labelText: 'Amount (${item.currency})',
+              prefixIcon: const Icon(Icons.payments),
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: noteController,
+            decoration: const InputDecoration(
+              labelText: 'Notes',
+              prefixIcon: Icon(Icons.notes),
+            ),
+          ),
+        ],
+      ),
+      confirmLabel: 'Record',
+      confirmIcon: Icons.payments,
+      action: () {
+        final amount = double.tryParse(amountController.text.trim()) ?? 0;
+        final amountMinor = (amount * 100).round();
+        if (amountMinor <= 0) {
+          throw Exception('Payment amount must be greater than zero.');
+        }
+        return Supabase.instance.client.rpc(
+          'record_manual_payment',
+          params: {
+            'p_invoice_id': item.id,
+            'p_amount_minor': amountMinor,
+            'p_payment_method': 'cash',
+            'p_notes': noteController.text.trim(),
+          },
+        );
+      },
+      successMessage: 'Cash payment recorded.',
+      onDispose: () {
+        amountController.dispose();
+        noteController.dispose();
+      },
+    );
+  }
+
+  Future<void> _resolveAttendanceException(
+    _StaffQueueItem item,
+    String status,
+  ) {
+    final noteController = TextEditingController(
+      text: status == 'excused'
+          ? 'Resolved by staff as excused'
+          : 'Resolved by staff',
+    );
+    return _runQueueDialog(
+      title: status == 'excused'
+          ? 'Mark attendance excused'
+          : 'Mark attendance present',
+      content: TextField(
+        controller: noteController,
+        decoration: const InputDecoration(
+          labelText: 'Resolution note',
+          prefixIcon: Icon(Icons.notes),
+        ),
+        minLines: 2,
+        maxLines: 4,
+      ),
+      confirmLabel: status == 'excused' ? 'Mark Excused' : 'Mark Present',
+      confirmIcon: status == 'excused' ? Icons.event_available : Icons.check,
+      action: () => Supabase.instance.client.rpc(
+        'staff_update_attendance_exception',
+        params: {
+          'p_attendance_record_id': item.id,
+          'p_attendance_status': status,
+          'p_notes': noteController.text.trim(),
+        },
+      ),
+      successMessage: 'Attendance exception resolved.',
+      onDispose: noteController.dispose,
+    );
+  }
+
+  Future<void> _runQueueDialog({
+    required String title,
+    required Widget content,
+    required String confirmLabel,
+    required IconData confirmIcon,
+    required Future<dynamic> Function() action,
+    required String successMessage,
+    VoidCallback? onDispose,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(child: content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: Icon(confirmIcon),
+            label: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      onDispose?.call();
+      return;
+    }
+
+    try {
+      await action();
+      await _loadStaffData();
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(successMessage)));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Operation failed: $e')));
+    } finally {
+      onDispose?.call();
     }
   }
 
@@ -323,6 +500,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
             ..._invoiceQueue.take(5),
             ..._attendanceQueue.take(5),
           ],
+          onApproveLeave: (item) => _reviewLeaveQueueItem(item, 'approved'),
+          onRejectLeave: (item) => _reviewLeaveQueueItem(item, 'rejected'),
+          onRecordPayment: _recordCashPayment,
+          onMarkExcused: (item) => _resolveAttendanceException(item, 'excused'),
+          onMarkPresent: (item) => _resolveAttendanceException(item, 'present'),
         ),
       ],
     );
@@ -334,13 +516,19 @@ class _StaffDashboardState extends State<StaffDashboard> {
       children: [
         const PortalSectionTitle(title: 'Leave requests'),
         const SizedBox(height: 8),
-        _QueueList(emptyText: 'No pending leave requests.', items: _leaveQueue),
+        _QueueList(
+          emptyText: 'No pending leave requests.',
+          items: _leaveQueue,
+          onApproveLeave: (item) => _reviewLeaveQueueItem(item, 'approved'),
+          onRejectLeave: (item) => _reviewLeaveQueueItem(item, 'rejected'),
+        ),
         const SizedBox(height: 18),
         const PortalSectionTitle(title: 'Payment follow-up'),
         const SizedBox(height: 8),
         _QueueList(
           emptyText: 'No invoices need follow-up.',
           items: _invoiceQueue,
+          onRecordPayment: _recordCashPayment,
         ),
         const SizedBox(height: 18),
         const PortalSectionTitle(title: 'Attendance exceptions'),
@@ -348,6 +536,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
         _QueueList(
           emptyText: 'No recent absent or late records.',
           items: _attendanceQueue,
+          onMarkExcused: (item) => _resolveAttendanceException(item, 'excused'),
+          onMarkPresent: (item) => _resolveAttendanceException(item, 'present'),
         ),
         const SizedBox(height: 18),
         const PortalSectionTitle(title: 'Recent enrollments'),
@@ -439,8 +629,21 @@ class _StaffDashboardState extends State<StaffDashboard> {
 class _QueueList extends StatelessWidget {
   final String emptyText;
   final List<_StaffQueueItem> items;
+  final ValueChanged<_StaffQueueItem>? onApproveLeave;
+  final ValueChanged<_StaffQueueItem>? onRejectLeave;
+  final ValueChanged<_StaffQueueItem>? onRecordPayment;
+  final ValueChanged<_StaffQueueItem>? onMarkExcused;
+  final ValueChanged<_StaffQueueItem>? onMarkPresent;
 
-  const _QueueList({required this.emptyText, required this.items});
+  const _QueueList({
+    required this.emptyText,
+    required this.items,
+    this.onApproveLeave,
+    this.onRejectLeave,
+    this.onRecordPayment,
+    this.onMarkExcused,
+    this.onMarkPresent,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -467,11 +670,55 @@ class _QueueList extends StatelessWidget {
               accentColor: item.color,
               title: item.title,
               subtitle: '${item.subtitle} • ${item.dateLabel}',
-              trailing: [PortalStatusChip(status: item.status)],
+              trailing: [
+                PortalStatusChip(status: item.status),
+                ..._actionsFor(item),
+              ],
             ),
           )
           .toList(),
     );
+  }
+
+  List<Widget> _actionsFor(_StaffQueueItem item) {
+    return switch (item.type) {
+      _StaffQueueType.leave => [
+        IconButton(
+          tooltip: 'Approve leave',
+          onPressed: onApproveLeave == null
+              ? null
+              : () => onApproveLeave!(item),
+          icon: const Icon(Icons.check),
+        ),
+        IconButton(
+          tooltip: 'Reject leave',
+          onPressed: onRejectLeave == null ? null : () => onRejectLeave!(item),
+          icon: const Icon(Icons.close),
+        ),
+      ],
+      _StaffQueueType.invoice => [
+        IconButton(
+          tooltip: 'Record cash payment',
+          onPressed: onRecordPayment == null
+              ? null
+              : () => onRecordPayment!(item),
+          icon: const Icon(Icons.payments),
+        ),
+      ],
+      _StaffQueueType.attendance => [
+        IconButton(
+          tooltip: 'Mark excused',
+          onPressed: onMarkExcused == null ? null : () => onMarkExcused!(item),
+          icon: const Icon(Icons.event_available),
+        ),
+        IconButton(
+          tooltip: 'Mark present',
+          onPressed: onMarkPresent == null ? null : () => onMarkPresent!(item),
+          icon: const Icon(Icons.check_circle),
+        ),
+      ],
+      _StaffQueueType.enrollment => const [],
+    };
   }
 }
 
@@ -497,19 +744,27 @@ class _AccessCard extends StatelessWidget {
   }
 }
 
+enum _StaffQueueType { leave, invoice, attendance, enrollment }
+
 class _StaffQueueItem {
+  final _StaffQueueType type;
   final String id;
   final String title;
   final String subtitle;
   final String status;
   final DateTime? createdAt;
+  final int amountMinor;
+  final String currency;
 
   const _StaffQueueItem({
+    required this.type,
     required this.id,
     required this.title,
     required this.subtitle,
     required this.status,
     required this.createdAt,
+    this.amountMinor = 0,
+    this.currency = 'EGP',
   });
 
   IconData get icon {
