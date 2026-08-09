@@ -131,7 +131,6 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                     'p_group_id': group.id,
                     'p_duration_minutes': int.tryParse(durationCtrl.text) ?? 60,
                     'p_pass_score': double.tryParse(passCtrl.text) ?? 60.0,
-                    'p_max_score': 100,
                     'p_status': 'published',
                   },
                 );

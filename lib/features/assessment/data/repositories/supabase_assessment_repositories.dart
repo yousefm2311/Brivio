@@ -108,20 +108,21 @@ class SupabaseHomeworkRepository implements IHomeworkRepository {
   @override
   Future<Homework> createHomework(Homework homework) async {
     try {
-      final response = await _wrapper.client
-          .from('homework')
-          .insert({
-            'title': homework.title,
-            'description': homework.description,
-            'subject_id': homework.subjectId,
-            'group_id': homework.groupId,
-            'due_at': homework.dueAt.toIso8601String(),
-            'max_score': homework.maxScore,
-            'status': homework.status,
-          })
-          .select()
-          .single();
-      return Homework.fromJson(response);
+      final response = await _wrapper.client.rpc(
+        'create_homework_assignment',
+        params: {
+          'p_title': homework.title,
+          'p_description': homework.description,
+          'p_subject_id': homework.subjectId,
+          'p_group_id': homework.groupId,
+          'p_due_at': homework.dueAt.toIso8601String(),
+          'p_max_score': homework.maxScore,
+          'p_status': homework.status,
+        },
+      );
+      return Homework.fromJson(Map<String, dynamic>.from(response as Map));
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: 'Failed to create homework: ${e.message}');
     } catch (e) {
       throw DatabaseFailure(
         message: 'Failed to create homework: ${e.toString()}',

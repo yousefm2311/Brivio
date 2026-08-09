@@ -25,10 +25,19 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
         .eq('lesson_id', lessonId)
         .eq('language', 'python')
         .maybeSingle();
+    final board = await _wrapper.client
+        .from('study_annotations')
+        .select('geometry')
+        .eq('student_id', studentId)
+        .eq('lesson_id', lessonId)
+        .eq('page_number', 1)
+        .eq('annotation_type', 'freehand')
+        .maybeSingle();
 
     return StudyWorkspaceDraft(
       notebookContent: notebook?['content'] as String? ?? '',
       code: codeDraft?['code'] as String? ?? '',
+      boardData: board?['geometry']?['board_data'] as String? ?? '',
     );
   }
 
@@ -62,6 +71,31 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
       'sync_version': 1,
       'updated_at': DateTime.now().toIso8601String(),
     }, onConflict: 'student_id,lesson_id,language');
+  }
+
+  @override
+  Future<void> saveBoard({
+    required String studentId,
+    required String lessonId,
+    required String boardData,
+  }) async {
+    await _wrapper.client
+        .from('study_annotations')
+        .delete()
+        .eq('student_id', studentId)
+        .eq('lesson_id', lessonId)
+        .eq('page_number', 1)
+        .eq('annotation_type', 'freehand');
+    await _wrapper.client.from('study_annotations').insert({
+      'student_id': studentId,
+      'lesson_id': lessonId,
+      'page_number': 1,
+      'annotation_type': 'freehand',
+      'color': '#1E40AF',
+      'geometry': {'board_data': boardData},
+      'content': 'Smart notebook board',
+      'updated_at': DateTime.now().toIso8601String(),
+    });
   }
 
   @override

@@ -7,6 +7,7 @@ import '../../domain/repositories/study_workspace_repository.dart';
 class StudyWorkspaceViewModel extends ChangeNotifier {
   static const _notebookPrefix = 'study_workspace_notebook_';
   static const _codePrefix = 'study_workspace_code_';
+  static const _boardPrefix = 'study_workspace_board_';
   static const _pagePrefix = 'study_workspace_page_';
 
   final StudyLessonSummary lesson;
@@ -17,6 +18,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   bool _isSaving = false;
   String _notebookText = '';
   String _codeText = '';
+  String _boardData = '';
   int _currentPage;
   CodeRunResult? _lastRunResult;
 
@@ -30,6 +32,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   bool get isSaving => _isSaving;
   String get notebookText => _notebookText;
   String get codeText => _codeText;
+  String get boardData => _boardData;
   int get currentPage => _currentPage;
   CodeRunResult? get lastRunResult => _lastRunResult;
 
@@ -37,6 +40,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     final preferences = await SharedPreferences.getInstance();
     _notebookText = preferences.getString('$_notebookPrefix${lesson.id}') ?? '';
     _codeText = preferences.getString('$_codePrefix${lesson.id}') ?? '';
+    _boardData = preferences.getString('$_boardPrefix${lesson.id}') ?? '';
     _currentPage =
         preferences.getInt('$_pagePrefix${lesson.id}') ?? lesson.lastPage;
 
@@ -44,11 +48,13 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     if (draft != null) {
       _notebookText = draft.notebookContent;
       _codeText = draft.code;
+      _boardData = draft.boardData;
       await preferences.setString(
         '$_notebookPrefix${lesson.id}',
         _notebookText,
       );
       await preferences.setString('$_codePrefix${lesson.id}', _codeText);
+      await preferences.setString('$_boardPrefix${lesson.id}', _boardData);
     }
 
     _isLoaded = true;
@@ -85,6 +91,24 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
             studentId: currentStudentId,
             lessonId: lesson.id,
             code: value,
+          );
+        } catch (_) {}
+      }
+    });
+  }
+
+  Future<void> saveBoard(String value) async {
+    _boardData = value;
+    await _save(() async {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setString('$_boardPrefix${lesson.id}', value);
+      final currentStudentId = studentId;
+      if (repository != null && currentStudentId != null) {
+        try {
+          await repository!.saveBoard(
+            studentId: currentStudentId,
+            lessonId: lesson.id,
+            boardData: value,
           );
         } catch (_) {}
       }

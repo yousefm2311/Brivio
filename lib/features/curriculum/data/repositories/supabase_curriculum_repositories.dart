@@ -29,18 +29,24 @@ class SupabaseSemesterRepository implements ISemesterRepository {
   @override
   Future<Semester> createSemester(Semester semester) async {
     try {
-      final response = await _wrapper.client
-          .from('semesters')
-          .insert({
-            'subject_id': semester.subjectId,
-            'name': semester.name,
-            'code': semester.code,
-            'order_number': semester.orderNumber,
-            'status': semester.status,
-          })
-          .select()
-          .single();
-      return Semester.fromJson(response);
+      final response = await _wrapper.client.rpc(
+        'create_semester_runtime',
+        params: {
+          'p_subject_id': semester.subjectId,
+          'p_name': semester.name,
+          'p_code': semester.code,
+          'p_order_number': semester.orderNumber,
+          'p_start_date': semester.startDate
+              ?.toIso8601String()
+              .split('T')
+              .first,
+          'p_end_date': semester.endDate?.toIso8601String().split('T').first,
+          'p_status': semester.status,
+        },
+      );
+      return Semester.fromJson(Map<String, dynamic>.from(response as Map));
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: 'Failed to create semester: ${e.message}');
     } catch (e) {
       throw DatabaseFailure(
         message: 'Failed to create semester: ${e.toString()}',

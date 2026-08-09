@@ -6,6 +6,7 @@ import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_attendance_repositories.dart';
 import '../../domain/models/attendance_models.dart';
+import 'teacher_session_board_screen.dart';
 
 class TeacherAttendanceScreen extends StatefulWidget {
   final String teacherId;
@@ -237,12 +238,33 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           subtitle: Text(
             'Date: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day} | Status: ${session.status.name.toUpperCase()}',
           ),
-          trailing: isFinalized
-              ? const Chip(label: Text('FINALIZED'))
-              : ElevatedButton(
+          trailing: Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              IconButton.filledTonal(
+                tooltip: 'Open session board',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TeacherSessionBoardScreen(
+                        teacherId: widget.teacherId,
+                        session: session,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.draw),
+              ),
+              if (isFinalized)
+                const Chip(label: Text('FINALIZED'))
+              else
+                ElevatedButton(
                   onPressed: () => _openRollCall(session),
                   child: const Text('Take Attendance'),
                 ),
+            ],
+          ),
         );
       },
     );

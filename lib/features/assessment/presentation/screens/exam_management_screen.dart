@@ -77,7 +77,6 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     }
     final titleCtrl = TextEditingController();
     final durationCtrl = TextEditingController();
-    final maxScoreCtrl = TextEditingController();
     final passCtrl = TextEditingController();
 
     showDialog(
@@ -100,11 +99,6 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                 keyboardType: TextInputType.number,
               ),
               TextField(
-                controller: maxScoreCtrl,
-                decoration: const InputDecoration(labelText: 'Max Score'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
                 controller: passCtrl,
                 decoration: const InputDecoration(labelText: 'Passing Score'),
                 keyboardType: TextInputType.number,
@@ -120,31 +114,28 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
           ElevatedButton(
             onPressed: () async {
               final duration = int.tryParse(durationCtrl.text);
-              final maxScore = double.tryParse(maxScoreCtrl.text);
               final passScore = double.tryParse(passCtrl.text);
               if (titleCtrl.text.trim().isEmpty ||
                   duration == null ||
                   duration <= 0 ||
-                  maxScore == null ||
-                  maxScore <= 0 ||
                   passScore == null ||
-                  passScore < 0 ||
-                  passScore > maxScore) {
+                  passScore < 0) {
                 return;
               }
 
               final nav = Navigator.of(ctx);
               try {
-                await Supabase.instance.client.from('exams').insert({
-                  'subject_id': selectedGroup.subjectId,
-                  'group_id': selectedGroup.id,
-                  'title': titleCtrl.text.trim(),
-                  'duration_minutes': duration,
-                  'pass_score': passScore,
-                  'max_score': maxScore,
-                  'status': 'published',
-                  'published_at': DateTime.now().toIso8601String(),
-                });
+                await Supabase.instance.client.rpc(
+                  'create_exam_assignment',
+                  params: {
+                    'p_title': titleCtrl.text.trim(),
+                    'p_subject_id': selectedGroup.subjectId,
+                    'p_group_id': selectedGroup.id,
+                    'p_duration_minutes': duration,
+                    'p_pass_score': passScore,
+                    'p_status': 'published',
+                  },
+                );
                 nav.pop();
                 _loadExams();
                 if (mounted) {

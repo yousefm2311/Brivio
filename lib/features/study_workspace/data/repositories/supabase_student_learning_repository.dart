@@ -98,10 +98,25 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
   ) async {
     if (subjectIds.isEmpty) return [];
 
+    final semestersResponse = await _wrapper.client
+        .from('semesters')
+        .select('id, subject_id')
+        .inFilter('subject_id', subjectIds)
+        .eq('status', 'active');
+    final semesters = (semestersResponse as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+    final semesterIds = semesters.map((sem) => sem['id'] as String).toList();
+    if (semesterIds.isEmpty) return [];
+    final subjectIdBySemesterId = {
+      for (final sem in semesters)
+        sem['id'] as String: sem['subject_id'] as String,
+    };
+
     final unitsResponse = await _wrapper.client
         .from('units')
-        .select('id, name, subject_id, order_number')
-        .inFilter('subject_id', subjectIds)
+        .select('id, name, semester_id, order_number')
+        .inFilter('semester_id', semesterIds)
         .eq('status', 'active')
         .order('order_number');
     final units = (unitsResponse as List)
@@ -147,6 +162,8 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
 
     for (final lesson in rawLessons) {
       final unit = unitById[lesson['unit_id']];
+      final unitSubjectId =
+          subjectIdBySemesterId[unit?['semester_id'] as String?];
       final resources = (lesson['lesson_resources'] as List<dynamic>? ?? [])
           .whereType<Map>()
           .map((resource) => Map<String, dynamic>.from(resource))
@@ -170,8 +187,7 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
         StudyLessonSummary(
           id: lesson['id'] as String,
           title: lesson['title'] as String? ?? 'Untitled lesson',
-          pathName:
-              subjectById[unit?['subject_id'] as String?] ?? 'Assigned subject',
+          pathName: subjectById[unitSubjectId] ?? 'Assigned subject',
           unitName: unit?['name'] as String? ?? 'Unit',
           progressPercentage: progressPercentage.clamp(0, 100),
           estimatedMinutes: lesson['estimated_duration_minutes'] as int? ?? 0,

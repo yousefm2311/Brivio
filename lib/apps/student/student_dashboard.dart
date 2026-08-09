@@ -7,6 +7,9 @@ import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
 import '../../features/academy/presentation/screens/academy_screens.dart';
+import '../../features/assessment/data/repositories/supabase_assessment_repositories.dart';
+import '../../features/assessment/domain/models/assessment_models.dart';
+import '../../features/assessment/presentation/screens/assessment_screens.dart';
 import '../../features/auth/data/repositories/supabase_auth_repository.dart';
 import '../../features/auth/domain/models/user_profile.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
@@ -41,6 +44,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<Receipt> _receipts = [];
   List<Announcement> _announcements = [];
   List<AppNotification> _notifications = [];
+  List<_PublishedSessionBoard> _sessionBoards = [];
+  List<_StudentHomeworkItem> _homeworkItems = [];
+  List<_StudentExamItem> _examItems = [];
+  List<_StudentAttendanceItem> _attendanceItems = [];
+  List<_StudentLeaveItem> _leaveItems = [];
   int _unreadCount = 0;
 
   @override
@@ -85,6 +93,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
         announcementRepo.getTargetedAnnouncements(),
         notificationRepo.getNotifications(),
         notificationRepo.getUnreadCount(),
+        _fetchPublishedSessionBoards(),
+        _fetchStudentHomeworkFeed(),
+        _fetchStudentExamFeed(),
+        _fetchStudentAttendanceHistory(),
+        _fetchStudentLeaveRequests(),
       ]);
 
       final groups = results[0] as List<GroupEntity>;
@@ -99,6 +112,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _announcements = results[5] as List<Announcement>;
         _notifications = results[6] as List<AppNotification>;
         _unreadCount = results[7] as int;
+        _sessionBoards = results[8] as List<_PublishedSessionBoard>;
+        _homeworkItems = results[9] as List<_StudentHomeworkItem>;
+        _examItems = results[10] as List<_StudentExamItem>;
+        _attendanceItems = results[11] as List<_StudentAttendanceItem>;
+        _leaveItems = results[12] as List<_StudentLeaveItem>;
         _isLoading = false;
       });
     } catch (e) {
@@ -108,6 +126,273 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<List<_StudentHomeworkItem>> _fetchStudentHomeworkFeed() async {
+    final rows = await Supabase.instance.client.rpc(
+      'get_student_homework_feed',
+    );
+    return (rows as List)
+        .whereType<Map>()
+        .map((row) => _StudentHomeworkItem.fromJson(row))
+        .toList();
+  }
+
+  Future<List<_StudentExamItem>> _fetchStudentExamFeed() async {
+    final rows = await Supabase.instance.client.rpc('get_student_exam_feed');
+    return (rows as List)
+        .whereType<Map>()
+        .map((row) => _StudentExamItem.fromJson(row))
+        .toList();
+  }
+
+  Future<List<_StudentAttendanceItem>> _fetchStudentAttendanceHistory() async {
+    final rows = await Supabase.instance.client.rpc(
+      'get_current_student_attendance_history',
+      params: {'p_limit': 120},
+    );
+    return (rows as List)
+        .whereType<Map>()
+        .map((row) => _StudentAttendanceItem.fromJson(row))
+        .toList();
+  }
+
+  Future<List<_StudentLeaveItem>> _fetchStudentLeaveRequests() async {
+    final rows = await Supabase.instance.client.rpc(
+      'get_current_student_leave_requests',
+    );
+    return (rows as List)
+        .whereType<Map>()
+        .map((row) => _StudentLeaveItem.fromJson(row))
+        .toList();
+  }
+
+  Future<void> _createLeaveRequest() async {
+    final reasonController = TextEditingController();
+    String? selectedSessionId = _attendanceItems.isEmpty
+        ? null
+        : _attendanceItems.first.classSessionId;
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Request Leave'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String?>(
+                  initialValue: selectedSessionId,
+                  decoration: const InputDecoration(
+                    labelText: 'Session',
+                    prefixIcon: Icon(Icons.event),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('General leave request'),
+                    ),
+                    for (final item in _attendanceItems.take(30))
+                      DropdownMenuItem<String?>(
+                        value: item.classSessionId,
+                        child: Text(
+                          '${_formatDate(item.sessionDate)} - ${item.groupName}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => selectedSessionId = value),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonController,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason',
+                    alignLabelWithHint: true,
+                  ),
+                  minLines: 3,
+                  maxLines: 6,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.send),
+              label: const Text('Send'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (submitted != true) {
+      reasonController.dispose();
+      return;
+    }
+
+    try {
+      await Supabase.instance.client.rpc(
+        'create_student_leave_request',
+        params: {
+          'p_class_session_id': selectedSessionId,
+          'p_reason': reasonController.text.trim(),
+        },
+      );
+      await _loadStudentLearning();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Leave request sent.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Leave request failed: $e')));
+    } finally {
+      reasonController.dispose();
+    }
+  }
+
+  Future<void> _submitHomework(_StudentHomeworkItem item) async {
+    final textController = TextEditingController();
+    final attachmentController = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Submit ${item.homework.title}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: textController,
+                decoration: const InputDecoration(
+                  labelText: 'Answer / notes',
+                  alignLabelWithHint: true,
+                ),
+                minLines: 4,
+                maxLines: 8,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: attachmentController,
+                decoration: const InputDecoration(
+                  labelText: 'Attachment URL',
+                  prefixIcon: Icon(Icons.link),
+                ),
+                keyboardType: TextInputType.url,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.upload_file),
+            label: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+    if (submitted != true) {
+      textController.dispose();
+      attachmentController.dispose();
+      return;
+    }
+
+    try {
+      await Supabase.instance.client.rpc(
+        'submit_homework_text',
+        params: {
+          'p_homework_id': item.homework.id,
+          'p_submission_text': textController.text.trim(),
+          'p_attachment_url': attachmentController.text.trim().isEmpty
+              ? null
+              : attachmentController.text.trim(),
+        },
+      );
+      await _loadStudentLearning();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Homework submitted.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
+    } finally {
+      textController.dispose();
+      attachmentController.dispose();
+    }
+  }
+
+  Future<void> _startExam(_StudentExamItem item) async {
+    final groupId = item.exam.groupId;
+    if (groupId == null) return;
+    try {
+      final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+      final repo = SupabaseExamRepository(wrapper);
+      final exams = await repo.fetchExamsForGroup(groupId);
+      final exam = exams.firstWhere((exam) => exam.id == item.exam.id);
+      final attempt = await repo.startExam(exam.id);
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ExamRunnerScreen(
+            exam: exam,
+            attempt: attempt,
+            onOptionSelected: (questionId, optionId) {
+              repo.saveExamAnswer(
+                attemptId: attempt.id,
+                questionId: questionId,
+                selectedOptionId: optionId,
+              );
+            },
+            onSubmit: () async {
+              await repo.submitExamAttempt(attempt.id);
+              if (context.mounted) Navigator.pop(context);
+            },
+          ),
+        ),
+      );
+      await _loadStudentLearning();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Exam failed: $e')));
+    }
+  }
+
+  Future<List<_PublishedSessionBoard>> _fetchPublishedSessionBoards() async {
+    final rows = await Supabase.instance.client.rpc(
+      'get_student_published_session_boards',
+    );
+
+    return (rows as List)
+        .whereType<Map>()
+        .map((row) => _PublishedSessionBoard.fromJson(row))
+        .toList();
+  }
+
+  void _openSessionBoard(_PublishedSessionBoard board) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _StudentSessionBoardScreen(board: board),
+      ),
+    );
   }
 
   void _openWorkspace(StudyLessonSummary lesson) {
@@ -220,7 +505,25 @@ class _StudentDashboardState extends State<StudentDashboard> {
         lessons: _snapshot?.availableLessons ?? const [],
         onOpenLesson: _openWorkspace,
       ),
+      _StudentAssessmentsPage(
+        isLoading: _isLoading,
+        homeworkItems: _homeworkItems,
+        examItems: _examItems,
+        onSubmitHomework: _submitHomework,
+        onStartExam: _startExam,
+      ),
+      _StudentAttendancePage(
+        isLoading: _isLoading,
+        attendanceItems: _attendanceItems,
+        leaveItems: _leaveItems,
+        onCreateLeaveRequest: _createLeaveRequest,
+      ),
       _StudentGroupsPage(isLoading: _isLoading, groups: _enrolledGroups),
+      _StudentSessionBoardsPage(
+        isLoading: _isLoading,
+        boards: _sessionBoards,
+        onOpenBoard: _openSessionBoard,
+      ),
       _StudentAnnouncementsPage(
         isLoading: _isLoading,
         announcements: _announcements,
@@ -257,7 +560,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
       destinations: const [
         PortalDestination(icon: Icons.dashboard, label: 'Overview'),
         PortalDestination(icon: Icons.menu_book, label: 'Lessons'),
+        PortalDestination(icon: Icons.assignment, label: 'Assessments'),
+        PortalDestination(icon: Icons.event_available, label: 'Attendance'),
         PortalDestination(icon: Icons.group_work, label: 'Groups'),
+        PortalDestination(icon: Icons.draw, label: 'Boards'),
         PortalDestination(icon: Icons.campaign, label: 'Announcements'),
         PortalDestination(icon: Icons.notifications, label: 'Notifications'),
         PortalDestination(icon: Icons.receipt_long, label: 'Billing'),
@@ -329,14 +635,14 @@ class _StudentOverviewPage extends StatelessWidget {
                 value: enrolledGroups.length.toString(),
                 icon: Icons.group_work,
                 accentColor: AppColors.info,
-                onTap: () => onNavigate(2),
+                onTap: () => onNavigate(4),
               ),
               PortalMetricCard(
                 label: 'Unread',
                 value: unreadCount.toString(),
                 icon: Icons.notifications,
                 accentColor: AppColors.warning,
-                onTap: () => onNavigate(4),
+                onTap: () => onNavigate(7),
               ),
               PortalMetricCard(
                 label: 'Balance',
@@ -346,7 +652,7 @@ class _StudentOverviewPage extends StatelessWidget {
                 ),
                 icon: Icons.receipt_long,
                 accentColor: AppColors.error,
-                onTap: () => onNavigate(5),
+                onTap: () => onNavigate(8),
               ),
             ],
           ),
@@ -440,6 +746,408 @@ class _StudentLessonsPage extends StatelessWidget {
   }
 }
 
+class _StudentAssessmentsPage extends StatelessWidget {
+  final bool isLoading;
+  final List<_StudentHomeworkItem> homeworkItems;
+  final List<_StudentExamItem> examItems;
+  final ValueChanged<_StudentHomeworkItem> onSubmitHomework;
+  final ValueChanged<_StudentExamItem> onStartExam;
+
+  const _StudentAssessmentsPage({
+    required this.isLoading,
+    required this.homeworkItems,
+    required this.examItems,
+    required this.onSubmitHomework,
+    required this.onStartExam,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isEmpty = homeworkItems.isEmpty && examItems.isEmpty;
+    return PortalPageShell(
+      title: 'Assessments',
+      subtitle: 'Homework submissions and exam entry for your active groups.',
+      icon: Icons.assignment,
+      accentColor: AppColors.studentRole,
+      child: PortalStateView(
+        isLoading: isLoading,
+        errorMessage: null,
+        isEmpty: isEmpty,
+        emptyTitle: 'No assessments available',
+        emptySubtitle: 'Published homework and exams will appear here.',
+        emptyIcon: Icons.assignment_outlined,
+        onRetry: () {},
+        child: ListView(
+          children: [
+            const PortalSectionTitle(title: 'Homework'),
+            const SizedBox(height: 10),
+            if (homeworkItems.isEmpty)
+              const _InlineEmptyState(
+                icon: Icons.assignment_outlined,
+                text: 'No homework assigned.',
+              )
+            else
+              ...homeworkItems.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: PortalListCard(
+                    icon: Icons.assignment,
+                    accentColor: item.isSubmitted
+                        ? AppColors.success
+                        : AppColors.warning,
+                    title: item.homework.title,
+                    subtitle:
+                        '${item.groupName} | Due ${_formatDate(item.homework.dueAt)} | Max ${item.homework.maxScore.toStringAsFixed(0)}',
+                    trailing: [
+                      PortalStatusChip(
+                        status: item.submissionStatus ?? 'pending',
+                      ),
+                      if (!item.isGraded)
+                        IconButton(
+                          tooltip: 'Submit homework',
+                          onPressed: () => onSubmitHomework(item),
+                          icon: const Icon(Icons.upload_file),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 18),
+            const PortalSectionTitle(title: 'Exams'),
+            const SizedBox(height: 10),
+            if (examItems.isEmpty)
+              const _InlineEmptyState(
+                icon: Icons.quiz_outlined,
+                text: 'No published exams.',
+              )
+            else
+              ...examItems.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: PortalListCard(
+                    icon: Icons.quiz,
+                    accentColor: item.canStart
+                        ? AppColors.studentRole
+                        : AppColors.info,
+                    title: item.exam.title,
+                    subtitle:
+                        '${item.groupName} | ${item.exam.durationMinutes} min | Attempts ${item.attemptCount}/${item.exam.maxAttempts}',
+                    trailing: [
+                      PortalStatusChip(
+                        status: item.lastAttemptStatus ?? item.exam.status,
+                      ),
+                      IconButton(
+                        tooltip: item.canStart
+                            ? 'Start exam'
+                            : 'Maximum attempts reached',
+                        onPressed: item.canStart
+                            ? () => onStartExam(item)
+                            : null,
+                        icon: const Icon(Icons.play_arrow),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StudentHomeworkItem {
+  final Homework homework;
+  final String groupName;
+  final String? submissionStatus;
+  final double? submissionScore;
+  final String? teacherFeedback;
+  final DateTime? submittedAt;
+
+  const _StudentHomeworkItem({
+    required this.homework,
+    required this.groupName,
+    this.submissionStatus,
+    this.submissionScore,
+    this.teacherFeedback,
+    this.submittedAt,
+  });
+
+  bool get isSubmitted =>
+      submissionStatus == 'submitted' || submissionStatus == 'graded';
+  bool get isGraded => submissionStatus == 'graded';
+
+  factory _StudentHomeworkItem.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    return _StudentHomeworkItem(
+      homework: Homework.fromJson(json),
+      groupName: json['group_name'] as String? ?? 'Group',
+      submissionStatus: json['submission_status'] as String?,
+      submissionScore: (json['submission_score'] as num?)?.toDouble(),
+      teacherFeedback: json['teacher_feedback'] as String?,
+      submittedAt: json['submitted_at'] == null
+          ? null
+          : DateTime.tryParse(json['submitted_at'].toString()),
+    );
+  }
+}
+
+class _StudentExamItem {
+  final Exam exam;
+  final String groupName;
+  final int attemptCount;
+  final String? lastAttemptStatus;
+  final double? lastScore;
+
+  const _StudentExamItem({
+    required this.exam,
+    required this.groupName,
+    required this.attemptCount,
+    this.lastAttemptStatus,
+    this.lastScore,
+  });
+
+  bool get canStart => attemptCount < exam.maxAttempts;
+
+  factory _StudentExamItem.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    return _StudentExamItem(
+      exam: Exam.fromJson(json),
+      groupName: json['group_name'] as String? ?? 'Group',
+      attemptCount: json['attempt_count'] as int? ?? 0,
+      lastAttemptStatus: json['last_attempt_status'] as String?,
+      lastScore: (json['last_score'] as num?)?.toDouble(),
+    );
+  }
+}
+
+class _StudentAttendancePage extends StatelessWidget {
+  final bool isLoading;
+  final List<_StudentAttendanceItem> attendanceItems;
+  final List<_StudentLeaveItem> leaveItems;
+  final VoidCallback onCreateLeaveRequest;
+
+  const _StudentAttendancePage({
+    required this.isLoading,
+    required this.attendanceItems,
+    required this.leaveItems,
+    required this.onCreateLeaveRequest,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final total = attendanceItems.length;
+    final present = attendanceItems
+        .where((item) => item.status == 'present')
+        .length;
+    final late = attendanceItems.where((item) => item.status == 'late').length;
+    final absent = attendanceItems
+        .where((item) => item.status == 'absent')
+        .length;
+    final excused = attendanceItems
+        .where((item) => item.status == 'excused')
+        .length;
+    final percentage = total == 0
+        ? 100
+        : (((present + late + excused) / total) * 100).round();
+
+    return PortalPageShell(
+      title: 'Attendance',
+      subtitle: 'Your session attendance history and leave requests.',
+      icon: Icons.event_available,
+      accentColor: AppColors.studentRole,
+      actions: [
+        PortalAction(
+          icon: Icons.event_busy,
+          label: 'Request Leave',
+          onPressed: onCreateLeaveRequest,
+          primary: true,
+        ),
+      ],
+      child: PortalStateView(
+        isLoading: isLoading,
+        errorMessage: null,
+        isEmpty: false,
+        emptyTitle: 'No attendance records',
+        emptySubtitle: 'Attendance appears after sessions are marked.',
+        emptyIcon: Icons.event_available,
+        onRetry: () {},
+        child: ListView(
+          children: [
+            PortalMetricGrid(
+              children: [
+                PortalMetricCard(
+                  label: 'Attendance',
+                  value: '$percentage%',
+                  icon: Icons.insights,
+                  accentColor: AppColors.studentRole,
+                ),
+                PortalMetricCard(
+                  label: 'Present',
+                  value: present.toString(),
+                  icon: Icons.check_circle,
+                  accentColor: AppColors.success,
+                ),
+                PortalMetricCard(
+                  label: 'Late',
+                  value: late.toString(),
+                  icon: Icons.schedule,
+                  accentColor: AppColors.warning,
+                ),
+                PortalMetricCard(
+                  label: 'Absent',
+                  value: absent.toString(),
+                  icon: Icons.cancel,
+                  accentColor: AppColors.error,
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            const PortalSectionTitle(title: 'History'),
+            const SizedBox(height: 10),
+            if (attendanceItems.isEmpty)
+              const _InlineEmptyState(
+                icon: Icons.event_available,
+                text: 'No marked sessions yet.',
+              )
+            else
+              ...attendanceItems.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: PortalListCard(
+                    icon: _attendanceIcon(item.status),
+                    accentColor: _attendanceColor(item.status),
+                    title:
+                        '${_formatDate(item.sessionDate)} - ${item.groupName}',
+                    subtitle:
+                        '${_formatTime(item.scheduledStartAt)} - ${_formatTime(item.scheduledEndAt)}${item.notes == null ? "" : " | ${item.notes}"}',
+                    trailing: [PortalStatusChip(status: item.status)],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 18),
+            PortalSectionTitle(
+              title: 'Leave Requests',
+              subtitle: '$excused excused session${excused == 1 ? "" : "s"}',
+            ),
+            const SizedBox(height: 10),
+            if (leaveItems.isEmpty)
+              const _InlineEmptyState(
+                icon: Icons.event_busy,
+                text: 'No leave requests submitted.',
+              )
+            else
+              ...leaveItems.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: PortalListCard(
+                    icon: Icons.event_busy,
+                    accentColor: _leaveColor(item.status),
+                    title: item.classSessionId == null
+                        ? 'General leave request'
+                        : '${_formatDate(item.sessionDate ?? item.submittedAt)} - ${item.groupName}',
+                    subtitle:
+                        '${item.reason} | Submitted ${_formatDate(item.submittedAt)}${item.reviewerNote == null ? "" : " | ${item.reviewerNote}"}',
+                    trailing: [PortalStatusChip(status: item.status)],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StudentAttendanceItem {
+  final String id;
+  final String classSessionId;
+  final String status;
+  final DateTime markedAt;
+  final DateTime sessionDate;
+  final DateTime scheduledStartAt;
+  final DateTime scheduledEndAt;
+  final String groupName;
+  final String? notes;
+
+  const _StudentAttendanceItem({
+    required this.id,
+    required this.classSessionId,
+    required this.status,
+    required this.markedAt,
+    required this.sessionDate,
+    required this.scheduledStartAt,
+    required this.scheduledEndAt,
+    required this.groupName,
+    this.notes,
+  });
+
+  factory _StudentAttendanceItem.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    final groupName = [
+      json['group_name'] as String? ?? 'Group',
+      json['group_code'] as String? ?? '',
+    ].where((part) => part.trim().isNotEmpty).join(' ');
+    return _StudentAttendanceItem(
+      id: json['id'] as String? ?? '',
+      classSessionId: json['class_session_id'] as String? ?? '',
+      status: json['attendance_status'] as String? ?? 'present',
+      markedAt:
+          DateTime.tryParse(json['marked_at']?.toString() ?? '') ??
+          DateTime.now(),
+      sessionDate:
+          DateTime.tryParse(json['session_date']?.toString() ?? '') ??
+          DateTime.now(),
+      scheduledStartAt:
+          DateTime.tryParse(json['scheduled_start_at']?.toString() ?? '') ??
+          DateTime.now(),
+      scheduledEndAt:
+          DateTime.tryParse(json['scheduled_end_at']?.toString() ?? '') ??
+          DateTime.now(),
+      groupName: groupName,
+      notes: json['notes'] as String?,
+    );
+  }
+}
+
+class _StudentLeaveItem {
+  final String id;
+  final String? classSessionId;
+  final String reason;
+  final String status;
+  final DateTime submittedAt;
+  final String? reviewerNote;
+  final DateTime? sessionDate;
+  final String groupName;
+
+  const _StudentLeaveItem({
+    required this.id,
+    this.classSessionId,
+    required this.reason,
+    required this.status,
+    required this.submittedAt,
+    this.reviewerNote,
+    this.sessionDate,
+    required this.groupName,
+  });
+
+  factory _StudentLeaveItem.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    return _StudentLeaveItem(
+      id: json['id'] as String? ?? '',
+      classSessionId: json['class_session_id'] as String?,
+      reason: json['reason'] as String? ?? '',
+      status: json['status'] as String? ?? 'pending',
+      submittedAt:
+          DateTime.tryParse(json['submitted_at']?.toString() ?? '') ??
+          DateTime.now(),
+      reviewerNote: json['reviewer_note'] as String?,
+      sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
+      groupName: json['group_name'] as String? ?? 'General',
+    );
+  }
+}
+
 class _StudentGroupsPage extends StatelessWidget {
   final bool isLoading;
   final List<GroupEntity> groups;
@@ -457,6 +1165,247 @@ class _StudentGroupsPage extends StatelessWidget {
         child: GroupListWidget(groups: groups, isLoading: isLoading),
       ),
     );
+  }
+}
+
+class _StudentSessionBoardsPage extends StatelessWidget {
+  final bool isLoading;
+  final List<_PublishedSessionBoard> boards;
+  final ValueChanged<_PublishedSessionBoard> onOpenBoard;
+
+  const _StudentSessionBoardsPage({
+    required this.isLoading,
+    required this.boards,
+    required this.onOpenBoard,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PortalPageShell(
+      title: 'Session Boards',
+      subtitle: 'Published class boards from sessions you attended.',
+      icon: Icons.draw,
+      accentColor: AppColors.studentRole,
+      child: PortalStateView(
+        isLoading: isLoading,
+        errorMessage: null,
+        isEmpty: boards.isEmpty,
+        emptyTitle: 'No published boards',
+        emptySubtitle:
+            'Boards appear here after your teacher publishes a board for an attended session.',
+        emptyIcon: Icons.draw_outlined,
+        onRetry: () {},
+        child: ListView.separated(
+          itemCount: boards.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final board = boards[index];
+            return PortalListCard(
+              icon: Icons.draw,
+              accentColor: AppColors.studentRole,
+              title: board.title,
+              subtitle:
+                  '${board.groupName} | ${_formatDate(board.sessionDate)} | Updated ${_formatDate(board.updatedAt)}',
+              trailing: [
+                IconButton(
+                  tooltip: 'Open board',
+                  onPressed: () => onOpenBoard(board),
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+              onTap: () => onOpenBoard(board),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _StudentSessionBoardScreen extends StatelessWidget {
+  final _PublishedSessionBoard board;
+
+  const _StudentSessionBoardScreen({required this.board});
+
+  @override
+  Widget build(BuildContext context) {
+    final strokes = _decodeSessionBoard(board.boardData);
+    return Scaffold(
+      appBar: AppBar(title: Text(board.title)),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _HeaderPill(icon: Icons.group_work, label: board.groupName),
+                _HeaderPill(
+                  icon: Icons.event,
+                  label: _formatDate(board.sessionDate),
+                ),
+                _HeaderPill(
+                  icon: Icons.update,
+                  label: 'Updated ${_formatDate(board.updatedAt)}',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Theme.of(context).dividerColor),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: CustomPaint(
+                    painter: _SessionBoardPainter(strokes),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _HeaderPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      avatar: Icon(icon, size: 18),
+      label: Text(label),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
+  }
+}
+
+class _PublishedSessionBoard {
+  final String id;
+  final String title;
+  final String groupName;
+  final DateTime sessionDate;
+  final DateTime updatedAt;
+  final Map<String, dynamic> boardData;
+
+  const _PublishedSessionBoard({
+    required this.id,
+    required this.title,
+    required this.groupName,
+    required this.sessionDate,
+    required this.updatedAt,
+    required this.boardData,
+  });
+
+  factory _PublishedSessionBoard.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    final sessionTitle = json['title'] as String?;
+    final groupName = json['group_name'] as String? ?? 'Group';
+
+    return _PublishedSessionBoard(
+      id: json['id'] as String? ?? '',
+      title: sessionTitle == null || sessionTitle.trim().isEmpty
+          ? 'Published session board'
+          : sessionTitle,
+      groupName: groupName,
+      sessionDate:
+          DateTime.tryParse(json['session_date']?.toString() ?? '') ??
+          DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+          DateTime.now(),
+      boardData: Map<String, dynamic>.from(json['board_data'] as Map? ?? {}),
+    );
+  }
+}
+
+class _SessionBoardStroke {
+  final Color color;
+  final double width;
+  final List<Offset> points;
+
+  const _SessionBoardStroke({
+    required this.color,
+    required this.width,
+    required this.points,
+  });
+
+  static _SessionBoardStroke fromJson(Map<String, dynamic> json) {
+    final rawPoints = json['points'] as List<dynamic>? ?? [];
+    return _SessionBoardStroke(
+      color: Color(json['color'] as int? ?? 0xFF111827),
+      width: (json['width'] as num? ?? 4).toDouble(),
+      points: rawPoints.map((p) {
+        final point = Map<String, dynamic>.from(p as Map);
+        return Offset(
+          (point['x'] as num? ?? 0).toDouble(),
+          (point['y'] as num? ?? 0).toDouble(),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _SessionBoardPainter extends CustomPainter {
+  final List<_SessionBoardStroke> strokes;
+
+  const _SessionBoardPainter(this.strokes);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = const Color(0xFFE5E7EB)
+      ..strokeWidth = 1;
+    for (var y = 28.0; y < size.height; y += 28) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+    for (final stroke in strokes) {
+      if (stroke.points.length < 2) continue;
+      final paint = Paint()
+        ..color = stroke.color
+        ..strokeWidth = stroke.width
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      final path = Path()
+        ..moveTo(stroke.points.first.dx, stroke.points.first.dy);
+      for (final point in stroke.points.skip(1)) {
+        path.lineTo(point.dx, point.dy);
+      }
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SessionBoardPainter oldDelegate) =>
+      oldDelegate.strokes != strokes;
+}
+
+List<_SessionBoardStroke> _decodeSessionBoard(Map<String, dynamic> data) {
+  try {
+    final rawStrokes = data['strokes'] as List<dynamic>? ?? [];
+    return rawStrokes
+        .map(
+          (stroke) => _SessionBoardStroke.fromJson(
+            Map<String, dynamic>.from(stroke as Map),
+          ),
+        )
+        .toList();
+  } catch (_) {
+    return [];
   }
 }
 
@@ -1082,6 +2031,54 @@ String _formatMoney(int minor, String currency) {
 
 String _formatDate(DateTime date) {
   return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
+String _formatTime(DateTime date) {
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
+}
+
+IconData _attendanceIcon(String status) {
+  switch (status) {
+    case 'absent':
+      return Icons.cancel;
+    case 'late':
+      return Icons.schedule;
+    case 'excused':
+      return Icons.event_available;
+    case 'present':
+    default:
+      return Icons.check_circle;
+  }
+}
+
+Color _attendanceColor(String status) {
+  switch (status) {
+    case 'absent':
+      return AppColors.error;
+    case 'late':
+      return AppColors.warning;
+    case 'excused':
+      return AppColors.info;
+    case 'present':
+    default:
+      return AppColors.success;
+  }
+}
+
+Color _leaveColor(String status) {
+  switch (status) {
+    case 'approved':
+      return AppColors.success;
+    case 'rejected':
+      return AppColors.error;
+    case 'cancelled':
+      return AppColors.info;
+    case 'pending':
+    default:
+      return AppColors.warning;
+  }
 }
 
 class _HeroPanel extends StatelessWidget {
