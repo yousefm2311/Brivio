@@ -27,7 +27,7 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
         );
       }
 
-      final lessons = await _fetchPublishedLessons();
+      final lessons = await _fetchPublishedLessons(studentId);
       final gamification = await _fetchGamificationSummary();
       final completed = lessons
           .where((lesson) => lesson.progressPercentage >= 100)
@@ -107,10 +107,10 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
         .toList();
   }
 
-  Future<List<StudyLessonSummary>> _fetchPublishedLessons() async {
-    final lessonsResponse = await _wrapper.client.rpc(
-      'get_current_student_lessons',
-    );
+  Future<List<StudyLessonSummary>> _fetchPublishedLessons(
+    String studentId,
+  ) async {
+    final lessonsResponse = await _fetchAccessibleLessons(studentId);
     final rawLessons = (lessonsResponse as List)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();
@@ -145,6 +145,17 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
     }
 
     return summaries;
+  }
+
+  Future<dynamic> _fetchAccessibleLessons(String studentId) async {
+    try {
+      return await _wrapper.client.rpc(
+        'get_accessible_student_lessons',
+        params: {'p_student_id': studentId},
+      );
+    } catch (_) {
+      return _wrapper.client.rpc('get_current_student_lessons');
+    }
   }
 
   Future<String> _createSignedUrl(String bucket, String objectPath) {
