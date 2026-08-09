@@ -14,6 +14,11 @@ class AppConfig {
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwcnNjbnlxamt6bG9memZhYXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMzUyMjksImV4cCI6MjEwMTgxMTIyOX0.BH2ZkP2jjP1nWpiNvPPpk11VmWYMK54xymNxvt15_zc',
   );
 
+  static const String codeSandboxUrl = String.fromEnvironment(
+    'CODE_SANDBOX_URL',
+    defaultValue: 'http://127.0.0.1:8787',
+  );
+
   /// Dynamically resolved Supabase URL handling Android loopback (10.0.2.2) automatically
   static String get effectiveSupabaseUrl {
     const rawUrl = supabaseUrl;
@@ -27,6 +32,17 @@ class AppConfig {
       if (rawUrl.contains('localhost')) {
         return rawUrl.replaceAll('localhost', '10.0.2.2');
       }
+    }
+    return rawUrl;
+  }
+
+  static String get effectiveCodeSandboxUrl {
+    final rawUrl = codeSandboxUrl;
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        (rawUrl.contains('127.0.0.1') || rawUrl.contains('localhost'))) {
+      return rawUrl
+          .replaceFirst('127.0.0.1', '10.0.2.2')
+          .replaceFirst('localhost', '10.0.2.2');
     }
     return rawUrl;
   }

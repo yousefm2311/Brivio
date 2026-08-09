@@ -27,12 +27,7 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
         );
       }
 
-      final subjectIds = groups
-          .map((group) => group['subject_id'] as String?)
-          .whereType<String>()
-          .toSet()
-          .toList();
-      final lessons = await _fetchPublishedLessons(subjectIds, studentId);
+      final lessons = await _fetchPublishedLessons();
       final completed = lessons
           .where((lesson) => lesson.progressPercentage >= 100)
           .length;
@@ -89,113 +84,39 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
         .toList();
   }
 
-  Future<List<StudyLessonSummary>> _fetchPublishedLessons(
-    List<String> subjectIds,
-    String studentId,
-  ) async {
-    if (subjectIds.isEmpty) return [];
-
-    final semestersResponse = await _wrapper.client
-        .from('semesters')
-        .select('id, subject_id')
-        .inFilter('subject_id', subjectIds)
-        .eq('status', 'active');
-    final semesters = (semestersResponse as List)
-        .map((row) => Map<String, dynamic>.from(row as Map))
-        .toList();
-    final semesterIds = semesters.map((sem) => sem['id'] as String).toList();
-    if (semesterIds.isEmpty) return [];
-    final subjectIdBySemesterId = {
-      for (final sem in semesters)
-        sem['id'] as String: sem['subject_id'] as String,
-    };
-
-    final unitsResponse = await _wrapper.client
-        .from('units')
-        .select('id, name, semester_id, order_number')
-        .inFilter('semester_id', semesterIds)
-        .eq('status', 'active')
-        .order('order_number');
-    final units = (unitsResponse as List)
-        .map((row) => Map<String, dynamic>.from(row as Map))
-        .toList();
-    final unitIds = units.map((unit) => unit['id'] as String).toList();
-    if (unitIds.isEmpty) return [];
-    final subjectResponse = await _wrapper.client
-        .from('subjects')
-        .select('id, name')
-        .inFilter('id', subjectIds);
-    final subjectById = {
-      for (final row in subjectResponse as List)
-        (row as Map)['id'] as String: row['name'] as String? ?? 'Subject',
-    };
-
-    final lessonsResponse = await _wrapper.client
-        .from('lessons')
-        .select('*, lesson_resources(*)')
-        .inFilter('unit_id', unitIds)
-        .eq('status', 'published')
-        .order('order_number');
+  Future<List<StudyLessonSummary>> _fetchPublishedLessons() async {
+    final lessonsResponse = await _wrapper.client.rpc(
+      'get_current_student_lessons',
+    );
     final rawLessons = (lessonsResponse as List)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();
     if (rawLessons.isEmpty) return [];
 
-    final lessonIds = rawLessons
-        .map((lesson) => lesson['id'] as String)
-        .toList();
-    final progressResponse = await _wrapper.client
-        .from('lesson_progress')
-        .select()
-        .eq('student_id', studentId)
-        .inFilter('lesson_id', lessonIds);
-    final progressByLesson = {
-      for (final row in progressResponse as List)
-        (row as Map)['lesson_id'] as String: Map<String, dynamic>.from(row),
-    };
-
-    final unitById = {for (final unit in units) unit['id'] as String: unit};
     final summaries = <StudyLessonSummary>[];
-
     for (final lesson in rawLessons) {
-      final unit = unitById[lesson['unit_id']];
-      final unitSubjectId =
-          subjectIdBySemesterId[unit?['semester_id'] as String?];
-      final resources = (lesson['lesson_resources'] as List<dynamic>? ?? [])
-          .whereType<Map>()
-          .map((resource) => Map<String, dynamic>.from(resource))
-          .toList();
-      final pdfResource = resources.cast<Map<String, dynamic>?>().firstWhere(
-        (resource) => resource?['resource_type'] == 'pdf',
-        orElse: () => null,
-      );
-      final progress = progressByLesson[lesson['id']];
       final progressPercentage =
-          (progress?['progress_percentage'] as num?)?.round() ?? 0;
-      final lastPosition = progress?['last_position']?.toString();
-      final lastPage = int.tryParse(lastPosition ?? '') ?? 1;
-      final totalPages =
-          int.tryParse(
-            (pdfResource?['metadata'] as Map?)?['page_count']?.toString() ?? '',
-          ) ??
-          1;
-
+          (lesson['progress_percentage'] as num?)?.round() ?? 0;
+      final totalPages = (lesson['total_pages'] as num?)?.round() ?? 1;
+      final lastPage = (lesson['last_page'] as num?)?.round() ?? 1;
+      final pdfBucket = lesson['pdf_bucket']?.toString();
+      final pdfObjectPath = lesson['pdf_object_path']?.toString();
       summaries.add(
         StudyLessonSummary(
-          id: lesson['id'] as String,
-          title: lesson['title'] as String? ?? 'Untitled lesson',
-          pathName: subjectById[unitSubjectId] ?? 'Assigned subject',
-          unitName: unit?['name'] as String? ?? 'Unit',
+          id: lesson['lesson_id'] as String,
+          title: lesson['lesson_title'] as String? ?? 'Untitled lesson',
+          pathName: lesson['subject_name'] as String? ?? 'Assigned subject',
+          unitName: lesson['unit_name'] as String? ?? 'Unit',
           progressPercentage: progressPercentage.clamp(0, 100),
-          estimatedMinutes: lesson['estimated_duration_minutes'] as int? ?? 0,
+          estimatedMinutes: (lesson['estimated_minutes'] as num?)?.round() ?? 0,
           lastPage: lastPage.clamp(1, totalPages),
           totalPages: totalPages,
           xp: progressPercentage >= 100 ? 100 : 0,
-          hasPdf: pdfResource != null,
-          hasCodePlayground: lesson['lesson_type'] == 'programming',
-          pdfUrl: pdfResource == null
+          hasPdf: pdfBucket != null && pdfObjectPath != null,
+          hasCodePlayground: lesson['has_code_playground'] == true,
+          pdfUrl: pdfBucket == null || pdfObjectPath == null
               ? null
-              : await _createSignedUrl(pdfResource),
+              : await _createSignedUrl(pdfBucket, pdfObjectPath),
         ),
       );
     }
@@ -203,10 +124,10 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
     return summaries;
   }
 
-  Future<String> _createSignedUrl(Map<String, dynamic> resource) {
+  Future<String> _createSignedUrl(String bucket, String objectPath) {
     return _wrapper.client.storage
-        .from(resource['bucket'] as String)
-        .createSignedUrl(resource['object_path'] as String, 900);
+        .from(bucket)
+        .createSignedUrl(objectPath, 900);
   }
 
   String _formatMinutes(int minutes) {

@@ -145,7 +145,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                         .map(
                           (entry) => {
                             'student_id': entry.key,
-                            'status': entry.value.toDbValue(),
+                            'attendance_status': entry.value.toDbValue(),
                           },
                         )
                         .toList(),

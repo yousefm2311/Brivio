@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../domain/models/study_workspace_models.dart';
 import '../../domain/repositories/study_workspace_repository.dart';
 
@@ -20,6 +24,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   String _codeText = '';
   String _boardData = '';
   int _currentPage;
+  bool _isRunningCode = false;
   CodeRunResult? _lastRunResult;
 
   StudyWorkspaceViewModel({
@@ -34,6 +39,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   String get codeText => _codeText;
   String get boardData => _boardData;
   int get currentPage => _currentPage;
+  bool get isRunningCode => _isRunningCode;
   CodeRunResult? get lastRunResult => _lastRunResult;
 
   Future<void> load() async {
@@ -136,19 +142,71 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     });
   }
 
-  void runCodePreview() {
-    final lines = _codeText
-        .split('\n')
-        .where((line) => line.trim().isNotEmpty)
-        .length;
+  void runCodePreview([String? code]) {
+    if (code != null) _codeText = code;
     _lastRunResult = CodeRunResult(
       isSuccess: true,
-      output:
-          'Preview runner is ready.\n'
-          'Analyzed $lines non-empty code lines.\n'
-          'Real Python/C++ execution needs the Sandbox Server phase.',
+      output: _buildPreviewOutput(_codeText),
     );
     notifyListeners();
+  }
+
+  Future<void> runCode({required String code, required String language}) async {
+    _codeText = code;
+    _isRunningCode = true;
+    _lastRunResult = const CodeRunResult(
+      isSuccess: true,
+      output: 'Running code...',
+    );
+    notifyListeners();
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${AppConfig.effectiveCodeSandboxUrl}/run'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({'language': language, 'code': code, 'stdin': ''}),
+          )
+          .timeout(const Duration(seconds: 12));
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final stdout = (decoded['stdout'] as String?) ?? '';
+      final stderr = (decoded['stderr'] as String?) ?? '';
+      final exitCode = decoded['exitCode'];
+      final durationMs = decoded['durationMs'];
+      final success = decoded['success'] == true && response.statusCode == 200;
+      final buffer = StringBuffer()
+        ..writeln(success ? 'Execution finished.' : 'Execution failed.')
+        ..writeln('Exit code: ${exitCode ?? 'unknown'}')
+        ..writeln('Duration: ${durationMs ?? 'unknown'} ms');
+      if (stdout.trim().isNotEmpty) {
+        buffer
+          ..writeln()
+          ..writeln('stdout:')
+          ..write(stdout.trimRight());
+      }
+      if (stderr.trim().isNotEmpty) {
+        buffer
+          ..writeln()
+          ..writeln('stderr:')
+          ..write(stderr.trimRight());
+      }
+      _lastRunResult = CodeRunResult(
+        isSuccess: success,
+        output: buffer.toString().trimRight(),
+      );
+    } catch (error) {
+      _lastRunResult = CodeRunResult(
+        isSuccess: false,
+        output:
+            'Sandbox server is not reachable.\n'
+            'Start sandbox_server/server.py then try Run code again.\n\n'
+            '${_buildPreviewOutput(code)}',
+      );
+    } finally {
+      _isRunningCode = false;
+      notifyListeners();
+    }
   }
 
   Future<void> _save(Future<void> Function() action) async {
@@ -173,5 +231,15 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  String _buildPreviewOutput(String code) {
+    final lines = code
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .length;
+    return 'Preview runner is ready.\n'
+        'Analyzed $lines non-empty code lines.\n'
+        'Use Run code for real Python/C++ execution through the Sandbox Server.';
   }
 }

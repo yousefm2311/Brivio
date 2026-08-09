@@ -167,7 +167,7 @@ class _AttendanceOperationsScreenState
                         .map(
                           (entry) => {
                             'student_id': entry.key,
-                            'status': entry.value,
+                            'attendance_status': entry.value,
                           },
                         )
                         .toList(),

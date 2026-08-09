@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'apps/admin/admin_dashboard.dart';
 import 'apps/parent/parent_dashboard.dart';
@@ -5,6 +7,7 @@ import 'apps/staff/staff_dashboard.dart';
 import 'apps/student/student_dashboard.dart';
 import 'apps/teacher/teacher_dashboard.dart';
 import 'core/di/injection.dart';
+import 'core/logging/app_logger.dart';
 import 'core/security/access_denied_screen.dart';
 import 'design_system/theme/app_theme.dart';
 import 'features/auth/domain/models/user_role.dart';
@@ -13,8 +16,62 @@ import 'features/auth/presentation/viewmodels/auth_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await setupDependencyInjection();
-  runApp(const MainAppSelector());
+  try {
+    await setupDependencyInjection().timeout(const Duration(seconds: 20));
+    runApp(const MainAppSelector());
+  } catch (error, stackTrace) {
+    AppLogger.error('Application startup failed', error, stackTrace);
+    runApp(StartupFailureApp(error: error));
+  }
+}
+
+class StartupFailureApp extends StatelessWidget {
+  final Object error;
+
+  const StartupFailureApp({super.key, required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Academy Platform',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme(),
+      home: Scaffold(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Startup failed',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    error.toString(),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () {
+                      main();
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MainAppSelector extends StatefulWidget {

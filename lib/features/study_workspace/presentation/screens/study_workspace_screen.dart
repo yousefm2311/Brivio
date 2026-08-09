@@ -1107,7 +1107,10 @@ class _NotebookPaneState extends State<_NotebookPane> {
             ),
           ),
           const SizedBox(height: 10),
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               ToggleButtons(
                 isSelected: [_eraser == false, _eraser == true],
@@ -1315,7 +1318,7 @@ List<_BoardStroke> _decodeBoard(String raw) {
   }
 }
 
-class _CodePane extends StatelessWidget {
+class _CodePane extends StatefulWidget {
   final StudyWorkspaceViewModel viewModel;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
@@ -1327,18 +1330,26 @@ class _CodePane extends StatelessWidget {
   });
 
   @override
+  State<_CodePane> createState() => _CodePaneState();
+}
+
+class _CodePaneState extends State<_CodePane> {
+  String _language = 'python';
+
+  @override
   Widget build(BuildContext context) {
+    final viewModel = widget.viewModel;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           Expanded(
             child: TextField(
-              controller: controller,
+              controller: widget.controller,
               maxLines: null,
               expands: true,
               textAlignVertical: TextAlignVertical.top,
-              onChanged: onChanged,
+              onChanged: widget.onChanged,
               style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
               decoration: const InputDecoration(
                 labelText: 'Code Playground',
@@ -1348,16 +1359,53 @@ class _CodePane extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              SizedBox(
+                width: 150,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _language,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Language',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'python', child: Text('Python')),
+                    DropdownMenuItem(value: 'cpp', child: Text('C++')),
+                  ],
+                  onChanged: viewModel.isRunningCode
+                      ? null
+                      : (value) {
+                          if (value == null) return;
+                          setState(() => _language = value);
+                        },
+                ),
+              ),
               FilledButton.icon(
-                onPressed: viewModel.runCodePreview,
+                onPressed: viewModel.isRunningCode
+                    ? null
+                    : () => viewModel.runCode(
+                        code: widget.controller.text,
+                        language: _language,
+                      ),
                 icon: const Icon(Icons.play_arrow),
+                label: Text(viewModel.isRunningCode ? 'Running' : 'Run code'),
+              ),
+              OutlinedButton.icon(
+                onPressed: viewModel.isRunningCode
+                    ? null
+                    : () => viewModel.runCodePreview(widget.controller.text),
+                icon: const Icon(Icons.fact_check_outlined),
                 label: const Text('Run preview'),
               ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text('Real execution will connect to Sandbox Server.'),
+              const SizedBox(
+                width: 260,
+                child: Text('Runs through the configured Sandbox Server.'),
               ),
             ],
           ),

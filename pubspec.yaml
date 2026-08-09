@@ -23,6 +23,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   video_player: ^2.9.2
   pdfrx: 2.4.7
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
