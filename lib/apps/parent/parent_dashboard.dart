@@ -6,8 +6,13 @@ import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
-import '../../features/academy/presentation/screens/academy_screens.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import '../../features/communication/data/repositories/supabase_notification_repository.dart';
+import '../../features/communication/domain/models/notification.dart';
+import '../../features/payments/data/repositories/supabase_payment_repositories.dart';
+import '../../features/payments/domain/models/payment_models.dart';
+import '../../features/study_workspace/data/repositories/supabase_student_learning_repository.dart';
+import '../../features/study_workspace/domain/models/study_workspace_models.dart';
 
 class ParentDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -20,10 +25,27 @@ class ParentDashboard extends StatefulWidget {
 
 class _ParentDashboardState extends State<ParentDashboard> {
   bool _isLoading = false;
+  bool _isChildLoading = false;
   String? _errorMessage;
+  int _selectedIndex = 0;
   List<Student> _linkedChildren = [];
   Student? _selectedChild;
   List<GroupEntity> _childGroups = [];
+  StudentLearningSnapshot? _learningSnapshot;
+  FinancialSummary? _financialSummary;
+  List<Invoice> _invoices = [];
+  List<_ParentAttendanceItem> _attendance = [];
+  List<_ParentLeaveItem> _leaveRequests = [];
+  List<AppNotification> _notifications = [];
+  int _unreadCount = 0;
+
+  static const _destinations = [
+    PortalDestination(icon: Icons.dashboard_customize, label: 'Overview'),
+    PortalDestination(icon: Icons.school, label: 'Progress'),
+    PortalDestination(icon: Icons.fact_check, label: 'Attendance'),
+    PortalDestination(icon: Icons.receipt_long, label: 'Payments'),
+    PortalDestination(icon: Icons.notifications, label: 'Notifications'),
+  ];
 
   @override
   void initState() {
@@ -31,20 +53,27 @@ class _ParentDashboardState extends State<ParentDashboard> {
     _loadLinkedChildren();
   }
 
+  SupabaseClientWrapper get _wrapper =>
+      SupabaseClientWrapper(Supabase.instance.client);
+
   Future<void> _loadLinkedChildren() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     try {
-      final wrapper = SupabaseClientWrapper(Supabase.instance.client);
-      final parentRepo = SupabaseParentRepository(wrapper);
-
+      final parentRepo = SupabaseParentRepository(_wrapper);
       final parentId = widget.authViewModel.bootstrap?.parentId;
       final children = parentId == null
           ? <Student>[]
           : await parentRepo.fetchLinkedStudents(parentId);
-      final selected = children.isNotEmpty ? children.first : null;
+      final previousId = _selectedChild?.id;
+      final selected = children.isEmpty
+          ? null
+          : children.firstWhere(
+              (child) => child.id == previousId,
+              orElse: () => children.first,
+            );
 
       if (!mounted) return;
       setState(() {
@@ -53,7 +82,11 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _isLoading = false;
       });
 
-      if (selected != null) await _loadGroupsForChild(selected);
+      if (selected != null) {
+        await _loadChildDetails(selected);
+      } else {
+        _clearChildState();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -63,130 +96,761 @@ class _ParentDashboardState extends State<ParentDashboard> {
     }
   }
 
-  Future<void> _loadGroupsForChild(Student child) async {
+  Future<void> _loadChildDetails(Student child) async {
+    setState(() {
+      _isChildLoading = true;
+      _errorMessage = null;
+    });
+
     try {
-      final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+      final wrapper = _wrapper;
       final enrollmentRepo = SupabaseEnrollmentRepository(wrapper);
-      final groupRepo = SupabaseGroupRepository(wrapper);
+      final learningRepo = SupabaseStudentLearningRepository(wrapper);
+      final paymentRepo = SupabasePaymentRepository(wrapper);
+      final invoiceRepo = SupabaseInvoiceRepository(wrapper);
+      final notificationRepo = SupabaseNotificationRepository(wrapper);
 
-      final enrollments = await enrollmentRepo.fetchEnrollmentsForStudent(
-        child.id,
-      );
-      final enrolledGroupIds = enrollments.map((e) => e.groupId).toSet();
-      final allGroups = enrolledGroupIds.isEmpty
-          ? <GroupEntity>[]
-          : await groupRepo.fetchGroups();
-      final groups = allGroups
-          .where((group) => enrolledGroupIds.contains(group.id))
-          .toList();
+      final results = await Future.wait<Object>([
+        enrollmentRepo.fetchGroupsForStudent(child.id),
+        learningRepo.fetchSnapshotForStudent(child.id),
+        paymentRepo.fetchStudentFinancialSummary(child.id),
+        invoiceRepo.fetchInvoicesForStudent(child.id),
+        _fetchAttendance(child.id),
+        _fetchLeaveRequests(child.id),
+        notificationRepo.getNotifications(),
+        notificationRepo.getUnreadCount(),
+      ]);
 
-      if (!mounted) return;
-      setState(() => _childGroups = groups);
+      if (!mounted || _selectedChild?.id != child.id) return;
+      setState(() {
+        _childGroups = results[0] as List<GroupEntity>;
+        _learningSnapshot = results[1] as StudentLearningSnapshot;
+        _financialSummary = results[2] as FinancialSummary;
+        _invoices = results[3] as List<Invoice>;
+        _attendance = results[4] as List<_ParentAttendanceItem>;
+        _leaveRequests = results[5] as List<_ParentLeaveItem>;
+        _notifications = results[6] as List<AppNotification>;
+        _unreadCount = results[7] as int;
+        _isChildLoading = false;
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = e.toString());
+      setState(() {
+        _errorMessage = e.toString();
+        _isChildLoading = false;
+      });
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final user = widget.authViewModel.currentUser;
+  void _clearChildState() {
+    setState(() {
+      _childGroups = [];
+      _learningSnapshot = null;
+      _financialSummary = null;
+      _invoices = [];
+      _attendance = [];
+      _leaveRequests = [];
+      _notifications = [];
+      _unreadCount = 0;
+    });
+  }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Parent Portal'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadLinkedChildren,
-          ),
-          IconButton(
-            tooltip: 'Sign out',
-            icon: const Icon(Icons.logout),
-            onPressed: widget.authViewModel.signOut,
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadLinkedChildren,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            PortalHeader(
-              eyebrow: 'Guardian Portal',
-              title: user?.fullName ?? 'Parent',
-              subtitle: '${_linkedChildren.length} linked children',
-              icon: Icons.family_restroom,
-              accentColor: AppColors.parentRole,
-            ),
-            if (_isLoading) ...[
-              const SizedBox(height: 16),
-              const LinearProgressIndicator(),
-            ],
-            const SizedBox(height: 16),
-            PortalMetricGrid(
+  Future<List<_ParentAttendanceItem>> _fetchAttendance(String studentId) async {
+    final response = await _wrapper.client.rpc(
+      'get_parent_child_attendance_history',
+      params: {'p_student_id': studentId, 'p_limit': 80},
+    );
+    return (response as List)
+        .map((row) => _ParentAttendanceItem.fromJson(row as Map))
+        .toList();
+  }
+
+  Future<List<_ParentLeaveItem>> _fetchLeaveRequests(String studentId) async {
+    final response = await _wrapper.client.rpc(
+      'get_parent_child_leave_requests',
+      params: {'p_student_id': studentId},
+    );
+    return (response as List)
+        .map((row) => _ParentLeaveItem.fromJson(row as Map))
+        .toList();
+  }
+
+  Future<void> _createLeaveRequest() async {
+    final child = _selectedChild;
+    if (child == null) return;
+
+    final reasonController = TextEditingController();
+    String? selectedSessionId = _attendance.isNotEmpty
+        ? _attendance.first.classSessionId
+        : null;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Leave request for ${child.fullName}'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                PortalMetricCard(
-                  label: 'Linked children',
-                  value: _linkedChildren.length.toString(),
-                  icon: Icons.child_care,
-                  accentColor: AppColors.parentRole,
+                DropdownButtonFormField<String?>(
+                  initialValue: selectedSessionId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Class session'),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('General request'),
+                    ),
+                    ..._attendance.map(
+                      (item) => DropdownMenuItem<String?>(
+                        value: item.classSessionId,
+                        child: Text(
+                          '${item.groupName} - ${_formatDate(item.sessionDate)}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setDialogState(() => selectedSessionId = value);
+                  },
                 ),
-                PortalMetricCard(
-                  label: 'Active groups',
-                  value: _childGroups.length.toString(),
-                  icon: Icons.group_work,
-                  accentColor: AppColors.info,
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason',
+                    alignLabelWithHint: true,
+                  ),
                 ),
               ],
             ),
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 16),
-              PortalErrorBanner(
-                message: _errorMessage!,
-                onRetry: _loadLinkedChildren,
-              ),
-            ],
-            const SizedBox(height: 18),
-            if (_linkedChildren.isNotEmpty) ...[
-              const PortalSectionTitle(title: 'Selected Child'),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<Student>(
-                initialValue: _selectedChild,
-                isExpanded: true,
-                items: _linkedChildren
-                    .map(
-                      (child) => DropdownMenuItem<Student>(
-                        value: child,
-                        child: Text('${child.fullName} (${child.studentCode})'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (child) {
-                  if (child == null) return;
-                  setState(() => _selectedChild = child);
-                  _loadGroupsForChild(child);
-                },
-              ),
-              const SizedBox(height: 18),
-            ],
-            PortalSectionTitle(
-              title: _selectedChild == null
-                  ? 'Child Enrolled Groups'
-                  : 'Groups for ${_selectedChild!.fullName}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 350,
-              child: GroupListWidget(
-                groups: _childGroups,
-                isLoading: _isLoading,
-              ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).pop(true),
+              icon: const Icon(Icons.send),
+              label: const Text('Submit'),
             ),
           ],
         ),
       ),
+    );
+
+    if (confirmed != true) return;
+    final reason = reasonController.text.trim();
+    reasonController.dispose();
+    if (reason.isEmpty) return;
+
+    setState(() => _isChildLoading = true);
+    try {
+      await _wrapper.client.rpc(
+        'create_parent_child_leave_request',
+        params: {
+          'p_student_id': child.id,
+          'p_class_session_id': selectedSessionId,
+          'p_reason': reason,
+        },
+      );
+      await _loadChildDetails(child);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isChildLoading = false;
+      });
+    }
+  }
+
+  Future<void> _markAllNotificationsRead() async {
+    final repo = SupabaseNotificationRepository(_wrapper);
+    await repo.markAllRead();
+    final child = _selectedChild;
+    if (child != null) await _loadChildDetails(child);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final parentName = widget.authViewModel.currentUser?.fullName ?? 'Parent';
+    final selectedName = _selectedChild?.fullName ?? 'No child selected';
+
+    return PortalScaffold(
+      title: parentName,
+      subtitle: selectedName,
+      icon: Icons.family_restroom,
+      accentColor: AppColors.parentRole,
+      selectedIndex: _selectedIndex,
+      destinations: _destinations,
+      onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+      onRefresh: _loadLinkedChildren,
+      onSignOut: widget.authViewModel.signOut,
+      body: RefreshIndicator(
+        onRefresh: _loadLinkedChildren,
+        child: PortalStateView(
+          isLoading: _isLoading,
+          errorMessage: null,
+          isEmpty: _linkedChildren.isEmpty,
+          emptyTitle: 'No linked children',
+          emptySubtitle:
+              'Ask the academy admin to link your account to a student profile.',
+          emptyIcon: Icons.family_restroom,
+          onRetry: _loadLinkedChildren,
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              _buildHeader(),
+              if (_isChildLoading) ...[
+                const SizedBox(height: 12),
+                const LinearProgressIndicator(),
+              ],
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 12),
+                PortalErrorBanner(
+                  message: _errorMessage!,
+                  onRetry: _loadLinkedChildren,
+                ),
+              ],
+              const SizedBox(height: 16),
+              _buildSelectedPage(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return PortalHeader(
+      eyebrow: 'Guardian Portal',
+      title: _selectedChild?.fullName ?? 'Parent overview',
+      subtitle: _selectedChild == null
+          ? '${_linkedChildren.length} linked children'
+          : '${_selectedChild!.studentCode} • ${_childGroups.length} active groups',
+      icon: Icons.family_restroom,
+      accentColor: AppColors.parentRole,
+      trailing: SizedBox(
+        width: 260,
+        child: DropdownButtonFormField<Student>(
+          initialValue: _selectedChild,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Child'),
+          items: _linkedChildren
+              .map(
+                (child) => DropdownMenuItem<Student>(
+                  value: child,
+                  child: Text(
+                    '${child.fullName} (${child.studentCode})',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (child) {
+            if (child == null) return;
+            setState(() => _selectedChild = child);
+            _loadChildDetails(child);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectedPage() {
+    return switch (_selectedIndex) {
+      0 => _buildOverviewPage(),
+      1 => _buildProgressPage(),
+      2 => _buildAttendancePage(),
+      3 => _buildPaymentsPage(),
+      4 => _buildNotificationsPage(),
+      _ => _buildOverviewPage(),
+    };
+  }
+
+  Widget _buildOverviewPage() {
+    final progress = _averageProgress();
+    final attendanceRate = _attendanceRate();
+    final balance = _financialSummary?.remainingBalanceMinor ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PortalMetricGrid(
+          children: [
+            PortalMetricCard(
+              label: 'Lesson progress',
+              value: '${progress.round()}%',
+              icon: Icons.trending_up,
+              accentColor: AppColors.success,
+              onTap: () => setState(() => _selectedIndex = 1),
+            ),
+            PortalMetricCard(
+              label: 'Attendance rate',
+              value: '${attendanceRate.round()}%',
+              icon: Icons.fact_check,
+              accentColor: AppColors.info,
+              onTap: () => setState(() => _selectedIndex = 2),
+            ),
+            PortalMetricCard(
+              label: 'Balance due',
+              value: _money(balance, _financialSummary?.currency ?? 'EGP'),
+              icon: Icons.receipt_long,
+              accentColor: balance > 0 ? AppColors.warning : AppColors.success,
+              onTap: () => setState(() => _selectedIndex = 3),
+            ),
+            PortalMetricCard(
+              label: 'Unread alerts',
+              value: _unreadCount.toString(),
+              icon: Icons.notifications_active,
+              accentColor: AppColors.parentRole,
+              onTap: () => setState(() => _selectedIndex = 4),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        const PortalSectionTitle(
+          title: 'Active groups',
+          subtitle: 'Groups currently assigned to the selected child.',
+        ),
+        const SizedBox(height: 8),
+        _InfoList(
+          isEmpty: _childGroups.isEmpty,
+          emptyText: 'No active groups for this child.',
+          children: _childGroups
+              .map(
+                (group) => PortalListCard(
+                  icon: Icons.group_work,
+                  accentColor: AppColors.info,
+                  title: group.name,
+                  subtitle: '${group.code} • ${group.status}',
+                  trailing: [PortalStatusChip(status: group.status)],
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 18),
+        const PortalSectionTitle(title: 'Next learning item'),
+        const SizedBox(height: 8),
+        _buildNextLessonCard(),
+      ],
+    );
+  }
+
+  Widget _buildProgressPage() {
+    final snapshot = _learningSnapshot;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PortalMetricGrid(
+          children: (snapshot?.metrics ?? const <StudyMetric>[])
+              .map(
+                (metric) => PortalMetricCard(
+                  label: metric.label,
+                  value: metric.value,
+                  icon: Icons.insights,
+                  accentColor: AppColors.studentRole,
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 18),
+        const PortalSectionTitle(
+          title: 'Published lessons',
+          subtitle: 'Progress is calculated from the student reading history.',
+        ),
+        const SizedBox(height: 8),
+        _InfoList(
+          isEmpty: snapshot == null || snapshot.availableLessons.isEmpty,
+          emptyText: 'No published lessons available for this child yet.',
+          children: (snapshot?.availableLessons ?? const <StudyLessonSummary>[])
+              .map(
+                (lesson) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          lesson.title,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('${lesson.pathName} • ${lesson.unitName}'),
+                        const SizedBox(height: 10),
+                        LinearProgressIndicator(value: lesson.progress),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${lesson.progressPercentage}% • page ${lesson.lastPage}/${lesson.totalPages}',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAttendancePage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PortalMetricGrid(
+          children: [
+            PortalMetricCard(
+              label: 'Present',
+              value: _attendance
+                  .where((item) => item.status == 'present')
+                  .length
+                  .toString(),
+              icon: Icons.check_circle,
+              accentColor: AppColors.success,
+            ),
+            PortalMetricCard(
+              label: 'Absent',
+              value: _attendance
+                  .where((item) => item.status == 'absent')
+                  .length
+                  .toString(),
+              icon: Icons.cancel,
+              accentColor: AppColors.error,
+            ),
+            PortalMetricCard(
+              label: 'Late',
+              value: _attendance
+                  .where((item) => item.status == 'late')
+                  .length
+                  .toString(),
+              icon: Icons.schedule,
+              accentColor: AppColors.warning,
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            const Expanded(
+              child: PortalSectionTitle(
+                title: 'Leave requests',
+                subtitle: 'Submit and track absence excuses.',
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: _selectedChild == null ? null : _createLeaveRequest,
+              icon: const Icon(Icons.add),
+              label: const Text('Request'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _InfoList(
+          isEmpty: _leaveRequests.isEmpty,
+          emptyText: 'No leave requests yet.',
+          children: _leaveRequests
+              .map(
+                (item) => PortalListCard(
+                  icon: Icons.event_busy,
+                  accentColor: _statusColor(item.status),
+                  title: item.reason,
+                  subtitle:
+                      '${item.groupName} • ${_formatDate(item.submittedAt)}',
+                  trailing: [PortalStatusChip(status: item.status)],
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 18),
+        const PortalSectionTitle(title: 'Attendance history'),
+        const SizedBox(height: 8),
+        _InfoList(
+          isEmpty: _attendance.isEmpty,
+          emptyText: 'No attendance records yet.',
+          children: _attendance
+              .map(
+                (item) => PortalListCard(
+                  icon: item.status == 'present'
+                      ? Icons.check_circle
+                      : item.status == 'late'
+                      ? Icons.schedule
+                      : Icons.cancel,
+                  accentColor: _statusColor(item.status),
+                  title: item.groupName,
+                  subtitle:
+                      '${_formatDate(item.sessionDate)} • ${item.groupCode}',
+                  trailing: [PortalStatusChip(status: item.status)],
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentsPage() {
+    final summary = _financialSummary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PortalMetricGrid(
+          children: [
+            PortalMetricCard(
+              label: 'Invoices',
+              value: (summary?.invoiceCount ?? _invoices.length).toString(),
+              icon: Icons.receipt,
+              accentColor: AppColors.info,
+            ),
+            PortalMetricCard(
+              label: 'Total due',
+              value: _money(summary?.totalDueMinor ?? 0, summary?.currency),
+              icon: Icons.account_balance_wallet,
+              accentColor: AppColors.warning,
+            ),
+            PortalMetricCard(
+              label: 'Paid',
+              value: _money(summary?.totalPaidMinor ?? 0, summary?.currency),
+              icon: Icons.verified,
+              accentColor: AppColors.success,
+            ),
+            PortalMetricCard(
+              label: 'Remaining',
+              value: _money(
+                summary?.remainingBalanceMinor ?? 0,
+                summary?.currency,
+              ),
+              icon: Icons.pending_actions,
+              accentColor: (summary?.remainingBalanceMinor ?? 0) > 0
+                  ? AppColors.error
+                  : AppColors.success,
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        const PortalSectionTitle(title: 'Invoices'),
+        const SizedBox(height: 8),
+        _InfoList(
+          isEmpty: _invoices.isEmpty,
+          emptyText: 'No invoices issued for this child.',
+          children: _invoices
+              .map(
+                (invoice) => PortalListCard(
+                  icon: Icons.receipt_long,
+                  accentColor: _statusColor(invoice.status),
+                  title: invoice.invoiceNumber.isEmpty
+                      ? 'Invoice'
+                      : invoice.invoiceNumber,
+                  subtitle:
+                      '${_money(invoice.totalMinor, invoice.currency)} • due ${_formatDate(invoice.dueAt)}',
+                  trailing: [PortalStatusChip(status: invoice.status)],
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotificationsPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: PortalSectionTitle(
+                title: 'Notifications',
+                subtitle: 'Academy alerts sent to your guardian account.',
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: _notifications.isEmpty
+                  ? null
+                  : _markAllNotificationsRead,
+              icon: const Icon(Icons.done_all),
+              label: const Text('Mark read'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _InfoList(
+          isEmpty: _notifications.isEmpty,
+          emptyText: 'No notifications yet.',
+          children: _notifications
+              .map(
+                (notification) => PortalListCard(
+                  icon: notification.isRead
+                      ? Icons.notifications_none
+                      : Icons.notifications_active,
+                  accentColor: notification.isRead
+                      ? AppColors.info
+                      : AppColors.parentRole,
+                  title: notification.title,
+                  subtitle:
+                      '${notification.body} • ${_formatDate(notification.createdAt)}',
+                  trailing: notification.isRead
+                      ? const []
+                      : [const PortalStatusChip(status: 'pending')],
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNextLessonCard() {
+    final lesson = _learningSnapshot?.nextLesson;
+    if (lesson == null) {
+      return const _InfoList(
+        isEmpty: true,
+        emptyText: 'No next lesson available.',
+        children: [],
+      );
+    }
+    return PortalListCard(
+      icon: lesson.hasPdf ? Icons.picture_as_pdf : Icons.menu_book,
+      accentColor: AppColors.studentRole,
+      title: lesson.title,
+      subtitle:
+          '${lesson.pathName} • ${lesson.unitName} • ${lesson.progressPercentage}%',
+      trailing: [PortalStatusChip(status: lesson.hasPdf ? 'PDF' : 'Lesson')],
+    );
+  }
+
+  double _averageProgress() {
+    final lessons = _learningSnapshot?.availableLessons ?? [];
+    if (lessons.isEmpty) return 0;
+    final total = lessons.fold<int>(
+      0,
+      (sum, lesson) => sum + lesson.progressPercentage,
+    );
+    return total / lessons.length;
+  }
+
+  double _attendanceRate() {
+    if (_attendance.isEmpty) return 0;
+    final present = _attendance
+        .where((item) => item.status == 'present' || item.status == 'late')
+        .length;
+    return present * 100 / _attendance.length;
+  }
+
+  static String _money(int minor, String? currency) {
+    final amount = minor / 100;
+    return '${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)} ${currency ?? 'EGP'}';
+  }
+
+  static String _formatDate(DateTime? value) {
+    if (value == null) return 'No date';
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
+  }
+
+  static Color _statusColor(String status) {
+    return switch (status.toLowerCase()) {
+      'present' || 'paid' || 'approved' || 'submitted' => AppColors.success,
+      'late' || 'pending' || 'issued' => AppColors.warning,
+      'absent' || 'overdue' || 'rejected' || 'failed' => AppColors.error,
+      _ => AppColors.info,
+    };
+  }
+}
+
+class _InfoList extends StatelessWidget {
+  final bool isEmpty;
+  final String emptyText;
+  final List<Widget> children;
+
+  const _InfoList({
+    required this.isEmpty,
+    required this.emptyText,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline),
+              const SizedBox(width: 10),
+              Expanded(child: Text(emptyText)),
+            ],
+          ),
+        ),
+      );
+    }
+    return Column(children: children);
+  }
+}
+
+class _ParentAttendanceItem {
+  final String id;
+  final String classSessionId;
+  final String status;
+  final DateTime? markedAt;
+  final DateTime? sessionDate;
+  final String groupName;
+  final String groupCode;
+
+  const _ParentAttendanceItem({
+    required this.id,
+    required this.classSessionId,
+    required this.status,
+    required this.markedAt,
+    required this.sessionDate,
+    required this.groupName,
+    required this.groupCode,
+  });
+
+  factory _ParentAttendanceItem.fromJson(Map json) {
+    return _ParentAttendanceItem(
+      id: json['id']?.toString() ?? '',
+      classSessionId: json['class_session_id']?.toString() ?? '',
+      status: json['attendance_status']?.toString() ?? 'unknown',
+      markedAt: DateTime.tryParse(json['marked_at']?.toString() ?? ''),
+      sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
+      groupName: json['group_name']?.toString() ?? 'Group',
+      groupCode: json['group_code']?.toString() ?? '',
+    );
+  }
+}
+
+class _ParentLeaveItem {
+  final String id;
+  final String reason;
+  final String status;
+  final DateTime? submittedAt;
+  final DateTime? sessionDate;
+  final String groupName;
+
+  const _ParentLeaveItem({
+    required this.id,
+    required this.reason,
+    required this.status,
+    required this.submittedAt,
+    required this.sessionDate,
+    required this.groupName,
+  });
+
+  factory _ParentLeaveItem.fromJson(Map json) {
+    return _ParentLeaveItem(
+      id: json['id']?.toString() ?? '',
+      reason: json['reason']?.toString() ?? 'Leave request',
+      status: json['status']?.toString() ?? 'pending',
+      submittedAt: DateTime.tryParse(json['submitted_at']?.toString() ?? ''),
+      sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
+      groupName: json['group_name']?.toString() ?? 'General',
     );
   }
 }

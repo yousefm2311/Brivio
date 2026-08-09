@@ -34,6 +34,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   List<GroupEntity> _assignedGroups = [];
   int _openHomeworkCount = 0;
   int _publishedExamsCount = 0;
+  int _gradingQueueCount = 0;
+  int _todaySessionsCount = 0;
+  int _savedBoardCount = 0;
 
   @override
   void initState() {
@@ -68,12 +71,38 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           .from('exams')
           .select('id')
           .eq('created_by', profileId);
+      final gradingQueue = await _safeList(
+        () => Supabase.instance.client.rpc(
+          'get_teacher_grading_queue',
+          params: {'p_teacher_id': teacherId},
+        ),
+      );
+      final groupIds = groups.map((group) => group.id).toList();
+      final today = DateTime.now().toIso8601String().split('T').first;
+      final todaySessions = groupIds.isEmpty
+          ? <dynamic>[]
+          : await _safeList(
+              () => Supabase.instance.client
+                  .from('class_sessions')
+                  .select('id')
+                  .inFilter('group_id', groupIds)
+                  .eq('session_date', today),
+            );
+      final savedBoards = await _safeList(
+        () => Supabase.instance.client
+            .from('class_session_boards')
+            .select('id')
+            .eq('teacher_id', teacherId),
+      );
 
       if (mounted) {
         setState(() {
           _assignedGroups = groups;
           _openHomeworkCount = (hwRes as List).length;
           _publishedExamsCount = (exRes as List).length;
+          _gradingQueueCount = gradingQueue.length;
+          _todaySessionsCount = todaySessions.length;
+          _savedBoardCount = savedBoards.length;
           _isLoading = false;
         });
       }
@@ -84,6 +113,15 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<List<dynamic>> _safeList(Future<dynamic> Function() query) async {
+    try {
+      final result = await query();
+      return result is List ? result : <dynamic>[];
+    } catch (_) {
+      return <dynamic>[];
     }
   }
 
@@ -154,7 +192,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               ),
               _buildSummaryCard(
                 'Today\'s Schedule',
-                'Active',
+                '$_todaySessionsCount',
                 Icons.alarm,
                 Colors.orange,
                 () => setState(() => _selectedIndex = 1),
@@ -182,9 +220,16 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               ),
               _buildSummaryCard(
                 'Manual Grading Queue',
-                'Open Queue',
+                '$_gradingQueueCount',
                 Icons.grading,
                 Colors.amber.shade800,
+                () => setState(() => _selectedIndex = 3),
+              ),
+              _buildSummaryCard(
+                'Saved Boards',
+                '$_savedBoardCount',
+                Icons.draw,
+                Colors.blueGrey,
                 () => setState(() => _selectedIndex = 3),
               ),
             ],

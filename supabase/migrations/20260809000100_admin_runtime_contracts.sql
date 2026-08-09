@@ -1456,5 +1456,179 @@ GRANT EXECUTE ON FUNCTION public.get_current_student_attendance_history(INT) TO 
 GRANT EXECUTE ON FUNCTION public.get_current_student_leave_requests() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_student_leave_request(UUID, TEXT) TO authenticated;
 
+DROP FUNCTION IF EXISTS public.get_parent_child_attendance_history(UUID, INT);
+CREATE OR REPLACE FUNCTION public.get_parent_child_attendance_history(
+  p_student_id UUID,
+  p_limit INT DEFAULT 80
+)
+RETURNS TABLE (
+  id UUID,
+  class_session_id UUID,
+  student_id UUID,
+  attendance_status TEXT,
+  marked_at TIMESTAMPTZ,
+  notes TEXT,
+  session_date DATE,
+  scheduled_start_at TIMESTAMPTZ,
+  scheduled_end_at TIMESTAMPTZ,
+  group_name TEXT,
+  group_code TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT (
+    public.is_admin_or_super()
+    OR public.has_permission('attendance.view')
+    OR public.current_parent_has_student(p_student_id)
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized to view child attendance' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    ar.id,
+    ar.class_session_id,
+    ar.student_id,
+    ar.attendance_status,
+    ar.marked_at,
+    ar.notes,
+    cs.session_date,
+    cs.scheduled_start_at,
+    cs.scheduled_end_at,
+    COALESCE(g.name, 'Group')::TEXT AS group_name,
+    COALESCE(g.code, '')::TEXT AS group_code
+  FROM public.attendance_records ar
+  JOIN public.class_sessions cs ON cs.id = ar.class_session_id
+  JOIN public.groups g ON g.id = cs.group_id
+  WHERE ar.student_id = p_student_id
+  ORDER BY cs.session_date DESC, ar.marked_at DESC
+  LIMIT LEAST(GREATEST(COALESCE(p_limit, 80), 1), 200);
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.get_parent_child_leave_requests(UUID);
+CREATE OR REPLACE FUNCTION public.get_parent_child_leave_requests(
+  p_student_id UUID
+)
+RETURNS TABLE (
+  id UUID,
+  student_id UUID,
+  class_session_id UUID,
+  reason TEXT,
+  status TEXT,
+  submitted_at TIMESTAMPTZ,
+  reviewer_note TEXT,
+  session_date DATE,
+  group_name TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT (
+    public.is_admin_or_super()
+    OR public.has_permission('leave.view')
+    OR public.current_parent_has_student(p_student_id)
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized to view child leave requests' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    lr.id,
+    lr.student_id,
+    lr.class_session_id,
+    lr.reason,
+    lr.status,
+    lr.submitted_at,
+    lr.reviewer_note,
+    cs.session_date,
+    COALESCE(g.name, 'General')::TEXT AS group_name
+  FROM public.leave_requests lr
+  LEFT JOIN public.class_sessions cs ON cs.id = lr.class_session_id
+  LEFT JOIN public.groups g ON g.id = cs.group_id
+  WHERE lr.student_id = p_student_id
+  ORDER BY lr.submitted_at DESC;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.create_parent_child_leave_request(UUID, UUID, TEXT);
+CREATE OR REPLACE FUNCTION public.create_parent_child_leave_request(
+  p_student_id UUID,
+  p_class_session_id UUID,
+  p_reason TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_group_id UUID;
+  v_request_id UUID;
+  v_result JSONB;
+BEGIN
+  IF NOT public.current_parent_has_student(p_student_id) THEN
+    RAISE EXCEPTION 'Unauthorized to create child leave request' USING ERRCODE = '42501';
+  END IF;
+
+  IF trim(COALESCE(p_reason, '')) = '' THEN
+    RAISE EXCEPTION 'Leave reason is required' USING ERRCODE = '22023';
+  END IF;
+
+  IF p_class_session_id IS NOT NULL THEN
+    SELECT group_id INTO v_group_id
+    FROM public.class_sessions
+    WHERE id = p_class_session_id;
+
+    IF v_group_id IS NULL THEN
+      RAISE EXCEPTION 'Class session not found' USING ERRCODE = 'P0002';
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM public.enrollments
+      WHERE student_id = p_student_id
+        AND group_id = v_group_id
+        AND status = 'active'
+    ) THEN
+      RAISE EXCEPTION 'Student is not enrolled in this session group' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  INSERT INTO public.leave_requests (
+    student_id,
+    class_session_id,
+    reason,
+    status,
+    submitted_at
+  ) VALUES (
+    p_student_id,
+    p_class_session_id,
+    trim(p_reason),
+    'pending',
+    NOW()
+  )
+  RETURNING id INTO v_request_id;
+
+  SELECT to_jsonb(lr.*) INTO v_result
+  FROM public.leave_requests lr
+  WHERE lr.id = v_request_id;
+
+  RETURN v_result;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.get_parent_child_attendance_history(UUID, INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_parent_child_leave_requests(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.create_parent_child_leave_request(UUID, UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_parent_child_attendance_history(UUID, INT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_parent_child_leave_requests(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_parent_child_leave_request(UUID, UUID, TEXT) TO authenticated;
+
 -- 9. Refresh PostgREST schema cache so newly-created RPCs are visible immediately.
 NOTIFY pgrst, 'reload schema';
