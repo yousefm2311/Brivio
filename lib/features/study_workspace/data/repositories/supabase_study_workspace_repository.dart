@@ -118,6 +118,13 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
         .inFilter('annotation_type', ['highlight', 'sticky_note'])
         .order('page_number');
 
+    final drawings = await _wrapper.client
+        .from('study_pdf_drawings')
+        .select('id, page_number, strokes, updated_at')
+        .eq('student_id', studentId)
+        .eq('lesson_id', lessonId)
+        .order('page_number');
+
     return [
       for (final row in bookmarks as List)
         {
@@ -136,6 +143,15 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
               : 'highlight',
           'text': row['content'] ?? '',
           'created_at': row['created_at'],
+        },
+      for (final row in drawings as List)
+        {
+          'id': (row as Map)['id'],
+          'page': row['page_number'],
+          'type': 'freehand',
+          'text': 'Freehand drawing',
+          'strokes': row['strokes'] ?? const [],
+          'created_at': row['updated_at'],
         },
     ];
   }
@@ -159,6 +175,12 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
         .eq('lesson_id', lessonId)
         .inFilter('annotation_type', ['highlight', 'sticky_note']);
 
+    await _wrapper.client
+        .from('study_pdf_drawings')
+        .delete()
+        .eq('student_id', studentId)
+        .eq('lesson_id', lessonId);
+
     final now = DateTime.now().toIso8601String();
     final bookmarks = annotations
         .where((annotation) => annotation['type'] == 'bookmark')
@@ -174,7 +196,11 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
         )
         .toList();
     final pdfAnnotations = annotations
-        .where((annotation) => annotation['type'] != 'bookmark')
+        .where(
+          (annotation) =>
+              annotation['type'] != 'bookmark' &&
+              annotation['type'] != 'freehand',
+        )
         .map(
           (annotation) => {
             'student_id': studentId,
@@ -190,12 +216,27 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
           },
         )
         .toList();
+    final drawings = annotations
+        .where((annotation) => annotation['type'] == 'freehand')
+        .map(
+          (annotation) => {
+            'student_id': studentId,
+            'lesson_id': lessonId,
+            'page_number': annotation['page'] as int? ?? 1,
+            'strokes': annotation['strokes'] ?? const [],
+            'updated_at': now,
+          },
+        )
+        .toList();
 
     if (bookmarks.isNotEmpty) {
       await _wrapper.client.from('study_bookmarks').insert(bookmarks);
     }
     if (pdfAnnotations.isNotEmpty) {
       await _wrapper.client.from('study_annotations').insert(pdfAnnotations);
+    }
+    if (drawings.isNotEmpty) {
+      await _wrapper.client.from('study_pdf_drawings').insert(drawings);
     }
   }
 

@@ -330,6 +330,34 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     _recordReplayEvent('pdf_annotation_deleted', {'id': id});
   }
 
+  Future<void> _savePdfFreehand(int page, List<_BoardStroke> strokes) async {
+    final withoutPageDrawing = _pdfAnnotations
+        .where(
+          (annotation) =>
+              !(annotation.page == page &&
+                  annotation.type == _PdfAnnotationType.freehand),
+        )
+        .toList();
+    final nextAnnotations = strokes.isEmpty
+        ? withoutPageDrawing
+        : [
+            ...withoutPageDrawing,
+            _PdfAnnotation(
+              id: 'freehand_${widget.lesson.id}_$page',
+              page: page,
+              type: _PdfAnnotationType.freehand,
+              text: 'Freehand drawing',
+              createdAt: DateTime.now(),
+              strokes: strokes,
+            ),
+          ];
+    await _savePdfAnnotations(nextAnnotations);
+    _recordReplayEvent('pdf_freehand_changed', {
+      'page': page,
+      'stroke_count': strokes.length,
+    });
+  }
+
   Future<void> _goToPage(int delta) async {
     await _viewModel.goToPage(_viewModel.currentPage + delta);
     _visitedPages.add(_viewModel.currentPage);
@@ -405,6 +433,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                                     onPdfHighlight: _addHighlight,
                                     onPdfBookmark: _toggleBookmark,
                                     onPdfAnnotationDelete: _deletePdfAnnotation,
+                                    onPdfFreehandChanged: _savePdfFreehand,
                                     onPreviousPdfPage: () => _goToPage(-1),
                                     onNextPdfPage: () => _goToPage(1),
                                   )
@@ -418,6 +447,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                                         onToggleBookmark: _toggleBookmark,
                                         onDeleteAnnotation:
                                             _deletePdfAnnotation,
+                                        onFreehandChanged: _savePdfFreehand,
                                         onPreviousPage: () => _goToPage(-1),
                                         onNextPage: () => _goToPage(1),
                                       ),
@@ -519,6 +549,8 @@ class _WideWorkspace extends StatelessWidget {
   final VoidCallback onPdfHighlight;
   final VoidCallback onPdfBookmark;
   final ValueChanged<String> onPdfAnnotationDelete;
+  final void Function(int page, List<_BoardStroke> strokes)
+  onPdfFreehandChanged;
   final VoidCallback onPreviousPdfPage;
   final VoidCallback onNextPdfPage;
 
@@ -535,6 +567,7 @@ class _WideWorkspace extends StatelessWidget {
     required this.onPdfHighlight,
     required this.onPdfBookmark,
     required this.onPdfAnnotationDelete,
+    required this.onPdfFreehandChanged,
     required this.onPreviousPdfPage,
     required this.onNextPdfPage,
   });
@@ -552,6 +585,7 @@ class _WideWorkspace extends StatelessWidget {
             onAddHighlight: onPdfHighlight,
             onToggleBookmark: onPdfBookmark,
             onDeleteAnnotation: onPdfAnnotationDelete,
+            onFreehandChanged: onPdfFreehandChanged,
             onPreviousPage: onPreviousPdfPage,
             onNextPage: onNextPdfPage,
           ),
@@ -568,6 +602,7 @@ class _WideWorkspace extends StatelessWidget {
                 onAddHighlight: onPdfHighlight,
                 onToggleBookmark: onPdfBookmark,
                 onDeleteAnnotation: onPdfAnnotationDelete,
+                onFreehandChanged: onPdfFreehandChanged,
                 onPreviousPage: onPreviousPdfPage,
                 onNextPage: onNextPdfPage,
               ),
@@ -590,13 +625,14 @@ class _WideWorkspace extends StatelessWidget {
   }
 }
 
-class _PdfPane extends StatelessWidget {
+class _PdfPane extends StatefulWidget {
   final StudyWorkspaceViewModel viewModel;
   final List<_PdfAnnotation> annotations;
   final VoidCallback onAddNote;
   final VoidCallback onAddHighlight;
   final VoidCallback onToggleBookmark;
   final ValueChanged<String> onDeleteAnnotation;
+  final void Function(int page, List<_BoardStroke> strokes) onFreehandChanged;
   final VoidCallback onPreviousPage;
   final VoidCallback onNextPage;
 
@@ -607,18 +643,94 @@ class _PdfPane extends StatelessWidget {
     required this.onAddHighlight,
     required this.onToggleBookmark,
     required this.onDeleteAnnotation,
+    required this.onFreehandChanged,
     required this.onPreviousPage,
     required this.onNextPage,
   });
 
   @override
+  State<_PdfPane> createState() => _PdfPaneState();
+}
+
+class _PdfPaneState extends State<_PdfPane> {
+  static const _inkColors = [
+    Color(0xFF1D4ED8),
+    Color(0xFF111827),
+    Color(0xFFDC2626),
+    Color(0xFF16A34A),
+    Color(0xFFEAB308),
+  ];
+
+  Color _selectedColor = _inkColors.first;
+  double _strokeWidth = 4;
+  bool _drawMode = false;
+  bool _eraser = false;
+  _BoardStroke? _activeStroke;
+
+  List<_BoardStroke> _pageStrokes(List<_PdfAnnotation> annotations, int page) {
+    return annotations
+        .where(
+          (annotation) =>
+              annotation.page == page &&
+              annotation.type == _PdfAnnotationType.freehand,
+        )
+        .expand((annotation) => annotation.strokes)
+        .toList();
+  }
+
+  void _startStroke(DragStartDetails details) {
+    if (!_drawMode) return;
+    setState(() {
+      _activeStroke = _BoardStroke(
+        color: _eraser ? Colors.white : _selectedColor,
+        width: _eraser ? _strokeWidth * 3.2 : _strokeWidth,
+        points: [details.localPosition],
+      );
+    });
+  }
+
+  void _appendStroke(DragUpdateDetails details) {
+    final stroke = _activeStroke;
+    if (!_drawMode || stroke == null) return;
+    setState(() {
+      _activeStroke = stroke.copyWith(
+        points: [...stroke.points, details.localPosition],
+      );
+    });
+  }
+
+  void _endStroke([DragEndDetails? _]) {
+    final stroke = _activeStroke;
+    if (stroke == null || stroke.points.length < 2) {
+      setState(() => _activeStroke = null);
+      return;
+    }
+    final page = widget.viewModel.currentPage;
+    final strokes = [..._pageStrokes(widget.annotations, page), stroke];
+    widget.onFreehandChanged(page, strokes);
+    setState(() => _activeStroke = null);
+  }
+
+  void _undoStroke() {
+    final page = widget.viewModel.currentPage;
+    final strokes = _pageStrokes(widget.annotations, page);
+    if (strokes.isEmpty) return;
+    widget.onFreehandChanged(page, strokes.take(strokes.length - 1).toList());
+  }
+
+  void _clearStrokes() {
+    widget.onFreehandChanged(widget.viewModel.currentPage, []);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final viewModel = widget.viewModel;
     final lesson = viewModel.lesson;
     if (lesson.pdfUrl == null) {
       return _MissingPdfState(lesson: lesson);
     }
 
-    final pageAnnotations = annotations
+    final pageAnnotations = widget.annotations
         .where((annotation) => annotation.page == viewModel.currentPage)
         .toList();
     final hasBookmark = pageAnnotations.any(
@@ -627,14 +739,36 @@ class _PdfPane extends StatelessWidget {
     final highlights = pageAnnotations
         .where((annotation) => annotation.type == _PdfAnnotationType.highlight)
         .toList();
+    final pageStrokes = _pageStrokes(widget.annotations, viewModel.currentPage);
+    final visibleStrokes = _activeStroke == null
+        ? pageStrokes
+        : [...pageStrokes, _activeStroke!];
 
     return Stack(
       children: [
         Padding(
           padding: const EdgeInsets.all(12),
-          child: _SignedPdfViewer(
-            url: lesson.pdfUrl!,
-            pageNumber: viewModel.currentPage,
+          child: Stack(
+            children: [
+              _SignedPdfViewer(
+                url: lesson.pdfUrl!,
+                pageNumber: viewModel.currentPage,
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: !_drawMode,
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: _PdfFreehandLayer(
+                      strokes: visibleStrokes,
+                      onPanStart: _startStroke,
+                      onPanUpdate: _appendStroke,
+                      onPanEnd: _endStroke,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         for (var i = 0; i < highlights.length.clamp(0, 4); i++)
@@ -680,7 +814,7 @@ class _PdfPane extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                     onPressed: viewModel.currentPage <= 1
                         ? null
-                        : onPreviousPage,
+                        : widget.onPreviousPage,
                     icon: const Icon(Icons.chevron_left),
                   ),
                   IconButton(
@@ -688,7 +822,7 @@ class _PdfPane extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                     onPressed: viewModel.currentPage >= lesson.totalPages
                         ? null
-                        : onNextPage,
+                        : widget.onNextPage,
                     icon: const Icon(Icons.chevron_right),
                   ),
                 ],
@@ -712,7 +846,7 @@ class _PdfPane extends StatelessWidget {
               children: [
                 IconButton(
                   tooltip: hasBookmark ? 'Remove bookmark' : 'Bookmark page',
-                  onPressed: onToggleBookmark,
+                  onPressed: widget.onToggleBookmark,
                   icon: Icon(
                     hasBookmark ? Icons.bookmark : Icons.bookmark_border,
                     color: hasBookmark ? AppColors.warning : null,
@@ -720,25 +854,54 @@ class _PdfPane extends StatelessWidget {
                 ),
                 IconButton(
                   tooltip: 'Highlight',
-                  onPressed: onAddHighlight,
+                  onPressed: widget.onAddHighlight,
                   icon: const Icon(Icons.format_color_fill),
                 ),
                 IconButton(
                   tooltip: 'Sticky note',
-                  onPressed: onAddNote,
+                  onPressed: widget.onAddNote,
                   icon: const Icon(Icons.sticky_note_2_outlined),
+                ),
+                IconButton(
+                  tooltip: _drawMode ? 'Stop drawing' : 'Draw on PDF',
+                  onPressed: () => setState(() => _drawMode = !_drawMode),
+                  icon: Icon(
+                    _drawMode ? Icons.gesture : Icons.gesture_outlined,
+                    color: _drawMode ? AppColors.info : null,
+                  ),
                 ),
               ],
             ),
           ),
         ),
+        if (_drawMode)
+          PositionedDirectional(
+            end: 16,
+            top: 72,
+            child: _PdfDrawingToolbar(
+              colors: _inkColors,
+              selectedColor: _selectedColor,
+              strokeWidth: _strokeWidth,
+              eraser: _eraser,
+              canUndo: pageStrokes.isNotEmpty,
+              onColorSelected: (color) => setState(() {
+                _selectedColor = color;
+                _eraser = false;
+              }),
+              onStrokeWidthChanged: (value) =>
+                  setState(() => _strokeWidth = value),
+              onEraserChanged: (value) => setState(() => _eraser = value),
+              onUndo: _undoStroke,
+              onClear: pageStrokes.isEmpty ? null : _clearStrokes,
+            ),
+          ),
         PositionedDirectional(
           start: 16,
           end: 16,
           bottom: 16,
           child: _PdfAnnotationTray(
             annotations: pageAnnotations,
-            onDelete: onDeleteAnnotation,
+            onDelete: widget.onDeleteAnnotation,
           ),
         ),
       ],
@@ -778,6 +941,143 @@ class _MissingPdfState extends StatelessWidget {
   }
 }
 
+class _PdfFreehandLayer extends StatelessWidget {
+  final List<_BoardStroke> strokes;
+  final GestureDragStartCallback onPanStart;
+  final GestureDragUpdateCallback onPanUpdate;
+  final GestureDragEndCallback onPanEnd;
+
+  const _PdfFreehandLayer({
+    required this.strokes,
+    required this.onPanStart,
+    required this.onPanUpdate,
+    required this.onPanEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanStart: onPanStart,
+      onPanUpdate: onPanUpdate,
+      onPanEnd: onPanEnd,
+      child: CustomPaint(
+        painter: _PdfFreehandPainter(strokes),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+class _PdfFreehandPainter extends CustomPainter {
+  final List<_BoardStroke> strokes;
+
+  const _PdfFreehandPainter(this.strokes);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final stroke in strokes) {
+      if (stroke.points.length < 2) continue;
+      final paint = Paint()
+        ..color = stroke.color
+        ..strokeWidth = stroke.width
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      final path = Path()
+        ..moveTo(stroke.points.first.dx, stroke.points.first.dy);
+      for (final point in stroke.points.skip(1)) {
+        path.lineTo(point.dx, point.dy);
+      }
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PdfFreehandPainter oldDelegate) =>
+      oldDelegate.strokes != strokes;
+}
+
+class _PdfDrawingToolbar extends StatelessWidget {
+  final List<Color> colors;
+  final Color selectedColor;
+  final double strokeWidth;
+  final bool eraser;
+  final bool canUndo;
+  final ValueChanged<Color> onColorSelected;
+  final ValueChanged<double> onStrokeWidthChanged;
+  final ValueChanged<bool> onEraserChanged;
+  final VoidCallback onUndo;
+  final VoidCallback? onClear;
+
+  const _PdfDrawingToolbar({
+    required this.colors,
+    required this.selectedColor,
+    required this.strokeWidth,
+    required this.eraser,
+    required this.canUndo,
+    required this.onColorSelected,
+    required this.onStrokeWidthChanged,
+    required this.onEraserChanged,
+    required this.onUndo,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: .96),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ToggleButtons(
+              isSelected: [!eraser, eraser],
+              onPressed: (index) => onEraserChanged(index == 1),
+              children: const [
+                Tooltip(message: 'Pen', child: Icon(Icons.edit)),
+                Tooltip(
+                  message: 'Eraser',
+                  child: Icon(Icons.cleaning_services),
+                ),
+              ],
+            ),
+            for (final color in colors)
+              _ColorDot(
+                color: color,
+                isSelected: !eraser && color == selectedColor,
+                onTap: () => onColorSelected(color),
+              ),
+            SizedBox(
+              width: 130,
+              child: Slider(
+                min: 2,
+                max: 12,
+                divisions: 5,
+                value: strokeWidth,
+                onChanged: onStrokeWidthChanged,
+              ),
+            ),
+            IconButton(
+              tooltip: 'Undo stroke',
+              onPressed: canUndo ? onUndo : null,
+              icon: const Icon(Icons.undo),
+            ),
+            IconButton(
+              tooltip: 'Clear page drawing',
+              onPressed: onClear,
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PdfAnnotationTray extends StatelessWidget {
   final List<_PdfAnnotation> annotations;
   final ValueChanged<String> onDelete;
@@ -787,7 +1087,11 @@ class _PdfAnnotationTray extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visible = annotations
-        .where((annotation) => annotation.type != _PdfAnnotationType.bookmark)
+        .where(
+          (annotation) =>
+              annotation.type != _PdfAnnotationType.bookmark &&
+              annotation.type != _PdfAnnotationType.freehand,
+        )
         .toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
@@ -833,7 +1137,7 @@ class _PdfAnnotationTray extends StatelessWidget {
   }
 }
 
-enum _PdfAnnotationType { bookmark, highlight, note }
+enum _PdfAnnotationType { bookmark, highlight, note, freehand }
 
 class _PdfAnnotation {
   final String id;
@@ -841,6 +1145,7 @@ class _PdfAnnotation {
   final _PdfAnnotationType type;
   final String text;
   final DateTime createdAt;
+  final List<_BoardStroke> strokes;
 
   const _PdfAnnotation({
     required this.id,
@@ -848,6 +1153,7 @@ class _PdfAnnotation {
     required this.type,
     required this.text,
     required this.createdAt,
+    this.strokes = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -855,6 +1161,8 @@ class _PdfAnnotation {
     'page': page,
     'type': type.name,
     'text': text,
+    if (type == _PdfAnnotationType.freehand)
+      'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
     'created_at': createdAt.toIso8601String(),
   };
 
@@ -871,6 +1179,7 @@ class _PdfAnnotation {
       createdAt:
           DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
+      strokes: _decodeStrokeList(json['strokes']),
     );
   }
 
@@ -879,6 +1188,14 @@ class _PdfAnnotation {
     final day = createdAt.day.toString().padLeft(2, '0');
     return '${createdAt.year}-$month-$day';
   }
+}
+
+List<_BoardStroke> _decodeStrokeList(dynamic raw) {
+  final rawStrokes = raw is List ? raw : const [];
+  return rawStrokes
+      .whereType<Map>()
+      .map((s) => _BoardStroke.fromJson(Map<String, dynamic>.from(s)))
+      .toList();
 }
 
 String _encodePdfAnnotations(List<_PdfAnnotation> annotations) {
