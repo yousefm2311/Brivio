@@ -5,6 +5,7 @@ import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
+import '../widgets/account_login_qr_dialog.dart';
 
 class TeacherManagementScreen extends StatefulWidget {
   const TeacherManagementScreen({super.key});
@@ -172,6 +173,17 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     );
   }
 
+  void _showLoginQr(Teacher teacher) {
+    showDialog(
+      context: context,
+      builder: (_) => AccountLoginQrDialog(
+        profileId: teacher.profileId,
+        displayName: teacher.fullName,
+        email: teacher.email,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _teachers.where((t) {
@@ -227,6 +239,13 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     title: t.fullName,
                     subtitle:
                         'Email: ${t.email} | Specialization: ${t.specialization ?? "N/A"}',
+                    trailing: [
+                      IconButton(
+                        tooltip: 'Login QR',
+                        onPressed: () => _showLoginQr(t),
+                        icon: const Icon(Icons.qr_code_2),
+                      ),
+                    ],
                   );
                 },
               ),

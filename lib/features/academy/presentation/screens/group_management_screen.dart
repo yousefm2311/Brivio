@@ -361,6 +361,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     String? selectedStudentId = _allStudents.isNotEmpty
         ? _allStudents.first.id
         : null;
+    final priceCtrl = TextEditingController();
+    final discountCtrl = TextEditingController(text: '0');
 
     showDialog(
       context: context,
@@ -393,6 +395,34 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       onChanged: (v) =>
                           setStateDialog(() => selectedStudentId = v),
                     ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: priceCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Group price (EGP)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.payments),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: discountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Discount / exemption (EGP)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.discount),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Content stays locked until the cash invoice is fully paid. If final price is 0, access is activated as an exemption.',
+                  ),
                 ],
               ),
             ),
@@ -404,18 +434,28 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               ElevatedButton(
                 onPressed: () async {
                   if (selectedStudentId == null) return;
+                  final totalMinor = _moneyToMinor(priceCtrl.text);
+                  final discountMinor = _moneyToMinor(discountCtrl.text);
+                  if (totalMinor < 0 || discountMinor < 0) return;
                   final nav = Navigator.of(ctx);
                   try {
                     await widget.enrollmentRepo.enrollStudentInGroup(
                       studentId: selectedStudentId!,
                       groupId: widget.group.id,
+                      totalMinor: totalMinor,
+                      discountMinor: discountMinor,
+                      currency: 'EGP',
                     );
                     nav.pop();
                     _loadTabResources();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Student enrolled successfully!'),
+                        SnackBar(
+                          content: Text(
+                            totalMinor > discountMinor
+                                ? 'Student enrolled. Content is pending cash payment.'
+                                : 'Student enrolled with payment exemption.',
+                          ),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -438,6 +478,14 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         },
       ),
     );
+  }
+
+  int _moneyToMinor(String value) {
+    final normalized = value.trim().replaceAll(',', '.');
+    if (normalized.isEmpty) return 0;
+    final parsed = double.tryParse(normalized);
+    if (parsed == null || parsed < 0) return -1;
+    return (parsed * 100).round();
   }
 
   void _showAssignTeacherDialog() {

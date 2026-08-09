@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../design_system/components/buttons.dart';
 import '../../../../design_system/components/text_fields.dart';
@@ -28,6 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  String? _qrMessage;
 
   @override
   void dispose() {
@@ -65,6 +70,21 @@ class _LoginScreenState extends State<LoginScreen> {
     if (widget.viewModel.state.status == AuthStatus.authenticated) {
       widget.onLoginSuccess?.call();
     }
+  }
+
+  Future<void> _openQrLoginScanner() async {
+    final result = await showModalBottomSheet<_QrLoginResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _QrLoginScannerSheet(),
+    );
+    if (result == null || !mounted) return;
+
+    setState(() {
+      _emailController.text = result.email;
+      _qrMessage =
+          'QR matched ${result.fullName}. Enter the account password from the invite to continue.';
+    });
   }
 
   @override
@@ -149,6 +169,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                           message: state.failure!.message,
                                         ),
                                       ],
+                                      if (_qrMessage != null) ...[
+                                        const SizedBox(height: 18),
+                                        _InfoBanner(message: _qrMessage!),
+                                      ],
                                       const SizedBox(height: 22),
                                       CustomTextField(
                                         label: 'Email Address',
@@ -206,6 +230,31 @@ class _LoginScreenState extends State<LoginScreen> {
                                         onPressed: _handleLogin,
                                         icon: Icons.login_rounded,
                                       ),
+                                      if (widget.targetRole ==
+                                              UserRole.student ||
+                                          widget.targetRole ==
+                                              UserRole.parent ||
+                                          widget.targetRole ==
+                                              UserRole.teacher ||
+                                          widget.targetRole == null) ...[
+                                        const SizedBox(height: 12),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: OutlinedButton.icon(
+                                            onPressed:
+                                                state.status ==
+                                                    AuthStatus.loading
+                                                ? null
+                                                : _openQrLoginScanner,
+                                            icon: const Icon(
+                                              Icons.qr_code_scanner,
+                                            ),
+                                            label: const Text(
+                                              'Sign in using QR Code',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -332,6 +381,187 @@ class _BrandPill extends StatelessWidget {
       avatar: Icon(icon, size: 16),
       label: Text(label),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
+  }
+}
+
+class _QrLoginResult {
+  final String email;
+  final String fullName;
+  final String role;
+
+  const _QrLoginResult({
+    required this.email,
+    required this.fullName,
+    required this.role,
+  });
+}
+
+class _QrLoginScannerSheet extends StatefulWidget {
+  const _QrLoginScannerSheet();
+
+  @override
+  State<_QrLoginScannerSheet> createState() => _QrLoginScannerSheetState();
+}
+
+class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
+  final MobileScannerController _controller = MobileScannerController();
+  bool _isResolving = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleCapture(BarcodeCapture capture) async {
+    if (_isResolving) return;
+    final value = capture.barcodes
+        .map((barcode) => barcode.rawValue)
+        .whereType<String>()
+        .where((raw) => raw.trim().isNotEmpty)
+        .firstOrNull;
+    if (value == null) return;
+
+    final token = _extractAccountQrToken(value);
+    if (token == null) {
+      setState(() => _errorMessage = 'This is not an account login QR.');
+      return;
+    }
+
+    setState(() {
+      _isResolving = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await Supabase.instance.client.rpc(
+        'resolve_account_login_qr',
+        params: {'p_token': token},
+      );
+      final json = Map<String, dynamic>.from(response as Map);
+      if (!mounted) return;
+      Navigator.pop(
+        context,
+        _QrLoginResult(
+          email: json['email']?.toString() ?? '',
+          fullName: json['full_name']?.toString() ?? 'Account',
+          role: json['role']?.toString() ?? '',
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isResolving = false;
+      });
+    }
+  }
+
+  String? _extractAccountQrToken(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map && decoded['type'] == 'account_login_qr') {
+        return decoded['token']?.toString();
+      }
+    } catch (_) {}
+
+    if (raw.startsWith('acctqr_')) return raw;
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * .74,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Scan Account Login QR',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  MobileScanner(
+                    controller: _controller,
+                    onDetect: _handleCapture,
+                  ),
+                  if (_isResolving)
+                    const ColoredBox(
+                      color: Colors.black45,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                ],
+              ),
+            ),
+            if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: AppColors.error),
+                ),
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  'Scan the QR generated by Admin or Staff. The QR contains a temporary token, not a password.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoBanner extends StatelessWidget {
+  final String message;
+
+  const _InfoBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.info.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.qr_code_2, color: AppColors.info, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTypography.bodyMedium(AppColors.info),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

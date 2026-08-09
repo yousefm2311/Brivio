@@ -422,6 +422,9 @@ class EnrollmentViewModel extends ChangeNotifier {
   Future<void> enrollStudent({
     required String studentId,
     required String groupId,
+    int totalMinor = 0,
+    int discountMinor = 0,
+    String currency = 'EGP',
   }) async {
     _status = AcademyViewState.submitting;
     _failure = null;
@@ -431,6 +434,9 @@ class EnrollmentViewModel extends ChangeNotifier {
       await _repository.enrollStudentInGroup(
         studentId: studentId,
         groupId: groupId,
+        totalMinor: totalMinor,
+        discountMinor: discountMinor,
+        currency: currency,
       );
       _status = AcademyViewState.loaded;
     } on Failure catch (f) {

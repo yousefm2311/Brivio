@@ -81,6 +81,9 @@ abstract class IEnrollmentRepository {
   Future<void> enrollStudentInGroup({
     required String studentId,
     required String groupId,
+    int totalMinor = 0,
+    int discountMinor = 0,
+    String currency = 'EGP',
   });
 }
 

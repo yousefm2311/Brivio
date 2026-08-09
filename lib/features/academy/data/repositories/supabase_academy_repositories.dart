@@ -667,11 +667,20 @@ class SupabaseEnrollmentRepository implements IEnrollmentRepository {
   Future<void> enrollStudentInGroup({
     required String studentId,
     required String groupId,
+    int totalMinor = 0,
+    int discountMinor = 0,
+    String currency = 'EGP',
   }) async {
     try {
       final response = await _wrapper.client.rpc(
         'enroll_student_in_group',
-        params: {'p_student_id': studentId, 'p_group_id': groupId},
+        params: {
+          'p_student_id': studentId,
+          'p_group_id': groupId,
+          'p_total_minor': totalMinor,
+          'p_discount_minor': discountMinor,
+          'p_currency': currency,
+        },
       );
 
       final jsonMap = Map<String, dynamic>.from(response as Map);

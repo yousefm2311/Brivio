@@ -5,6 +5,7 @@ import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
+import '../widgets/account_login_qr_dialog.dart';
 
 class ParentManagementScreen extends StatefulWidget {
   const ParentManagementScreen({super.key});
@@ -237,6 +238,17 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     );
   }
 
+  void _showLoginQr(Parent parent) {
+    showDialog(
+      context: context,
+      builder: (_) => AccountLoginQrDialog(
+        profileId: parent.profileId,
+        displayName: parent.fullName,
+        email: parent.email,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _parents.where((p) {
@@ -292,6 +304,11 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                     title: p.fullName,
                     subtitle: 'Email: ${p.email}',
                     trailing: [
+                      IconButton(
+                        tooltip: 'Login QR',
+                        onPressed: () => _showLoginQr(p),
+                        icon: const Icon(Icons.qr_code_2),
+                      ),
                       FilledButton.icon(
                         onPressed: () => _showLinkStudentDialog(p),
                         icon: const Icon(Icons.link),
