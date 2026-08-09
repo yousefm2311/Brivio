@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../domain/models/study_workspace_models.dart';
 import '../../domain/repositories/study_workspace_repository.dart';
@@ -1335,6 +1338,116 @@ class _CodePane extends StatefulWidget {
 
 class _CodePaneState extends State<_CodePane> {
   String _language = 'python';
+  bool _isLoadingChallenges = false;
+  bool _isRunningChallenge = false;
+  List<_CodeChallenge> _challenges = [];
+  _CodeChallenge? _selectedChallenge;
+  _ChallengeRunResult? _challengeResult;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChallenges();
+  }
+
+  Future<void> _loadChallenges() async {
+    setState(() => _isLoadingChallenges = true);
+    try {
+      final rows = await Supabase.instance.client.rpc(
+        'get_lesson_code_challenges',
+        params: {'p_lesson_id': widget.viewModel.lesson.id},
+      );
+      final challenges = (rows as List)
+          .whereType<Map>()
+          .map(_CodeChallenge.fromJson)
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _challenges = challenges;
+        _selectedChallenge = challenges.isEmpty ? null : challenges.first;
+        _isLoadingChallenges = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingChallenges = false);
+    }
+  }
+
+  Future<void> _runSelectedChallenge() async {
+    final challenge = _selectedChallenge;
+    if (challenge == null) return;
+    setState(() {
+      _isRunningChallenge = true;
+      _challengeResult = null;
+    });
+
+    final caseResults = <_ChallengeCaseResult>[];
+    for (final testCase in challenge.testCases) {
+      try {
+        final response = await http
+            .post(
+              Uri.parse('${AppConfig.effectiveCodeSandboxUrl}/run'),
+              headers: const {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'language': _language,
+                'code': widget.controller.text,
+                'stdin': testCase.stdin,
+              }),
+            )
+            .timeout(const Duration(seconds: 12));
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final stdout = (decoded['stdout'] ?? '').toString().trimRight();
+        final stderr = (decoded['stderr'] ?? '').toString().trimRight();
+        final expected = testCase.expectedStdout.trimRight();
+        caseResults.add(
+          _ChallengeCaseResult(
+            name: testCase.name,
+            passed:
+                response.statusCode == 200 &&
+                decoded['success'] == true &&
+                stdout == expected,
+            expected: expected,
+            actual: stdout.isEmpty ? stderr : stdout,
+          ),
+        );
+      } catch (e) {
+        caseResults.add(
+          _ChallengeCaseResult(
+            name: testCase.name,
+            passed: false,
+            expected: testCase.expectedStdout.trimRight(),
+            actual: 'Sandbox error: $e',
+          ),
+        );
+      }
+    }
+
+    final passed = caseResults.where((item) => item.passed).length;
+    final result = _ChallengeRunResult(
+      passed: passed,
+      total: caseResults.length,
+      cases: caseResults,
+    );
+
+    try {
+      await Supabase.instance.client.rpc(
+        'submit_code_challenge_result',
+        params: {
+          'p_challenge_id': challenge.id,
+          'p_language': _language,
+          'p_source_code': widget.controller.text,
+          'p_passed_cases': passed,
+          'p_total_cases': caseResults.length,
+        },
+      );
+    } catch (_) {}
+
+    if (!mounted) return;
+    setState(() {
+      _challengeResult = result;
+      _isRunningChallenge = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1358,77 +1471,304 @@ class _CodePaneState extends State<_CodePane> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              SizedBox(
-                width: 150,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _language,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Language',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'python', child: Text('Python')),
-                    DropdownMenuItem(value: 'cpp', child: Text('C++')),
-                  ],
-                  onChanged: viewModel.isRunningCode
-                      ? null
-                      : (value) {
-                          if (value == null) return;
-                          setState(() => _language = value);
-                        },
-                ),
-              ),
-              FilledButton.icon(
-                onPressed: viewModel.isRunningCode
-                    ? null
-                    : () => viewModel.runCode(
-                        code: widget.controller.text,
-                        language: _language,
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 12),
+              child: Column(
+                children: [
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 150,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _language,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Language',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'python',
+                              child: Text('Python'),
+                            ),
+                            DropdownMenuItem(value: 'cpp', child: Text('C++')),
+                          ],
+                          onChanged: viewModel.isRunningCode
+                              ? null
+                              : (value) {
+                                  if (value == null) return;
+                                  setState(() => _language = value);
+                                },
+                        ),
                       ),
-                icon: const Icon(Icons.play_arrow),
-                label: Text(viewModel.isRunningCode ? 'Running' : 'Run code'),
-              ),
-              OutlinedButton.icon(
-                onPressed: viewModel.isRunningCode
-                    ? null
-                    : () => viewModel.runCodePreview(widget.controller.text),
-                icon: const Icon(Icons.fact_check_outlined),
-                label: const Text('Run preview'),
-              ),
-              const SizedBox(
-                width: 260,
-                child: Text('Runs through the configured Sandbox Server.'),
-              ),
-            ],
-          ),
-          if (viewModel.lastRunResult != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                viewModel.lastRunResult!.output,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'monospace',
-                ),
+                      FilledButton.icon(
+                        onPressed: viewModel.isRunningCode
+                            ? null
+                            : () => viewModel.runCode(
+                                code: widget.controller.text,
+                                language: _language,
+                              ),
+                        icon: const Icon(Icons.play_arrow),
+                        label: Text(
+                          viewModel.isRunningCode ? 'Running' : 'Run code',
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: viewModel.isRunningCode
+                            ? null
+                            : () => viewModel.runCodePreview(
+                                widget.controller.text,
+                              ),
+                        icon: const Icon(Icons.fact_check_outlined),
+                        label: const Text('Run preview'),
+                      ),
+                      const SizedBox(
+                        width: 260,
+                        child: Text(
+                          'Runs through the configured Sandbox Server.',
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (viewModel.lastRunResult != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        viewModel.lastRunResult!.output,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  _ChallengePanel(
+                    isLoading: _isLoadingChallenges,
+                    isRunning: _isRunningChallenge,
+                    challenges: _challenges,
+                    selected: _selectedChallenge,
+                    result: _challengeResult,
+                    onRefresh: _loadChallenges,
+                    onSelected: (challenge) =>
+                        setState(() => _selectedChallenge = challenge),
+                    onRun: _runSelectedChallenge,
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ],
       ),
     );
   }
+}
+
+class _ChallengePanel extends StatelessWidget {
+  final bool isLoading;
+  final bool isRunning;
+  final List<_CodeChallenge> challenges;
+  final _CodeChallenge? selected;
+  final _ChallengeRunResult? result;
+  final VoidCallback onRefresh;
+  final ValueChanged<_CodeChallenge> onSelected;
+  final VoidCallback onRun;
+
+  const _ChallengePanel({
+    required this.isLoading,
+    required this.isRunning,
+    required this.challenges,
+    required this.selected,
+    required this.result,
+    required this.onRefresh,
+    required this.onSelected,
+    required this.onRun,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.verified_outlined),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Code Challenges',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh challenges',
+                  onPressed: isLoading ? null : onRefresh,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            if (isLoading)
+              const LinearProgressIndicator()
+            else if (challenges.isEmpty)
+              const Text('No code challenges published for this lesson.')
+            else ...[
+              DropdownButtonFormField<_CodeChallenge>(
+                initialValue: selected,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Challenge'),
+                items: challenges
+                    .map(
+                      (challenge) => DropdownMenuItem(
+                        value: challenge,
+                        child: Text(
+                          challenge.title,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: isRunning || selected == null
+                    ? null
+                    : (value) {
+                        if (value != null) onSelected(value);
+                      },
+              ),
+              const SizedBox(height: 8),
+              Text(selected?.description ?? ''),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: isRunning ? null : onRun,
+                icon: isRunning
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.fact_check),
+                label: Text(isRunning ? 'Running tests' : 'Run test cases'),
+              ),
+              if (result != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Passed ${result!.passed}/${result!.total}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: result!.passed == result!.total
+                        ? AppColors.success
+                        : AppColors.error,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ...result!.cases.map(
+                  (item) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      item.passed ? Icons.check_circle : Icons.cancel,
+                      color: item.passed ? AppColors.success : AppColors.error,
+                    ),
+                    title: Text(item.name),
+                    subtitle: Text(
+                      item.passed
+                          ? 'Output matched.'
+                          : 'Expected: ${item.expected} | Actual: ${item.actual}',
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CodeChallenge {
+  final String id;
+  final String title;
+  final String description;
+  final List<_CodeChallengeCase> testCases;
+
+  const _CodeChallenge({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.testCases,
+  });
+
+  factory _CodeChallenge.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    final cases = (json['test_cases'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map(_CodeChallengeCase.fromJson)
+        .toList();
+    return _CodeChallenge(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Challenge',
+      description: json['description']?.toString() ?? '',
+      testCases: cases,
+    );
+  }
+}
+
+class _CodeChallengeCase {
+  final String name;
+  final String stdin;
+  final String expectedStdout;
+
+  const _CodeChallengeCase({
+    required this.name,
+    required this.stdin,
+    required this.expectedStdout,
+  });
+
+  factory _CodeChallengeCase.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    return _CodeChallengeCase(
+      name: json['name']?.toString() ?? 'Case',
+      stdin: json['stdin']?.toString() ?? '',
+      expectedStdout: json['expected_stdout']?.toString() ?? '',
+    );
+  }
+}
+
+class _ChallengeRunResult {
+  final int passed;
+  final int total;
+  final List<_ChallengeCaseResult> cases;
+
+  const _ChallengeRunResult({
+    required this.passed,
+    required this.total,
+    required this.cases,
+  });
+}
+
+class _ChallengeCaseResult {
+  final String name;
+  final bool passed;
+  final String expected;
+  final String actual;
+
+  const _ChallengeCaseResult({
+    required this.name,
+    required this.passed,
+    required this.expected,
+    required this.actual,
+  });
 }

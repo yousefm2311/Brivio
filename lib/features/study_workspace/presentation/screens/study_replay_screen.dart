@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -14,11 +16,20 @@ class StudyReplayScreen extends StatefulWidget {
 }
 
 class _StudyReplayScreenState extends State<StudyReplayScreen> {
+  Timer? _playbackTimer;
   bool _isLoading = false;
+  bool _isPlaying = false;
   String? _errorMessage;
   List<_ReplaySession> _sessions = [];
   List<_ReplayEvent> _events = [];
   _ReplaySession? _selectedSession;
+  int _playbackMs = 0;
+
+  @override
+  void dispose() {
+    _playbackTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -80,11 +91,44 @@ class _StudyReplayScreenState extends State<StudyReplayScreen> {
             .whereType<Map>()
             .map(_ReplayEvent.fromJson)
             .toList();
+        _playbackMs = 0;
+        _isPlaying = false;
       });
+      _playbackTimer?.cancel();
     } catch (e) {
       if (!mounted) return;
       setState(() => _errorMessage = e.toString());
     }
+  }
+
+  void _togglePlayback() {
+    if (_events.isEmpty) return;
+    if (_isPlaying) {
+      _playbackTimer?.cancel();
+      setState(() => _isPlaying = false);
+      return;
+    }
+    setState(() => _isPlaying = true);
+    _playbackTimer?.cancel();
+    _playbackTimer = Timer.periodic(const Duration(milliseconds: 350), (_) {
+      if (!mounted) return;
+      final maxMs = _events.isEmpty ? 0 : _events.last.offsetMs;
+      setState(() {
+        _playbackMs = (_playbackMs + 1000).clamp(0, maxMs);
+        if (_playbackMs >= maxMs) {
+          _isPlaying = false;
+          _playbackTimer?.cancel();
+        }
+      });
+    });
+  }
+
+  void _seekPlayback(double value) {
+    _playbackTimer?.cancel();
+    setState(() {
+      _isPlaying = false;
+      _playbackMs = value.round();
+    });
   }
 
   @override
@@ -120,6 +164,10 @@ class _StudyReplayScreenState extends State<StudyReplayScreen> {
             final timeline = _ReplayTimeline(
               session: _selectedSession,
               events: _events,
+              playbackMs: _playbackMs,
+              isPlaying: _isPlaying,
+              onPlayPause: _togglePlayback,
+              onSeek: _seekPlayback,
             );
             if (isWide) {
               return Row(
@@ -181,8 +229,19 @@ class _SessionList extends StatelessWidget {
 class _ReplayTimeline extends StatelessWidget {
   final _ReplaySession? session;
   final List<_ReplayEvent> events;
+  final int playbackMs;
+  final bool isPlaying;
+  final VoidCallback onPlayPause;
+  final ValueChanged<double> onSeek;
 
-  const _ReplayTimeline({required this.session, required this.events});
+  const _ReplayTimeline({
+    required this.session,
+    required this.events,
+    required this.playbackMs,
+    required this.isPlaying,
+    required this.onPlayPause,
+    required this.onSeek,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -193,6 +252,13 @@ class _ReplayTimeline extends StatelessWidget {
     if (events.isEmpty) {
       return const Center(child: Text('No events were recorded.'));
     }
+    final maxMs = events.last.offsetMs <= 0 ? 1 : events.last.offsetMs;
+    final visibleEvents = events
+        .where((event) => event.offsetMs <= playbackMs)
+        .toList();
+    final currentEvent = visibleEvents.isEmpty
+        ? events.first
+        : visibleEvents.last;
     return ListView.separated(
       padding: const EdgeInsets.only(left: 12),
       itemCount: events.length + 1,
@@ -206,12 +272,47 @@ class _ReplayTimeline extends StatelessWidget {
                 '${selected.studentName} | ${selected.startedLabel} | ${selected.durationSeconds}s',
             icon: Icons.video_library,
             accentColor: AppColors.teacherRole,
+            trailing: SizedBox(
+              width: 360,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      IconButton.filledTonal(
+                        tooltip: isPlaying ? 'Pause replay' : 'Play replay',
+                        onPressed: onPlayPause,
+                        icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: playbackMs.clamp(0, maxMs).toDouble(),
+                          min: 0,
+                          max: maxMs.toDouble(),
+                          onChanged: onSeek,
+                        ),
+                      ),
+                      Text(currentEvent.offsetLabel),
+                    ],
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Now: ${currentEvent.eventType.replaceAll('_', ' ')}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         }
         final event = events[index - 1];
+        final reached = event.offsetMs <= playbackMs;
         return PortalListCard(
-          icon: event.icon,
-          accentColor: event.color,
+          icon: reached ? event.icon : Icons.radio_button_unchecked,
+          accentColor: reached ? event.color : Colors.grey,
           title: event.eventType.replaceAll('_', ' '),
           subtitle: '${event.offsetLabel} | ${event.payload}',
           trailing: [PortalStatusChip(status: event.kind)],
