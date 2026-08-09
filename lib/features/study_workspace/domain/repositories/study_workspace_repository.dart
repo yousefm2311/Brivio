@@ -25,6 +25,38 @@ abstract class IStudyWorkspaceRepository {
     required String boardData,
   });
 
+  Future<List<Map<String, dynamic>>> fetchPdfAnnotations({
+    required String studentId,
+    required String lessonId,
+  });
+
+  Future<void> savePdfAnnotations({
+    required String studentId,
+    required String lessonId,
+    required List<Map<String, dynamic>> annotations,
+  });
+
+  Future<String?> startStudySession({
+    required String studentId,
+    required String lessonId,
+    String? deviceId,
+  });
+
+  Future<void> finishStudySession({
+    required String sessionId,
+    required int durationSeconds,
+    required int pagesRead,
+  });
+
+  Future<void> recordReplayEvent({
+    required String sessionId,
+    required String studentId,
+    required String lessonId,
+    required String eventType,
+    required int eventOffsetMs,
+    required Map<String, dynamic> payload,
+  });
+
   Future<void> updatePageProgress({
     required String lessonId,
     required int page,

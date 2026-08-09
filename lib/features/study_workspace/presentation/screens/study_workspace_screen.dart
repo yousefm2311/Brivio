@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../design_system/tokens/colors.dart';
 import '../../domain/models/study_workspace_models.dart';
@@ -33,6 +34,11 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   Timer? _codeDebounce;
   Timer? _boardDebounce;
   List<_BoardStroke> _boardStrokes = [];
+  List<_PdfAnnotation> _pdfAnnotations = [];
+  bool _pdfAnnotationsLoaded = false;
+  String? _studySessionId;
+  DateTime? _studySessionStartedAt;
+  final Set<int> _visitedPages = {};
 
   @override
   void initState() {
@@ -54,6 +60,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     _codeDebounce?.cancel();
     _boardDebounce?.cancel();
     _viewModel.removeListener(_syncLoadedText);
+    _finishStudySession();
     _viewModel.dispose();
     _notebookController.dispose();
     _codeController.dispose();
@@ -72,12 +79,18 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     if (_boardStrokes.isEmpty && _viewModel.boardData.isNotEmpty) {
       setState(() => _boardStrokes = _decodeBoard(_viewModel.boardData));
     }
+    if (!_pdfAnnotationsLoaded) {
+      _pdfAnnotationsLoaded = true;
+      _loadPdfAnnotations();
+      _startStudySession();
+    }
   }
 
   void _queueNotebookSave(String value) {
     _notebookDebounce?.cancel();
     _notebookDebounce = Timer(const Duration(milliseconds: 450), () {
       _viewModel.saveNotebook(value);
+      _recordReplayEvent('notebook_saved', {'length': value.length});
     });
   }
 
@@ -93,7 +106,232 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     _boardDebounce?.cancel();
     _boardDebounce = Timer(const Duration(milliseconds: 450), () {
       _viewModel.saveBoard(_encodeBoard(strokes));
+      _recordReplayEvent('board_changed', {'stroke_count': strokes.length});
     });
+  }
+
+  Future<void> _startStudySession() async {
+    final repository = widget.repository;
+    final studentId = widget.studentId;
+    if (repository == null || studentId == null || _studySessionId != null) {
+      return;
+    }
+    try {
+      final sessionId = await repository.startStudySession(
+        studentId: studentId,
+        lessonId: widget.lesson.id,
+        deviceId: Theme.of(context).platform.name,
+      );
+      if (!mounted || sessionId == null) return;
+      _studySessionId = sessionId;
+      _studySessionStartedAt = DateTime.now();
+      _visitedPages.add(_viewModel.currentPage);
+      _recordReplayEvent('lesson_opened', {
+        'page': _viewModel.currentPage,
+        'lesson_title': widget.lesson.title,
+      });
+    } catch (_) {}
+  }
+
+  void _finishStudySession() {
+    final repository = widget.repository;
+    final sessionId = _studySessionId;
+    final startedAt = _studySessionStartedAt;
+    if (repository == null || sessionId == null || startedAt == null) return;
+    final duration = DateTime.now().difference(startedAt).inSeconds;
+    unawaited(
+      repository
+          .finishStudySession(
+            sessionId: sessionId,
+            durationSeconds: duration,
+            pagesRead: _visitedPages.length,
+          )
+          .catchError((_) {}),
+    );
+  }
+
+  void _recordReplayEvent(String eventType, Map<String, dynamic> payload) {
+    final repository = widget.repository;
+    final studentId = widget.studentId;
+    final sessionId = _studySessionId;
+    final startedAt = _studySessionStartedAt;
+    if (repository == null ||
+        studentId == null ||
+        sessionId == null ||
+        startedAt == null) {
+      return;
+    }
+    unawaited(
+      repository
+          .recordReplayEvent(
+            sessionId: sessionId,
+            studentId: studentId,
+            lessonId: widget.lesson.id,
+            eventType: eventType,
+            eventOffsetMs: DateTime.now().difference(startedAt).inMilliseconds,
+            payload: payload,
+          )
+          .catchError((_) {}),
+    );
+  }
+
+  Future<void> _loadPdfAnnotations() async {
+    final preferences = await SharedPreferences.getInstance();
+    final raw = preferences.getString(_pdfAnnotationKey);
+    if (!mounted) return;
+    final localAnnotations = _decodePdfAnnotations(raw ?? '');
+    setState(() => _pdfAnnotations = localAnnotations);
+
+    final repository = widget.repository;
+    final studentId = widget.studentId;
+    if (repository == null || studentId == null) return;
+    try {
+      final cloudRows = await repository.fetchPdfAnnotations(
+        studentId: studentId,
+        lessonId: widget.lesson.id,
+      );
+      final cloudAnnotations = cloudRows
+          .map(_PdfAnnotation.fromJson)
+          .where((annotation) => annotation.id.isNotEmpty)
+          .toList();
+      if (cloudAnnotations.isEmpty || !mounted) return;
+      setState(() => _pdfAnnotations = cloudAnnotations);
+      await preferences.setString(
+        _pdfAnnotationKey,
+        _encodePdfAnnotations(cloudAnnotations),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _savePdfAnnotations(List<_PdfAnnotation> annotations) async {
+    setState(() => _pdfAnnotations = annotations);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(
+      _pdfAnnotationKey,
+      _encodePdfAnnotations(annotations),
+    );
+    final repository = widget.repository;
+    final studentId = widget.studentId;
+    if (repository == null || studentId == null) return;
+    try {
+      await repository.savePdfAnnotations(
+        studentId: studentId,
+        lessonId: widget.lesson.id,
+        annotations: annotations
+            .map((annotation) => annotation.toJson())
+            .toList(),
+      );
+    } catch (_) {}
+  }
+
+  String get _pdfAnnotationKey =>
+      'study_workspace_pdf_annotations_${widget.lesson.id}';
+
+  Future<void> _addStickyNote() async {
+    final controller = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Note on page ${_viewModel.currentPage}'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'Note',
+            alignLabelWithHint: true,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            icon: const Icon(Icons.add),
+            label: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (text == null || text.isEmpty) return;
+    await _savePdfAnnotations([
+      ..._pdfAnnotations,
+      _PdfAnnotation(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        page: _viewModel.currentPage,
+        type: _PdfAnnotationType.note,
+        text: text,
+        createdAt: DateTime.now(),
+      ),
+    ]);
+    _recordReplayEvent('pdf_note_added', {
+      'page': _viewModel.currentPage,
+      'length': text.length,
+    });
+  }
+
+  Future<void> _addHighlight() async {
+    await _savePdfAnnotations([
+      ..._pdfAnnotations,
+      _PdfAnnotation(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        page: _viewModel.currentPage,
+        type: _PdfAnnotationType.highlight,
+        text: 'Highlighted section',
+        createdAt: DateTime.now(),
+      ),
+    ]);
+    _recordReplayEvent('pdf_highlight_added', {'page': _viewModel.currentPage});
+  }
+
+  Future<void> _toggleBookmark() async {
+    final page = _viewModel.currentPage;
+    final existing = _pdfAnnotations.where(
+      (annotation) =>
+          annotation.page == page &&
+          annotation.type == _PdfAnnotationType.bookmark,
+    );
+    if (existing.isNotEmpty) {
+      await _savePdfAnnotations(
+        _pdfAnnotations
+            .where(
+              (annotation) =>
+                  !(annotation.page == page &&
+                      annotation.type == _PdfAnnotationType.bookmark),
+            )
+            .toList(),
+      );
+      _recordReplayEvent('pdf_bookmark_removed', {'page': page});
+      return;
+    }
+    await _savePdfAnnotations([
+      ..._pdfAnnotations,
+      _PdfAnnotation(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        page: page,
+        type: _PdfAnnotationType.bookmark,
+        text: 'Bookmarked page',
+        createdAt: DateTime.now(),
+      ),
+    ]);
+    _recordReplayEvent('pdf_bookmark_added', {'page': page});
+  }
+
+  Future<void> _deletePdfAnnotation(String id) async {
+    await _savePdfAnnotations(
+      _pdfAnnotations.where((annotation) => annotation.id != id).toList(),
+    );
+    _recordReplayEvent('pdf_annotation_deleted', {'id': id});
+  }
+
+  Future<void> _goToPage(int delta) async {
+    await _viewModel.goToPage(_viewModel.currentPage + delta);
+    _visitedPages.add(_viewModel.currentPage);
+    _recordReplayEvent('page_changed', {'page': _viewModel.currentPage});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -156,13 +394,30 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                                     notebookController: _notebookController,
                                     codeController: _codeController,
                                     boardStrokes: _boardStrokes,
+                                    pdfAnnotations: _pdfAnnotations,
                                     onNotebookChanged: _queueNotebookSave,
                                     onCodeChanged: _queueCodeSave,
                                     onBoardChanged: _queueBoardSave,
+                                    onPdfNote: _addStickyNote,
+                                    onPdfHighlight: _addHighlight,
+                                    onPdfBookmark: _toggleBookmark,
+                                    onPdfAnnotationDelete: _deletePdfAnnotation,
+                                    onPreviousPdfPage: () => _goToPage(-1),
+                                    onNextPdfPage: () => _goToPage(1),
                                   )
                                 : TabBarView(
                                     children: [
-                                      _PdfPane(viewModel: _viewModel),
+                                      _PdfPane(
+                                        viewModel: _viewModel,
+                                        annotations: _pdfAnnotations,
+                                        onAddNote: _addStickyNote,
+                                        onAddHighlight: _addHighlight,
+                                        onToggleBookmark: _toggleBookmark,
+                                        onDeleteAnnotation:
+                                            _deletePdfAnnotation,
+                                        onPreviousPage: () => _goToPage(-1),
+                                        onNextPage: () => _goToPage(1),
+                                      ),
                                       _NotebookPane(
                                         controller: _notebookController,
                                         strokes: _boardStrokes,
@@ -253,31 +508,66 @@ class _WideWorkspace extends StatelessWidget {
   final TextEditingController notebookController;
   final TextEditingController codeController;
   final List<_BoardStroke> boardStrokes;
+  final List<_PdfAnnotation> pdfAnnotations;
   final ValueChanged<String> onNotebookChanged;
   final ValueChanged<String> onCodeChanged;
   final ValueChanged<List<_BoardStroke>> onBoardChanged;
+  final VoidCallback onPdfNote;
+  final VoidCallback onPdfHighlight;
+  final VoidCallback onPdfBookmark;
+  final ValueChanged<String> onPdfAnnotationDelete;
+  final VoidCallback onPreviousPdfPage;
+  final VoidCallback onNextPdfPage;
 
   const _WideWorkspace({
     required this.viewModel,
     required this.notebookController,
     required this.codeController,
     required this.boardStrokes,
+    required this.pdfAnnotations,
     required this.onNotebookChanged,
     required this.onCodeChanged,
     required this.onBoardChanged,
+    required this.onPdfNote,
+    required this.onPdfHighlight,
+    required this.onPdfBookmark,
+    required this.onPdfAnnotationDelete,
+    required this.onPreviousPdfPage,
+    required this.onNextPdfPage,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(flex: 6, child: _PdfPane(viewModel: viewModel)),
+        Expanded(
+          flex: 6,
+          child: _PdfPane(
+            viewModel: viewModel,
+            annotations: pdfAnnotations,
+            onAddNote: onPdfNote,
+            onAddHighlight: onPdfHighlight,
+            onToggleBookmark: onPdfBookmark,
+            onDeleteAnnotation: onPdfAnnotationDelete,
+            onPreviousPage: onPreviousPdfPage,
+            onNextPage: onNextPdfPage,
+          ),
+        ),
         VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
         Expanded(
           flex: 4,
           child: TabBarView(
             children: [
-              _PdfPane(viewModel: viewModel),
+              _PdfPane(
+                viewModel: viewModel,
+                annotations: pdfAnnotations,
+                onAddNote: onPdfNote,
+                onAddHighlight: onPdfHighlight,
+                onToggleBookmark: onPdfBookmark,
+                onDeleteAnnotation: onPdfAnnotationDelete,
+                onPreviousPage: onPreviousPdfPage,
+                onNextPage: onNextPdfPage,
+              ),
               _NotebookPane(
                 controller: notebookController,
                 strokes: boardStrokes,
@@ -299,8 +589,24 @@ class _WideWorkspace extends StatelessWidget {
 
 class _PdfPane extends StatelessWidget {
   final StudyWorkspaceViewModel viewModel;
+  final List<_PdfAnnotation> annotations;
+  final VoidCallback onAddNote;
+  final VoidCallback onAddHighlight;
+  final VoidCallback onToggleBookmark;
+  final ValueChanged<String> onDeleteAnnotation;
+  final VoidCallback onPreviousPage;
+  final VoidCallback onNextPage;
 
-  const _PdfPane({required this.viewModel});
+  const _PdfPane({
+    required this.viewModel,
+    required this.annotations,
+    required this.onAddNote,
+    required this.onAddHighlight,
+    required this.onToggleBookmark,
+    required this.onDeleteAnnotation,
+    required this.onPreviousPage,
+    required this.onNextPage,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -309,12 +615,43 @@ class _PdfPane extends StatelessWidget {
       return _MissingPdfState(lesson: lesson);
     }
 
+    final pageAnnotations = annotations
+        .where((annotation) => annotation.page == viewModel.currentPage)
+        .toList();
+    final hasBookmark = pageAnnotations.any(
+      (annotation) => annotation.type == _PdfAnnotationType.bookmark,
+    );
+    final highlights = pageAnnotations
+        .where((annotation) => annotation.type == _PdfAnnotationType.highlight)
+        .toList();
+
     return Stack(
       children: [
         Padding(
           padding: const EdgeInsets.all(12),
-          child: _SignedPdfViewer(url: lesson.pdfUrl!),
+          child: _SignedPdfViewer(
+            url: lesson.pdfUrl!,
+            pageNumber: viewModel.currentPage,
+          ),
         ),
+        for (var i = 0; i < highlights.length.clamp(0, 4); i++)
+          PositionedDirectional(
+            start: 52,
+            end: 52,
+            top: 132.0 + (i * 46),
+            child: IgnorePointer(
+              child: Container(
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF176).withValues(alpha: .42),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: const Color(0xFFFACC15).withValues(alpha: .55),
+                  ),
+                ),
+              ),
+            ),
+          ),
         PositionedDirectional(
           start: 16,
           top: 16,
@@ -334,9 +671,71 @@ class _PdfPane extends StatelessWidget {
                   const Icon(Icons.picture_as_pdf, color: AppColors.error),
                   const SizedBox(width: 8),
                   Text('Page ${viewModel.currentPage}/${lesson.totalPages}'),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Previous page',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: viewModel.currentPage <= 1
+                        ? null
+                        : onPreviousPage,
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  IconButton(
+                    tooltip: 'Next page',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: viewModel.currentPage >= lesson.totalPages
+                        ? null
+                        : onNextPage,
+                    icon: const Icon(Icons.chevron_right),
+                  ),
                 ],
               ),
             ),
+          ),
+        ),
+        PositionedDirectional(
+          end: 16,
+          top: 16,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).colorScheme.surface.withValues(alpha: .92),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Theme.of(context).dividerColor),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: hasBookmark ? 'Remove bookmark' : 'Bookmark page',
+                  onPressed: onToggleBookmark,
+                  icon: Icon(
+                    hasBookmark ? Icons.bookmark : Icons.bookmark_border,
+                    color: hasBookmark ? AppColors.warning : null,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Highlight',
+                  onPressed: onAddHighlight,
+                  icon: const Icon(Icons.format_color_fill),
+                ),
+                IconButton(
+                  tooltip: 'Sticky note',
+                  onPressed: onAddNote,
+                  icon: const Icon(Icons.sticky_note_2_outlined),
+                ),
+              ],
+            ),
+          ),
+        ),
+        PositionedDirectional(
+          start: 16,
+          end: 16,
+          bottom: 16,
+          child: _PdfAnnotationTray(
+            annotations: pageAnnotations,
+            onDelete: onDeleteAnnotation,
           ),
         ),
       ],
@@ -376,10 +775,164 @@ class _MissingPdfState extends StatelessWidget {
   }
 }
 
-class _SignedPdfViewer extends StatelessWidget {
-  final String url;
+class _PdfAnnotationTray extends StatelessWidget {
+  final List<_PdfAnnotation> annotations;
+  final ValueChanged<String> onDelete;
 
-  const _SignedPdfViewer({required this.url});
+  const _PdfAnnotationTray({required this.annotations, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = annotations
+        .where((annotation) => annotation.type != _PdfAnnotationType.bookmark)
+        .toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    return Align(
+      alignment: AlignmentDirectional.bottomStart,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 180),
+        child: Card(
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: .94),
+          child: ListView.builder(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(8),
+            itemCount: visible.length,
+            itemBuilder: (context, index) {
+              final annotation = visible[index];
+              return ListTile(
+                dense: true,
+                leading: Icon(
+                  annotation.type == _PdfAnnotationType.highlight
+                      ? Icons.format_color_fill
+                      : Icons.sticky_note_2_outlined,
+                  color: annotation.type == _PdfAnnotationType.highlight
+                      ? AppColors.warning
+                      : AppColors.info,
+                ),
+                title: Text(
+                  annotation.text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(annotation.dateLabel),
+                trailing: IconButton(
+                  tooltip: 'Delete annotation',
+                  onPressed: () => onDelete(annotation.id),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _PdfAnnotationType { bookmark, highlight, note }
+
+class _PdfAnnotation {
+  final String id;
+  final int page;
+  final _PdfAnnotationType type;
+  final String text;
+  final DateTime createdAt;
+
+  const _PdfAnnotation({
+    required this.id,
+    required this.page,
+    required this.type,
+    required this.text,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'page': page,
+    'type': type.name,
+    'text': text,
+    'created_at': createdAt.toIso8601String(),
+  };
+
+  factory _PdfAnnotation.fromJson(Map<String, dynamic> json) {
+    final rawType = json['type']?.toString() ?? 'note';
+    return _PdfAnnotation(
+      id: json['id']?.toString() ?? '',
+      page: int.tryParse(json['page']?.toString() ?? '') ?? 1,
+      type: _PdfAnnotationType.values.firstWhere(
+        (type) => type.name == rawType,
+        orElse: () => _PdfAnnotationType.note,
+      ),
+      text: json['text']?.toString() ?? '',
+      createdAt:
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+    );
+  }
+
+  String get dateLabel {
+    final month = createdAt.month.toString().padLeft(2, '0');
+    final day = createdAt.day.toString().padLeft(2, '0');
+    return '${createdAt.year}-$month-$day';
+  }
+}
+
+String _encodePdfAnnotations(List<_PdfAnnotation> annotations) {
+  return jsonEncode({
+    'annotations': annotations
+        .map((annotation) => annotation.toJson())
+        .toList(),
+  });
+}
+
+List<_PdfAnnotation> _decodePdfAnnotations(String raw) {
+  if (raw.trim().isEmpty) return [];
+  try {
+    final decoded = jsonDecode(raw) as Map<String, dynamic>;
+    final rawAnnotations = decoded['annotations'] as List<dynamic>? ?? [];
+    return rawAnnotations
+        .whereType<Map>()
+        .map(
+          (annotation) =>
+              _PdfAnnotation.fromJson(Map<String, dynamic>.from(annotation)),
+        )
+        .where((annotation) => annotation.id.isNotEmpty)
+        .toList();
+  } catch (_) {
+    return [];
+  }
+}
+
+class _SignedPdfViewer extends StatefulWidget {
+  final String url;
+  final int pageNumber;
+
+  const _SignedPdfViewer({required this.url, required this.pageNumber});
+
+  @override
+  State<_SignedPdfViewer> createState() => _SignedPdfViewerState();
+}
+
+class _SignedPdfViewerState extends State<_SignedPdfViewer> {
+  late final PdfViewerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PdfViewerController();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SignedPdfViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pageNumber != widget.pageNumber && _controller.isReady) {
+      _controller.goToPage(
+        pageNumber: widget.pageNumber,
+        duration: const Duration(milliseconds: 180),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -392,8 +945,16 @@ class _SignedPdfViewer extends StatelessWidget {
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: PdfViewer.uri(
-          Uri.parse(url),
+          Uri.parse(widget.url),
+          controller: _controller,
+          initialPageNumber: widget.pageNumber,
           params: PdfViewerParams(
+            onViewerReady: (document, controller) {
+              controller.goToPage(
+                pageNumber: widget.pageNumber,
+                duration: Duration.zero,
+              );
+            },
             loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
               final progress = totalBytes == null || totalBytes == 0
                   ? null

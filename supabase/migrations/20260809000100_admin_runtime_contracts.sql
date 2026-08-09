@@ -13,7 +13,8 @@ INSERT INTO public.permissions (id, code, module, action, description) VALUES
   (gen_random_uuid(), 'homework.create', 'assessment', 'create', 'Create homework assignments'),
   (gen_random_uuid(), 'homework.grade', 'assessment', 'grade', 'Grade homework submissions'),
   (gen_random_uuid(), 'exams.create', 'assessment', 'create', 'Create exams'),
-  (gen_random_uuid(), 'exams.grade', 'assessment', 'grade', 'Grade exams')
+  (gen_random_uuid(), 'exams.grade', 'assessment', 'grade', 'Grade exams'),
+  (gen_random_uuid(), 'security.audit', 'security', 'audit', 'View database audit trail')
 ON CONFLICT (code) DO UPDATE SET
   module = EXCLUDED.module,
   action = EXCLUDED.action,
@@ -45,7 +46,8 @@ JOIN public.permissions p ON p.code IN (
   'attendance.mark',
   'leave.review',
   'invoices.view',
-  'payments.collect'
+  'payments.collect',
+  'security.audit'
 )
 WHERE r.name IN ('super_admin', 'admin', 'staff')
 ON CONFLICT DO NOTHING;
@@ -68,6 +70,21 @@ JOIN public.permissions p ON p.code IN (
 )
 WHERE r.name = 'teacher'
 ON CONFLICT DO NOTHING;
+
+-- 1b. Runtime schema compatibility for projects created from earlier drafts.
+-- Some existing Supabase projects have groups without subject_id/max_capacity;
+-- later RPCs and Flutter screens depend on these columns being present.
+ALTER TABLE public.groups
+  ADD COLUMN IF NOT EXISTS subject_id UUID REFERENCES public.subjects(id) ON DELETE RESTRICT;
+
+ALTER TABLE public.groups
+  ADD COLUMN IF NOT EXISTS max_capacity INT;
+
+UPDATE public.groups
+SET max_capacity = COALESCE(max_capacity, capacity, 30)
+WHERE max_capacity IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_groups_subject_id ON public.groups(subject_id);
 
 -- 2. Fix helper introduced by the teacher assessment migration. group_teachers has
 -- temporal columns, not a status column.
@@ -1629,6 +1646,243 @@ REVOKE EXECUTE ON FUNCTION public.create_parent_child_leave_request(UUID, UUID, 
 GRANT EXECUTE ON FUNCTION public.get_parent_child_attendance_history(UUID, INT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_parent_child_leave_requests(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_parent_child_leave_request(UUID, UUID, TEXT) TO authenticated;
+
+-- 10. Database audit trail for production operations.
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT NOT NULL,
+  record_id TEXT,
+  action TEXT NOT NULL CHECK (action IN ('INSERT', 'UPDATE', 'DELETE')),
+  actor_user_id UUID,
+  old_data JSONB,
+  new_data JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_table_created
+ON public.audit_logs(table_name, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_created
+ON public.audit_logs(actor_user_id, created_at DESC);
+
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Audit logs visible to operations admins" ON public.audit_logs;
+CREATE POLICY "Audit logs visible to operations admins"
+ON public.audit_logs FOR SELECT TO authenticated
+USING (
+  public.is_admin_or_super()
+  OR public.current_user_role() = 'staff'
+  OR public.has_permission('security.audit')
+);
+
+CREATE OR REPLACE FUNCTION public.write_audit_log()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_old JSONB := CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END;
+  v_new JSONB := CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END;
+  v_record_id TEXT := COALESCE(v_new->>'id', v_old->>'id');
+BEGIN
+  IF TG_TABLE_NAME = 'audit_logs' THEN
+    IF TG_OP = 'DELETE' THEN
+      RETURN OLD;
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  INSERT INTO public.audit_logs (
+    table_name,
+    record_id,
+    action,
+    actor_user_id,
+    old_data,
+    new_data
+  ) VALUES (
+    TG_TABLE_NAME,
+    v_record_id,
+    TG_OP,
+    auth.uid(),
+    v_old,
+    v_new
+  );
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DO $$
+DECLARE
+  target_table TEXT;
+  audited_tables TEXT[] := ARRAY[
+    'profiles',
+    'students',
+    'parents',
+    'teachers',
+    'groups',
+    'group_teachers',
+    'enrollments',
+    'semesters',
+    'units',
+    'lessons',
+    'lesson_resources',
+    'questions',
+    'homework',
+    'homework_submissions',
+    'exams',
+    'exam_attempts',
+    'class_sessions',
+    'attendance_records',
+    'leave_requests',
+    'invoices',
+    'payment_attempts',
+    'receipts',
+    'study_annotations',
+    'study_bookmarks'
+  ];
+BEGIN
+  FOREACH target_table IN ARRAY audited_tables LOOP
+    IF to_regclass('public.' || target_table) IS NOT NULL THEN
+      EXECUTE format(
+        'DROP TRIGGER IF EXISTS trg_audit_%I ON public.%I',
+        target_table,
+        target_table
+      );
+      EXECUTE format(
+        'CREATE TRIGGER trg_audit_%I AFTER INSERT OR UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.write_audit_log()',
+        target_table,
+        target_table
+      );
+    END IF;
+  END LOOP;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.get_teacher_study_replay_sessions(UUID);
+CREATE OR REPLACE FUNCTION public.get_teacher_study_replay_sessions(
+  p_teacher_id UUID
+)
+RETURNS TABLE (
+  id UUID,
+  student_id UUID,
+  lesson_id UUID,
+  started_at TIMESTAMPTZ,
+  ended_at TIMESTAMPTZ,
+  duration_seconds INT,
+  pages_read INT,
+  student_full_name TEXT,
+  lesson_title TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT (
+    public.is_admin_or_super()
+    OR p_teacher_id = public.current_teacher_id()
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized to view study replay sessions' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT DISTINCT
+    ss.id,
+    ss.student_id,
+    ss.lesson_id,
+    ss.started_at,
+    ss.ended_at,
+    ss.duration_seconds,
+    ss.pages_read,
+    COALESCE(p.full_name, st.student_code, 'Student')::TEXT AS student_full_name,
+    COALESCE(l.title, 'Lesson')::TEXT AS lesson_title
+  FROM public.study_sessions ss
+  JOIN public.students st ON st.id = ss.student_id
+  LEFT JOIN public.profiles p ON p.id = st.profile_id
+  JOIN public.lessons l ON l.id = ss.lesson_id
+  JOIN public.enrollments e ON e.student_id = ss.student_id AND e.status = 'active'
+  JOIN public.group_teachers gt ON gt.group_id = e.group_id
+  WHERE gt.teacher_id = p_teacher_id
+    AND gt.effective_from <= CURRENT_DATE
+    AND (gt.effective_to IS NULL OR gt.effective_to >= CURRENT_DATE)
+  ORDER BY ss.started_at DESC
+  LIMIT 100;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.get_study_replay_events(UUID);
+CREATE OR REPLACE FUNCTION public.get_study_replay_events(
+  p_session_id UUID
+)
+RETURNS TABLE (
+  id UUID,
+  session_id UUID,
+  student_id UUID,
+  lesson_id UUID,
+  event_type TEXT,
+  event_offset_ms INT,
+  payload JSONB,
+  created_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_student_id UUID;
+BEGIN
+  SELECT ss.student_id INTO v_student_id
+  FROM public.study_sessions ss
+  WHERE ss.id = p_session_id;
+
+  IF v_student_id IS NULL THEN
+    RAISE EXCEPTION 'Study session not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT (
+    public.is_admin_or_super()
+    OR public.current_student_id() = v_student_id
+    OR public.current_parent_has_student(v_student_id)
+    OR EXISTS (
+      SELECT 1
+      FROM public.enrollments e
+      JOIN public.group_teachers gt ON gt.group_id = e.group_id
+      WHERE e.student_id = v_student_id
+        AND e.status = 'active'
+        AND gt.teacher_id = public.current_teacher_id()
+        AND gt.effective_from <= CURRENT_DATE
+        AND (gt.effective_to IS NULL OR gt.effective_to >= CURRENT_DATE)
+    )
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized to view study replay events' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    ev.id,
+    ev.session_id,
+    ev.student_id,
+    ev.lesson_id,
+    ev.event_type,
+    ev.event_offset_ms,
+    ev.payload,
+    ev.created_at
+  FROM public.study_replay_events ev
+  WHERE ev.session_id = p_session_id
+  ORDER BY ev.event_offset_ms, ev.created_at;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.get_teacher_study_replay_sessions(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_study_replay_events(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_teacher_study_replay_sessions(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_study_replay_events(UUID) TO authenticated;
 
 -- 9. Refresh PostgREST schema cache so newly-created RPCs are visible immediately.
 NOTIFY pgrst, 'reload schema';

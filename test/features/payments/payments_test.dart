@@ -91,7 +91,7 @@ void main() {
     });
 
     testWidgets(
-      'InvoiceListWidget renders list and Pay Now button for unpaid invoices',
+      'InvoiceListWidget renders list and Record Cash button for unpaid invoices',
       (WidgetTester tester) async {
         final invoices = [
           Invoice(
@@ -114,7 +114,7 @@ void main() {
         );
 
         expect(find.text('Invoice INV-2026-000001'), findsOneWidget);
-        expect(find.text('Pay Now'), findsOneWidget);
+        expect(find.text('Record Cash'), findsOneWidget);
       },
     );
   });

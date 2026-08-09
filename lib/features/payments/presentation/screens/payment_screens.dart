@@ -63,7 +63,7 @@ class InvoiceListWidget extends StatelessWidget {
                     onPressed: onInvoiceSelected != null
                         ? () => onInvoiceSelected!(inv)
                         : null,
-                    child: const Text('Pay Now'),
+                    child: const Text('Record Cash'),
                   ),
           ),
         );

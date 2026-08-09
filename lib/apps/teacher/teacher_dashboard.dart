@@ -16,6 +16,7 @@ import '../../features/attendance/presentation/screens/teacher_attendance_screen
 import '../../features/curriculum/presentation/screens/teacher_curriculum_screen.dart';
 import '../../features/people/presentation/screens/teacher_profile_screen.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import '../../features/study_workspace/presentation/screens/study_replay_screen.dart';
 
 class TeacherDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -320,7 +321,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       ),
       // Tab 3: Operations & Grading (Subtabs)
       DefaultTabController(
-        length: 2,
+        length: 3,
         child: Scaffold(
           appBar: AppBar(
             title: const Text('Operations & Grading Workspace'),
@@ -328,6 +329,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               tabs: [
                 Tab(icon: Icon(Icons.event_note), text: 'Attendance Roll Call'),
                 Tab(icon: Icon(Icons.grading), text: 'Grading Queue'),
+                Tab(icon: Icon(Icons.video_library), text: 'Study Replay'),
               ],
             ),
           ),
@@ -335,6 +337,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             children: [
               TeacherAttendanceScreen(teacherId: teacherId),
               TeacherGradingScreen(teacherId: teacherId),
+              StudyReplayScreen(teacherId: teacherId),
             ],
           ),
         ),

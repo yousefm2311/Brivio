@@ -77,15 +77,12 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
   Future<List<Map<String, dynamic>>> _fetchStudentGroups(
     String studentId,
   ) async {
-    final response = await _wrapper.client
-        .from('enrollments')
-        .select('groups(id, name, code, subject_id, status)')
-        .eq('student_id', studentId)
-        .eq('status', 'active');
+    final response = await _wrapper.client.rpc(
+      'get_student_groups',
+      params: {'p_student_id': studentId},
+    );
 
     return (response as List)
-        .map((row) => row as Map<String, dynamic>)
-        .map((row) => row['groups'])
         .whereType<Map>()
         .map((group) => Map<String, dynamic>.from(group))
         .where((group) => group['status'] == 'active')
