@@ -636,15 +636,61 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.get_student_groups(UUID);
+CREATE OR REPLACE FUNCTION public.get_student_groups(p_student_id UUID)
+RETURNS TABLE (
+  id UUID,
+  name TEXT,
+  code TEXT,
+  subject_id UUID,
+  branch_id UUID,
+  max_capacity INT,
+  status TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT (
+    public.is_admin_or_super()
+    OR public.has_permission('enrollments.view')
+    OR public.has_permission('enrollments.manage')
+    OR p_student_id = public.current_student_id()
+    OR public.current_parent_has_student(p_student_id)
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized to view student groups' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT DISTINCT
+    g.id,
+    COALESCE(g.name, 'Group')::TEXT AS name,
+    COALESCE(g.code, '')::TEXT AS code,
+    g.subject_id,
+    g.branch_id,
+    COALESCE(g.max_capacity, g.capacity)::INT AS max_capacity,
+    COALESCE(g.status, 'active')::TEXT AS status
+  FROM public.enrollments e
+  JOIN public.groups g ON g.id = e.group_id
+  WHERE e.student_id = p_student_id
+    AND public.enrollment_has_learning_access(e.id)
+    AND g.status = 'active'
+  ORDER BY 2;
+END;
+$$;
+
 REVOKE EXECUTE ON FUNCTION public.enroll_student_in_group(UUID, UUID, BIGINT, BIGINT, TEXT, TIMESTAMPTZ) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.apply_verified_payment(UUID, TEXT, BIGINT, TEXT) FROM PUBLIC, authenticated;
 REVOKE EXECUTE ON FUNCTION public.current_student_can_access_lesson(UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.get_current_student_lessons() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.get_accessible_student_lessons(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_student_groups(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.enroll_student_in_group(UUID, UUID, BIGINT, BIGINT, TEXT, TIMESTAMPTZ) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.apply_verified_payment(UUID, TEXT, BIGINT, TEXT) TO service_role, postgres;
 GRANT EXECUTE ON FUNCTION public.current_student_can_access_lesson(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_current_student_lessons() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_accessible_student_lessons(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_student_groups(UUID) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';

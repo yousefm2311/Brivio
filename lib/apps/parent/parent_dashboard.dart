@@ -119,10 +119,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _fetchAttendance(child.id),
         _fetchLeaveRequests(child.id),
         notificationRepo.getNotifications(),
-        notificationRepo.getUnreadCount(),
       ]);
 
       if (!mounted || _selectedChild?.id != child.id) return;
+      final childNotifications = _filterNotificationsForChild(
+        results[6] as List<AppNotification>,
+        child.id,
+      );
       setState(() {
         _childGroups = results[0] as List<GroupEntity>;
         _learningSnapshot = results[1] as StudentLearningSnapshot;
@@ -130,8 +133,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _invoices = results[3] as List<Invoice>;
         _attendance = results[4] as List<_ParentAttendanceItem>;
         _leaveRequests = results[5] as List<_ParentLeaveItem>;
-        _notifications = results[6] as List<AppNotification>;
-        _unreadCount = results[7] as int;
+        _notifications = childNotifications;
+        _unreadCount = childNotifications.where((n) => !n.isRead).length;
         _isChildLoading = false;
       });
     } catch (e) {
@@ -154,6 +157,16 @@ class _ParentDashboardState extends State<ParentDashboard> {
       _notifications = [];
       _unreadCount = 0;
     });
+  }
+
+  List<AppNotification> _filterNotificationsForChild(
+    List<AppNotification> notifications,
+    String childId,
+  ) {
+    return notifications.where((notification) {
+      final studentId = notification.data['student_id']?.toString();
+      return studentId == null || studentId.isEmpty || studentId == childId;
+    }).toList();
   }
 
   Future<List<_ParentAttendanceItem>> _fetchAttendance(String studentId) async {

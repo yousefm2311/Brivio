@@ -27,16 +27,30 @@ ALTER TABLE public.audit_logs
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF EXISTS (
     SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'audit_logs_action_check'
-      AND conrelid = 'public.audit_logs'::regclass
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'audit_logs'
+      AND column_name = 'actor_user_id'
   ) THEN
-    ALTER TABLE public.audit_logs
-      ADD CONSTRAINT audit_logs_action_check
-      CHECK (action IN ('insert', 'update', 'delete'));
+    EXECUTE 'UPDATE public.audit_logs SET actor_id = actor_user_id WHERE actor_id IS NULL';
   END IF;
+END;
+$$;
+
+ALTER TABLE public.audit_logs
+  DROP CONSTRAINT IF EXISTS audit_logs_action_check;
+
+DO $$
+BEGIN
+  UPDATE public.audit_logs
+  SET action = lower(action)
+  WHERE action IS NOT NULL;
+
+  ALTER TABLE public.audit_logs
+    ADD CONSTRAINT audit_logs_action_check
+    CHECK (action IN ('insert', 'update', 'delete'));
 END;
 $$;
 
