@@ -148,7 +148,9 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
             lessonId: lesson.id,
             code: value,
           );
-        } catch (_) {}
+        } catch (e, st) {
+          print('=== DEBUG ERROR IN SAVE CODEDRAFT: $e\n$st ===');
+        }
       }
     });
   }
@@ -176,7 +178,9 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
               boardData: value,
             );
           }
-        } catch (_) {}
+        } catch (e, st) {
+          print('=== DEBUG ERROR IN SAVEBOARD: $e\n$st ===');
+        }
       }
     });
   }
@@ -198,7 +202,9 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
             page: normalized,
             progressPercentage: progress,
           );
-        } catch (_) {}
+        } catch (e, st) {
+          print('=== DEBUG ERROR IN UPDATEPAGEPROGRESS: $e\n$st ===');
+        }
       }
     });
   }

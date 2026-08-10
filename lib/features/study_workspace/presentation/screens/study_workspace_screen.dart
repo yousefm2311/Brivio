@@ -60,6 +60,8 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   _BoardStroke? _activeStroke;
   bool _isFabMenuOpen = false;
   bool _showBoard = false;
+  bool _isPanMode = false;
+  late final TransformationController _boardTransformationController;
 
   void _startStroke(DragStartDetails details) {
     setState(() {
@@ -105,6 +107,16 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     );
     _notebookController = TextEditingController();
     _codeController = TextEditingController();
+    _boardTransformationController = TransformationController();
+    
+    // Center the board by default on the 4000x4000 canvas
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final size = MediaQuery.of(context).size;
+      _boardTransformationController.value = Matrix4.identity()
+        ..translate(-2000.0 + size.width / 2, -2000.0 + size.height / 2);
+    });
+
     _viewModel.addListener(_syncLoadedText);
     _viewModel.load();
   }
@@ -119,6 +131,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     _viewModel.dispose();
     _notebookController.dispose();
     _codeController.dispose();
+    _boardTransformationController.dispose();
     super.dispose();
   }
 
@@ -499,6 +512,9 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                     onPanUpdate: _appendStroke,
                     onPanEnd: _endStroke,
                     isTransparent: false,
+                    isPanMode: _isPanMode,
+                    transformationController: _boardTransformationController,
+                    canvasSize: const Size(4000, 4000),
                   ),
                 ),
 
@@ -608,8 +624,10 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                   onToggle: () => setState(() => _isFabMenuOpen = !_isFabMenuOpen),
                   selectedColor: _selectedColor,
                   eraser: _eraser,
-                  onColorSelected: (c) => setState(() { _selectedColor = c; _eraser = false; }),
-                  onToggleEraser: () => setState(() => _eraser = !_eraser),
+                  onColorSelected: (c) => setState(() { _selectedColor = c; _eraser = false; _isPanMode = false; }),
+                  onToggleEraser: () => setState(() { _eraser = !_eraser; if (_eraser) _isPanMode = false; }),
+                  isPanMode: _isPanMode,
+                  onTogglePanMode: () => setState(() { _isPanMode = !_isPanMode; if (_isPanMode) _eraser = false; }),
                   onClear: _clearBoard,
                   hasPdf: showPdf,
                   onPrevPage: () => _goToPage(-1),
@@ -675,6 +693,8 @@ class _FloatingToolMenu extends StatelessWidget {
   final bool eraser;
   final ValueChanged<Color> onColorSelected;
   final VoidCallback onToggleEraser;
+  final bool isPanMode;
+  final VoidCallback onTogglePanMode;
   final VoidCallback onClear;
   final bool hasPdf;
   final VoidCallback onPrevPage;
@@ -697,6 +717,8 @@ class _FloatingToolMenu extends StatelessWidget {
     required this.eraser,
     required this.onColorSelected,
     required this.onToggleEraser,
+    required this.isPanMode,
+    required this.onTogglePanMode,
     required this.onClear,
     required this.hasPdf,
     required this.onPrevPage,
@@ -756,8 +778,13 @@ class _FloatingToolMenu extends StatelessWidget {
                 Container(height: 1, width: 24, color: theme.dividerColor, margin: const EdgeInsets.only(bottom: 12)),
                 IconButton(
                   onPressed: onToggleEraser,
-                  icon: Icon(Icons.cleaning_services_rounded, color: eraser ? AppColors.primary : null),
+                  icon: Icon(Icons.cleaning_services_rounded, color: eraser && !isPanMode ? AppColors.primary : null),
                   tooltip: 'Eraser',
+                ),
+                IconButton(
+                  onPressed: onTogglePanMode,
+                  icon: Icon(Icons.pan_tool_rounded, color: isPanMode ? AppColors.primary : null),
+                  tooltip: 'Pan Tool',
                 ),
                 IconButton(
                   onPressed: onClear,
@@ -1662,6 +1689,9 @@ class _DrawingBoard extends StatelessWidget {
   final GestureDragUpdateCallback onPanUpdate;
   final GestureDragEndCallback onPanEnd;
   final bool isTransparent;
+  final bool isPanMode;
+  final TransformationController? transformationController;
+  final Size? canvasSize;
 
   const _DrawingBoard({
     required this.strokes,
@@ -1669,18 +1699,39 @@ class _DrawingBoard extends StatelessWidget {
     required this.onPanUpdate,
     required this.onPanEnd,
     this.isTransparent = false,
+    this.isPanMode = false,
+    this.transformationController,
+    this.canvasSize,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onPanStart: onPanStart,
-      onPanUpdate: onPanUpdate,
-      onPanEnd: onPanEnd,
-      child: CustomPaint(
-        painter: _NotebookSketchPainter(strokes, isTransparent: isTransparent),
-        child: const SizedBox.expand(),
+    return InteractiveViewer(
+      transformationController: transformationController,
+      panEnabled: isPanMode,
+      scaleEnabled: isPanMode,
+      minScale: 0.1,
+      maxScale: 10.0,
+      constrained: false,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onPanStart: isPanMode ? null : onPanStart,
+        onPanUpdate: isPanMode ? null : onPanUpdate,
+        onPanEnd: isPanMode ? null : onPanEnd,
+        child: canvasSize != null 
+          ? Container(
+              width: canvasSize!.width,
+              height: canvasSize!.height,
+              color: Colors.transparent, // Capture gestures
+              child: CustomPaint(
+                painter: _NotebookSketchPainter(strokes, isTransparent: isTransparent),
+                size: canvasSize!,
+              ),
+            )
+          : CustomPaint(
+              painter: _NotebookSketchPainter(strokes, isTransparent: isTransparent),
+              child: const SizedBox.expand(),
+            ),
       ),
     );
   }
