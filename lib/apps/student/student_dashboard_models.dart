@@ -45,7 +45,6 @@ class StudentExamItem {
   });
 
   bool get canStart {
-    if (resetRequestStatus == 'approved') return true;
     return attemptCount < exam.maxAttempts;
   }
 
