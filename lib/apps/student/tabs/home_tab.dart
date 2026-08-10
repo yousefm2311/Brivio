@@ -11,6 +11,7 @@ import '../../../features/academy/domain/models/academy_models.dart';
 import '../../../features/academy/presentation/screens/academy_screens.dart';
 import '../../../features/payments/domain/models/payment_models.dart';
 import '../../../features/study_workspace/domain/models/study_workspace_models.dart';
+import '../../../features/code_playground/presentation/screens/code_playground_screen.dart';
 
 String _formatMoney(int amountMinor, String currency) {
   final format = NumberFormat.currency(
@@ -116,6 +117,58 @@ class HomeTab extends StatelessWidget {
                     lesson: nextLesson,
                     gamification: gamification,
                     onOpen: onOpenWorkspace,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Code Playground Shortcut ──
+                FadeInSlide(
+                  duration: const Duration(milliseconds: 700),
+                  delay: const Duration(milliseconds: 175),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CodePlaygroundScreen(),
+                        ),
+                      );
+                    },
+                    child: GlassCard(
+                      padding: const EdgeInsets.all(20),
+                      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.code, color: AppColors.primary, size: 28),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Code Playground',
+                                  style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Practice coding anytime',
+                                  style: AppTypography.caption(textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right, color: AppColors.primary),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 28),

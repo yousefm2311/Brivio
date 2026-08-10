@@ -6,6 +6,7 @@ import '../../../design_system/tokens/typography.dart';
 import '../../../design_system/widgets/portal_components.dart';
 import '../../../features/auth/domain/models/user_profile.dart';
 import '../teacher_dashboard.dart';
+import '../../../features/code_playground/presentation/screens/code_playground_screen.dart';
 
 class HomeTab extends StatelessWidget {
   final UserProfile? user;
@@ -97,6 +98,59 @@ class HomeTab extends StatelessWidget {
                       _buildMetricCard(context, context.tr('Open Homework'), '$openHomeworkCount', Icons.assignment, AppColors.warning, () => onNavigate(2)),
                       _buildMetricCard(context, context.tr('To Grade'), '$gradingQueueCount', Icons.grading, AppColors.error, () => onNavigate(2)),
                     ],
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+
+                // Code Playground Shortcut
+                FadeInSlide(
+                  duration: const Duration(milliseconds: 500),
+                  delay: const Duration(milliseconds: 150),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CodePlaygroundScreen(),
+                        ),
+                      );
+                    },
+                    child: GlassCard(
+                      padding: const EdgeInsets.all(20),
+                      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.teacherRole.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.code, color: AppColors.teacherRole, size: 28),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Code Playground',
+                                  style: AppTypography.titleMedium(isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary).copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Test lessons or practice coding',
+                                  style: AppTypography.caption(isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right, color: AppColors.teacherRole),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 
