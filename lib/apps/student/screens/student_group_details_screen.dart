@@ -61,19 +61,31 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       
       List<Lesson> lessonRes = [];
       try {
-        final lessonsData = await Supabase.instance.client
-            .from('lessons')
-            .select('*, units!inner(subject_id), lesson_resources(*)')
-            .eq('units.subject_id', widget.group.subjectId)
-            .eq('status', 'published')
-            .order('order_number');
+        final semesters = await Supabase.instance.client
+            .from('semesters')
+            .select('id, units(id)')
+            .eq('subject_id', widget.group.subjectId);
             
-        lessonRes = (lessonsData as List).map((e) {
-          final jsonMap = e as Map<String, dynamic>;
-          final resourcesList = jsonMap['lesson_resources'] as List<dynamic>? ?? [];
-          final resources = resourcesList.map((r) => LessonResource.fromJson(r as Map<String, dynamic>)).toList();
-          return Lesson.fromJson(jsonMap, resources);
-        }).toList();
+        final unitIds = semesters
+            .expand((s) => (s['units'] as List? ?? []))
+            .map((u) => u['id'].toString())
+            .toList();
+
+        if (unitIds.isNotEmpty) {
+          final lessonsData = await Supabase.instance.client
+              .from('lessons')
+              .select('*, lesson_resources(*)')
+              .inFilter('unit_id', unitIds)
+              .eq('status', 'published')
+              .order('order_number');
+              
+          lessonRes = (lessonsData as List).map((e) {
+            final jsonMap = e as Map<String, dynamic>;
+            final resourcesList = jsonMap['lesson_resources'] as List<dynamic>? ?? [];
+            final resources = resourcesList.map((r) => LessonResource.fromJson(r as Map<String, dynamic>)).toList();
+            return Lesson.fromJson(jsonMap, resources);
+          }).toList();
+        }
       } catch (e) {
         debugPrint('Error fetching curriculum: $e');
       }
