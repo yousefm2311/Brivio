@@ -173,13 +173,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
     ));
   }
 
-  void _openGroupDetails(GroupEntity group) {
-    Navigator.push(
+  Future<void> _openGroupDetails(GroupEntity group) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => StudentGroupDetailsScreen(group: group),
       ),
     );
+    await _loadAll();
   }
 
   Future<void> _scanAttendanceQr() async {
@@ -201,6 +202,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String?>(
+                  isExpanded: true,
                   initialValue: selectedSessionId,
                   decoration: InputDecoration(labelText: context.tr('Session'), prefixIcon: const Icon(Icons.event)),
                   items: [

@@ -68,8 +68,9 @@ class HomeTab extends StatelessWidget {
             pinned: false,
             expandedHeight: 120,
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsetsDirectional.only(start: 24, bottom: 16),
+              titlePadding: const EdgeInsetsDirectional.only(start: 24, bottom: 8),
               title: Column(
+                mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

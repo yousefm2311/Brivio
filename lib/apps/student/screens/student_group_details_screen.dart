@@ -343,7 +343,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                                   .getPublicUrl(res.objectPath);
                               final uri = Uri.parse(url);
                               if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri);
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
                               }
                             },
                           );
