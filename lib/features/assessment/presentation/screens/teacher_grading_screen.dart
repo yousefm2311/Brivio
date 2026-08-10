@@ -87,6 +87,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
       builder: (ctx) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+        final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
         return Dialog(
           backgroundColor: Colors.transparent,
@@ -106,6 +107,54 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  if (submission['submission_text'] != null || submission['attachment_url'] != null) ...[
+                    Text(context.tr('Student Submission:'), style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (submission['submission_text'] != null && submission['submission_text'].toString().isNotEmpty)
+                            Text(
+                              submission['submission_text'],
+                              style: TextStyle(color: textColor, height: 1.5),
+                            )
+                          else
+                            Text(context.tr('No text provided.'), style: TextStyle(color: subtitleColor, fontStyle: FontStyle.italic)),
+                          
+                          if (submission['attachment_url'] != null && submission['attachment_url'].toString().isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            InkWell(
+                              onTap: () {
+                                // Launch URL placeholder
+                              },
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.attachment, color: AppColors.primary, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      submission['attachment_url'],
+                                      style: const TextStyle(color: AppColors.primary, decoration: TextDecoration.underline),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   if (answers.isNotEmpty) ...[
                     Text(context.tr('Student Answers:'), style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),

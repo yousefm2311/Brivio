@@ -333,6 +333,103 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     );
   }
 
+  Future<void> _showExamAttemptsDialog(Exam exam) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    List<Map<String, dynamic>> attempts = [];
+    try {
+      final res = await Supabase.instance.client
+          .from('exam_attempts')
+          .select('*, students(id, profiles(full_name))')
+          .eq('exam_id', exam.id);
+      attempts = List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('Error fetching attempts: $e');
+    }
+
+    if (!context.mounted) return;
+    Navigator.pop(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: GlassCard(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${context.tr('Student Attempts')} - ${exam.title}', style: AppTypography.titleLarge(textColor), textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              if (attempts.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(context.tr('No attempts yet.'), style: AppTypography.bodyMedium(subtitleColor)),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: attempts.length,
+                    separatorBuilder: (_, __) => const Divider(),
+                    itemBuilder: (ctx, i) {
+                      final att = attempts[i];
+                      final studentName = att['students']?['profiles']?['full_name'] ?? 'Unknown Student';
+                      final studentId = att['students']?['id'];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(studentName, style: AppTypography.bodyMedium(textColor)),
+                        subtitle: Text('${context.tr('Score')}: ${att['score']} | ${context.tr('Status')}: ${att['status']}', style: AppTypography.caption(subtitleColor)),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.refresh, color: AppColors.error),
+                          tooltip: context.tr('Reset Attempt'),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: ctx,
+                              builder: (c) => AlertDialog(
+                                title: Text(context.tr('Reset Exam')),
+                                content: Text('${context.tr('Are you sure you want to reset the exam for')} $studentName?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(c, false), child: Text(context.tr('Cancel'))),
+                                  FilledButton(style: FilledButton.styleFrom(backgroundColor: AppColors.error), onPressed: () => Navigator.pop(c, true), child: Text(context.tr('Reset'))),
+                                ],
+                              ),
+                            );
+                            if (confirm == true && studentId != null) {
+                              try {
+                                await Supabase.instance.client.rpc('reset_student_exam_attempt', params: {'p_exam_id': exam.id, 'p_student_id': studentId});
+                                if (context.mounted) {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Exam reset successfully'))));
+                                }
+                              } catch (e) {
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reset failed: $e')));
+                              }
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 16),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('Close'), style: TextStyle(color: textColor))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -413,8 +510,13 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                     child: Padding(
                                       padding: const EdgeInsets.only(bottom: 12.0),
                                       child: GlassCard(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Row(
+                                        padding: EdgeInsets.zero,
+                                        child: InkWell(
+                                          onTap: () => _showExamAttemptsDialog(exam),
+                                          borderRadius: BorderRadius.circular(16),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(16),
+                                            child: Row(
                                           children: [
                                             CircleAvatar(
                                               backgroundColor: AppColors.primary.withValues(alpha: 0.2),
@@ -447,32 +549,35 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                               tooltip: context.tr('Manage Questions'),
                                               onPressed: () => _showManageQuestionsBottomSheet(exam),
                                             ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  );
-                                },
-                                childCount: _exams.length,
+                                  ),
+                                );
+                              },
+                              childCount: _exams.length,
                               ),
                             ),
                           ),
                       ],
                     ),
-        ),
-        if (_selectedGroup != null)
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: FloatingActionButton.extended(
-              onPressed: _showCreateExamDialog,
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.quiz),
-              label: Text(context.tr('Create Exam')),
+                  ),
+
+          if (_selectedGroup != null)
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: FloatingActionButton.extended(
+                onPressed: _showCreateExamDialog,
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                icon: const Icon(Icons.quiz),
+                label: Text(context.tr('Create Exam')),
+              ),
             ),
-          ),
-      ],
-    );
+        ],
+      );
   }
 }

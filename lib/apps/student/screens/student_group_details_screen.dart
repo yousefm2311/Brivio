@@ -8,11 +8,11 @@ import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../features/academy/domain/models/academy_models.dart';
 import '../../../features/assessment/data/repositories/supabase_assessment_repositories.dart';
-import '../../../features/assessment/domain/models/assessment_models.dart';
 import '../../../features/attendance/data/repositories/supabase_attendance_repositories.dart';
 import '../../../features/attendance/domain/models/attendance_models.dart';
-import '../../../features/curriculum/data/repositories/supabase_curriculum_repositories.dart';
+import '../../../features/assessment/presentation/screens/assessment_screens.dart';
 import '../../../features/curriculum/domain/models/curriculum_models.dart';
+import '../student_dashboard_models.dart';
 
 class StudentGroupDetailsScreen extends StatefulWidget {
   final GroupEntity group;
@@ -24,15 +24,10 @@ class StudentGroupDetailsScreen extends StatefulWidget {
 }
 
 class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
-  late final SupabaseHomeworkRepository _homeworkRepo;
-  late final SupabaseExamRepository _examRepo;
   late final SupabaseClassSessionRepository _sessionRepo;
-  late final SupabaseSemesterRepository _semesterRepo;
-  late final SupabaseUnitRepository _unitRepo;
-  late final SupabaseLessonRepository _lessonRepo;
 
-  List<Homework> _homeworkList = [];
-  List<Exam> _examList = [];
+  List<StudentHomeworkItem> _homeworkList = [];
+  List<StudentExamItem> _examList = [];
   List<ClassSession> _sessionList = [];
   List<Lesson> _lessonList = [];
   bool _isLoading = false;
@@ -41,31 +36,40 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   void initState() {
     super.initState();
     final wrapper = SupabaseClientWrapper(Supabase.instance.client);
-    _homeworkRepo = SupabaseHomeworkRepository(wrapper);
-    _examRepo = SupabaseExamRepository(wrapper);
     _sessionRepo = SupabaseClassSessionRepository(wrapper);
-    _semesterRepo = SupabaseSemesterRepository(wrapper);
-    _unitRepo = SupabaseUnitRepository(wrapper);
-    _lessonRepo = SupabaseLessonRepository(wrapper);
     _loadData();
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final hwRes = await _homeworkRepo.fetchHomeworkForGroup(widget.group.id);
-      final examRes = await _examRepo.fetchExamsForGroup(widget.group.id);
+      final hwResData = await Supabase.instance.client.rpc('get_student_homework_feed');
+      final examResData = await Supabase.instance.client.rpc('get_student_exam_feed');
+      
+      final hwRes = (hwResData as List)
+          .map((e) => StudentHomeworkItem.fromJson(e as Map<dynamic, dynamic>))
+          .where((h) => h.homework.groupId == widget.group.id)
+          .toList();
+          
+      final examRes = (examResData as List)
+          .map((e) => StudentExamItem.fromJson(e as Map<dynamic, dynamic>))
+          .where((x) => x.exam.groupId == widget.group.id)
+          .toList();
+          
       final sessionRes = await _sessionRepo.fetchSessionsForGroup(widget.group.id);
       
       List<Lesson> lessonRes = [];
       try {
-        final sems = await _semesterRepo.fetchSemestersForSubject(widget.group.subjectId);
-        if (sems.isNotEmpty) {
-          final units = await _unitRepo.fetchUnitsForSemester(sems.first.id);
-          if (units.isNotEmpty) {
-            lessonRes = await _lessonRepo.fetchLessonsForUnit(units.first.id);
-          }
-        }
+        final lessonsData = await Supabase.instance.client
+            .from('lessons')
+            .select('*, units!inner(subject_id)')
+            .eq('units.subject_id', widget.group.subjectId)
+            .eq('status', 'published')
+            .order('order_number');
+            
+        lessonRes = (lessonsData as List)
+            .map((e) => Lesson.fromJson(e as Map<String, dynamic>))
+            .toList();
       } catch (e) {
         debugPrint('Error fetching curriculum: $e');
       }
@@ -127,6 +131,48 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     );
   }
 
+  Future<void> _submitHomework(StudentHomeworkItem item) async {
+    final textCtrl = TextEditingController();
+    final attachCtrl = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${context.tr('Submit')} ${item.homework.title}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: textCtrl, decoration: InputDecoration(labelText: context.tr('Answer / notes'), alignLabelWithHint: true), minLines: 4, maxLines: 8),
+              const SizedBox(height: 12),
+              TextField(controller: attachCtrl, decoration: InputDecoration(labelText: context.tr('Attachment URL'), prefixIcon: const Icon(Icons.link)), keyboardType: TextInputType.url),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('Cancel'))),
+          FilledButton.icon(onPressed: () => Navigator.pop(ctx, true), icon: const Icon(Icons.upload_file), label: Text(context.tr('Submit'))),
+        ],
+      ),
+    );
+    if (submitted != true) { textCtrl.dispose(); attachCtrl.dispose(); return; }
+    try {
+      await Supabase.instance.client.rpc('submit_homework_text', params: {
+        'p_homework_id': item.homework.id,
+        'p_submission_text': textCtrl.text.trim(),
+        'p_attachment_url': attachCtrl.text.trim().isEmpty ? null : attachCtrl.text.trim(),
+      });
+      await _loadData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Homework submitted.'))));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
+    } finally {
+      textCtrl.dispose();
+      attachCtrl.dispose();
+    }
+  }
+
   Widget _buildHomeworkTab(bool isDark, Color textPrimary, Color textSecondary) {
     if (_homeworkList.isEmpty) {
       return Center(
@@ -168,17 +214,18 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(hw.title, style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+                    Text(hw.homework.title, style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
-                    Text('${context.tr("Max Score")}: ${hw.maxScore}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
+                    Text('${context.tr("Max Score")}: ${hw.homework.maxScore}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
               SizedBox(
                 width: 120,
                 child: PrimaryButton(
-                  text: context.tr('Start'),
-                  onPressed: () {},
+                  text: hw.isSubmitted ? context.tr('Retry / Edit') : context.tr('Start'),
+                  color: hw.isSubmitted ? AppColors.info : AppColors.primary,
+                  onPressed: () => _submitHomework(hw),
                 ),
               ),
             ],
@@ -244,6 +291,37 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     );
   }
 
+  Future<void> _startExam(StudentExamItem item) async {
+    final groupId = item.exam.groupId;
+    if (groupId == null) return;
+    try {
+      final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+      final repo = SupabaseExamRepository(wrapper);
+      final exams = await repo.fetchExamsForGroup(groupId);
+      final exam = exams.firstWhere((e) => e.id == item.exam.id);
+      final attempt = await repo.startExam(exam.id);
+      if (!mounted) return;
+      
+      // We push the ExamRunnerScreen from assessment_screens.dart
+      // Import missing? We need to import assessment_screens.dart at top.
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ExamRunnerScreen(
+          exam: exam,
+          attempt: attempt,
+          onOptionSelected: (qId, oId) => repo.saveExamAnswer(attemptId: attempt.id, questionId: qId, selectedOptionId: oId),
+          onSubmit: () async {
+            await repo.submitExamAttempt(attempt.id);
+            if (context.mounted) Navigator.pop(context);
+          },
+        ),
+      ));
+      await _loadData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exam failed: $e')));
+    }
+  }
+
   Widget _buildExamsTab(bool isDark, Color textPrimary, Color textSecondary) {
     if (_examList.isEmpty) {
       return Center(
@@ -285,17 +363,17 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(exam.title, style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+                    Text(exam.exam.title, style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
-                    Text('${context.tr("Duration")}: ${exam.durationMinutes} ${context.tr("min")}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
+                    Text('${context.tr("Duration")}: ${exam.exam.durationMinutes} ${context.tr("min")}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
               SizedBox(
                 width: 120,
                 child: PrimaryButton(
-                  text: context.tr('Start'),
-                  onPressed: () {},
+                  text: exam.canStart ? context.tr('Start') : context.tr('Completed'),
+                  onPressed: exam.canStart ? () => _startExam(exam) : null,
                   color: AppColors.error,
                 ),
               ),
