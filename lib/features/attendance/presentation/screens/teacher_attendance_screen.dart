@@ -12,6 +12,9 @@ import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_attendance_repositories.dart';
 import '../../domain/models/attendance_models.dart';
 import 'teacher_session_board_screen.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
+import '../../../../design_system/components/glass_card.dart';
 
 class TeacherAttendanceScreen extends StatefulWidget {
   final String teacherId;
@@ -198,102 +201,120 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.tr('Teacher Daily Attendance Workspace')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadGroupsAndSessions,
+    return Column(
+      children: [
+        _GroupPicker(
+          groups: _groups,
+          selectedGroup: _selectedGroup,
+          onChanged: _selectGroup,
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadGroupsAndSessions,
+            child: _buildBody(),
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _GroupPicker(
-            groups: _groups,
-            selectedGroup: _selectedGroup,
-            onChanged: _selectGroup,
-          ),
-          Expanded(child: _buildBody()),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_errorMessage != null) {
-      return _ErrorState(
-        message: _errorMessage!,
-        onRetry: _loadGroupsAndSessions,
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+          _ErrorState(message: _errorMessage!, onRetry: _loadGroupsAndSessions),
+        ],
       );
     }
     if (_selectedGroup == null) {
-      return Center(child: Text(context.tr('No assigned groups found.')));
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+          Center(child: Text(context.tr('No assigned groups found.'), style: AppTypography.bodyMedium(AppColors.darkTextSecondary))),
+        ],
+      );
     }
     if (_sessions.isEmpty) {
-      return Center(
-        child: Text(context.tr('No active class sessions for this group.')),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+          Center(child: Text(context.tr('No active class sessions for this group.'), style: AppTypography.bodyMedium(AppColors.darkTextSecondary))),
+        ],
       );
     }
 
     return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _sessions.length,
-      separatorBuilder: (ctx, i) => const Divider(height: 1),
+      separatorBuilder: (ctx, i) => const SizedBox(height: 12),
       itemBuilder: (ctx, i) {
         final session = _sessions[i];
         final isFinalized = session.status == SessionStatus.completed;
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundColor: isFinalized
-                ? Colors.green.shade100
-                : Colors.orange.shade100,
-            child: Icon(
-              Icons.event_available,
-              color: isFinalized ? Colors.green : Colors.orange,
-            ),
-          ),
-          title: Text(
-            '${context.tr('Session')}: ${session.location ?? context.tr('Main Hall')}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text(
-            '${context.tr('Date')}: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day} | ${context.tr('Status')}: ${context.tr(session.status.name)}',
-          ),
-          trailing: Wrap(
-            spacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              IconButton.filledTonal(
-                tooltip: context.tr('Open session board'),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => TeacherSessionBoardScreen(
-                        teacherId: widget.teacherId,
-                        session: session,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.draw),
+        return FadeInSlide(
+          delay: Duration(milliseconds: 30 * i),
+          child: GlassCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor: isFinalized ? AppColors.successSubtle : AppColors.warningSubtle,
+                child: Icon(
+                  Icons.event_available,
+                  color: isFinalized ? AppColors.success : AppColors.warning,
+                ),
               ),
-              if (!isFinalized)
-                IconButton.filledTonal(
-                  tooltip: context.tr('Show rotating attendance QR'),
-                  onPressed: () => _openQrAttendance(session),
-                  icon: const Icon(Icons.qr_code_2),
-                ),
-              if (isFinalized)
-                Chip(label: Text(context.tr('FINALIZED')))
-              else
-                ElevatedButton(
-                  onPressed: () => _openRollCall(session),
-                  child: Text(context.tr('Take Attendance')),
-                ),
-            ],
+              title: Text(
+                '${context.tr('Session')}: ${session.location ?? context.tr('Main Hall')}',
+                style: AppTypography.titleMedium(AppColors.darkTextPrimary),
+              ),
+              subtitle: Text(
+                '${context.tr('Date')}: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day} | ${context.tr('Status')}: ${context.tr(session.status.name)}',
+                style: AppTypography.bodySmall(AppColors.darkTextSecondary),
+              ),
+              trailing: Wrap(
+                spacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  IconButton.filledTonal(
+                    tooltip: context.tr('Open session board'),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => TeacherSessionBoardScreen(
+                            teacherId: widget.teacherId,
+                            session: session,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.draw),
+                  ),
+                  if (!isFinalized)
+                    IconButton.filledTonal(
+                      tooltip: context.tr('Show rotating attendance QR'),
+                      onPressed: () => _openQrAttendance(session),
+                      icon: const Icon(Icons.qr_code_2),
+                    ),
+                  if (isFinalized)
+                    StatusChip(label: context.tr('FINALIZED'), status: ChipStatus.success)
+                  else
+                    ElevatedButton(
+                      onPressed: () => _openRollCall(session),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text(context.tr('Take Attendance')),
+                    ),
+                ],
+              ),
+            ),
           ),
         );
       },

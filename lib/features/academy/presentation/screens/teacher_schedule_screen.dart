@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/components/glass_card.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
 
@@ -77,55 +80,86 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Weekly Teaching Schedule'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadTeacherSchedules,
-          ),
-        ],
-      ),
-      body: _isLoading
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return RefreshIndicator(
+      onRefresh: _loadTeacherSchedules,
+      child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Error: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
+          ? CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Error: $_errorMessage',
+                          style: AppTypography.bodyMedium(AppColors.error),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: _loadTeacherSchedules,
+                          child: Text('Retry', style: AppTypography.labelMedium(textColor)),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadTeacherSchedules,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+                ),
+              ],
             )
           : _allSchedules.isEmpty
-          ? const Center(
-              child: Text(
-                'No recurring class schedules found for your assigned groups.',
-              ),
+          ? CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
+                  child: Center(
+                    child: Text(
+                      'No recurring class schedules found for your assigned groups.',
+                      style: AppTypography.bodyMedium(subtitleColor),
+                    ),
+                  ),
+                ),
+              ],
             )
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: _allSchedules.length,
-              separatorBuilder: (ctx, i) => const Divider(height: 1),
+              separatorBuilder: (ctx, i) => const SizedBox(height: 12),
               itemBuilder: (ctx, i) {
                 final s = _allSchedules[i];
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.schedule)),
-                  title: Text(
-                    _dayName(s.dayOfWeek),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    'Time: ${s.startTime} - ${s.endTime} | Location: ${s.roomLocation ?? "Main Hall"}',
+                return FadeInSlide(
+                  delay: Duration(milliseconds: 50 * i),
+                  child: GlassCard(
+                    color: surfaceColor,
+                    child: Row(
+                      children: [
+                        const CircleIcon(
+                          icon: Icons.schedule,
+                          color: AppColors.secondary,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _dayName(s.dayOfWeek),
+                                style: AppTypography.titleMedium(textColor),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Time: ${s.startTime} - ${s.endTime} | Location: ${s.roomLocation ?? "Main Hall"}',
+                                style: AppTypography.bodySmall(subtitleColor),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },

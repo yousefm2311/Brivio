@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
+import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 
 class TeacherFinanceScreen extends StatefulWidget {
@@ -74,14 +76,8 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PortalPageShell(
-      title: 'Teacher Finance',
-      subtitle: 'Paid, unpaid, discounts, and exemptions for your groups.',
-      icon: Icons.payments,
-      accentColor: AppColors.teacherRole,
-      actions: [
-        PortalAction(label: 'Refresh', icon: Icons.refresh, onPressed: _load),
-      ],
+    return Container(
+      color: Colors.transparent,
       child: PortalStateView(
         isLoading: _isLoading,
         errorMessage: _errorMessage,
@@ -94,6 +90,8 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
         child: RefreshIndicator(
           onRefresh: _load,
           child: ListView(
+            padding: const EdgeInsets.all(16),
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
               PortalMetricGrid(
                 children: [
@@ -131,26 +129,47 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              ..._groups.map(
-                (group) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: PortalListCard(
-                    icon: Icons.group,
-                    accentColor: AppColors.teacherRole,
-                    title: group.groupName,
-                    subtitle:
-                        '${group.subjectName} - ${group.paidStudents}/${group.totalStudents} ${context.tr('paid')} - ${context.tr('Remaining')} ${_money(group.remainingAmountMinor, group.currency)}',
-                    trailing: [
-                      PortalStatusChip(
-                        status: group.unpaidStudents == 0
-                            ? 'paid'
-                            : '${group.unpaidStudents} ${context.tr('unpaid')}',
+              ..._groups.asMap().entries.map(
+                (entry) {
+                  final index = entry.key;
+                  final group = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: FadeInSlide(
+                      delay: Duration(milliseconds: 30 * index),
+                      child: GlassCard(
+                        onTap: () => _openGroupRoster(group),
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const CircleIcon(icon: Icons.group, color: AppColors.teacherRole),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(group.groupName, style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
+                                  Text(
+                                    '${group.subjectName} - ${group.paidStudents}/${group.totalStudents} ${context.tr('paid')} - ${context.tr('Remaining')} ${_money(group.remainingAmountMinor, group.currency)}',
+                                    style: AppTypography.bodySmall(AppColors.darkTextSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            StatusChip(
+                              label: group.unpaidStudents == 0
+                                  ? 'paid'
+                                  : '${group.unpaidStudents} ${context.tr('unpaid')}',
+                              status: group.unpaidStudents == 0 ? ChipStatus.success : ChipStatus.warning,
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.chevron_right, color: AppColors.darkTextSecondary),
+                          ],
+                        ),
                       ),
-                      const Icon(Icons.chevron_right),
-                    ],
-                    onTap: () => _openGroupRoster(group),
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
             ],
           ),

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
+import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 
 class StudyReplayScreen extends StatefulWidget {
@@ -133,18 +135,8 @@ class _StudyReplayScreenState extends State<StudyReplayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PortalPageShell(
-      title: 'Study Replay',
-      subtitle: 'Structured timeline of student study activity.',
-      icon: Icons.video_library,
-      accentColor: AppColors.teacherRole,
-      actions: [
-        PortalAction(
-          icon: Icons.refresh,
-          label: 'Refresh',
-          onPressed: _loadSessions,
-        ),
-      ],
+    return Container(
+      color: Colors.transparent,
       child: PortalStateView(
         isLoading: _isLoading,
         errorMessage: _errorMessage,
@@ -153,39 +145,43 @@ class _StudyReplayScreenState extends State<StudyReplayScreen> {
         emptySubtitle: 'Replay data appears after students open lessons.',
         emptyIcon: Icons.video_library,
         onRetry: _loadSessions,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 920;
-            final sessionList = _SessionList(
-              sessions: _sessions,
-              selected: _selectedSession,
-              onSelected: _loadEvents,
-            );
-            final timeline = _ReplayTimeline(
-              session: _selectedSession,
-              events: _events,
-              playbackMs: _playbackMs,
-              isPlaying: _isPlaying,
-              onPlayPause: _togglePlayback,
-              onSeek: _seekPlayback,
-            );
-            if (isWide) {
-              return Row(
+        child: RefreshIndicator(
+          onRefresh: _loadSessions,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 920;
+              final sessionList = _SessionList(
+                sessions: _sessions,
+                selected: _selectedSession,
+                onSelected: _loadEvents,
+              );
+              final timeline = _ReplayTimeline(
+                session: _selectedSession,
+                events: _events,
+                playbackMs: _playbackMs,
+                isPlaying: _isPlaying,
+                onPlayPause: _togglePlayback,
+                onSeek: _seekPlayback,
+              );
+              if (isWide) {
+                return Row(
+                  children: [
+                    SizedBox(width: 360, child: sessionList),
+                    const VerticalDivider(width: 1),
+                    Expanded(child: timeline),
+                  ],
+                );
+              }
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  SizedBox(width: 360, child: sessionList),
-                  const VerticalDivider(width: 1),
-                  Expanded(child: timeline),
+                  SizedBox(height: 300, child: sessionList),
+                  const SizedBox(height: 12),
+                  SizedBox(height: 520, child: timeline),
                 ],
               );
-            }
-            return ListView(
-              children: [
-                SizedBox(height: 300, child: sessionList),
-                const SizedBox(height: 12),
-                SizedBox(height: 520, child: timeline),
-              ],
-            );
-          },
+            },
+          ),
         ),
       ),
     );
@@ -212,14 +208,27 @@ class _SessionList extends StatelessWidget {
       itemBuilder: (context, index) {
         final session = sessions[index];
         final isSelected = selected?.id == session.id;
-        return PortalListCard(
-          icon: Icons.play_circle,
-          accentColor: isSelected ? AppColors.teacherRole : AppColors.info,
-          title: session.studentName,
-          subtitle:
-              '${session.lessonTitle} | ${session.durationSeconds}s | ${session.pagesRead} pages',
-          trailing: [PortalStatusChip(status: session.startedLabel)],
-          onTap: () => onSelected(session),
+        return FadeInSlide(
+          delay: Duration(milliseconds: 30 * index),
+          child: GlassCard(
+            color: isSelected ? AppColors.teacherRole.withValues(alpha: 0.1) : null,
+            borderColor: isSelected ? AppColors.teacherRole : null,
+            padding: const EdgeInsets.all(12),
+            onTap: () => onSelected(session),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.play_circle, color: isSelected ? AppColors.teacherRole : AppColors.info),
+              title: Text(session.studentName, style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
+              subtitle: Text(
+                '${session.lessonTitle} | ${session.durationSeconds}s | ${session.pagesRead} pages',
+                style: AppTypography.bodySmall(AppColors.darkTextSecondary),
+              ),
+              trailing: StatusChip(
+                label: session.startedLabel,
+                status: ChipStatus.neutral,
+              ),
+            ),
+          ),
         );
       },
     );
@@ -265,57 +274,79 @@ class _ReplayTimeline extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         if (index == 0) {
-          return PortalHeader(
-            eyebrow: 'Replay',
-            title: selected.lessonTitle,
-            subtitle:
-                '${selected.studentName} | ${selected.startedLabel} | ${selected.durationSeconds}s',
-            icon: Icons.video_library,
-            accentColor: AppColors.teacherRole,
-            trailing: SizedBox(
-              width: 360,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
+          return GlassCard(
+            padding: const EdgeInsets.all(16),
+            borderColor: AppColors.teacherRole,
+            child: Row(
+              children: [
+                const CircleIcon(icon: Icons.video_library, color: AppColors.teacherRole),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton.filledTonal(
-                        tooltip: isPlaying ? 'Pause replay' : 'Play replay',
-                        onPressed: onPlayPause,
-                        icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+                      Text(selected.lessonTitle, style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
+                      Text(
+                        '${selected.studentName} | ${selected.startedLabel} | ${selected.durationSeconds}s',
+                        style: AppTypography.bodySmall(AppColors.darkTextSecondary),
                       ),
-                      Expanded(
-                        child: Slider(
-                          value: playbackMs.clamp(0, maxMs).toDouble(),
-                          min: 0,
-                          max: maxMs.toDouble(),
-                          onChanged: onSeek,
-                        ),
-                      ),
-                      Text(currentEvent.offsetLabel),
                     ],
                   ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Now: ${currentEvent.eventType.replaceAll('_', ' ')}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                ),
+                SizedBox(
+                  width: 360,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          IconButton.filledTonal(
+                            tooltip: isPlaying ? 'Pause replay' : 'Play replay',
+                            onPressed: onPlayPause,
+                            icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+                          ),
+                          Expanded(
+                            child: Slider(
+                              value: playbackMs.clamp(0, maxMs).toDouble(),
+                              min: 0,
+                              max: maxMs.toDouble(),
+                              onChanged: onSeek,
+                            ),
+                          ),
+                          Text(currentEvent.offsetLabel),
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Now: ${currentEvent.eventType.replaceAll('_', ' ')}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         }
         final event = events[index - 1];
         final reached = event.offsetMs <= playbackMs;
-        return PortalListCard(
-          icon: reached ? event.icon : Icons.radio_button_unchecked,
-          accentColor: reached ? event.color : Colors.grey,
-          title: event.eventType.replaceAll('_', ' '),
-          subtitle: '${event.offsetLabel} | ${event.payload}',
-          trailing: [PortalStatusChip(status: event.kind)],
+        return FadeInSlide(
+          delay: Duration(milliseconds: 10 * index),
+          child: GlassCard(
+            padding: const EdgeInsets.all(12),
+            color: reached ? event.color.withValues(alpha: 0.1) : AppColors.glassLight,
+            borderColor: reached ? event.color : AppColors.glassBorder,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(reached ? event.icon : Icons.radio_button_unchecked, color: reached ? event.color : Colors.grey),
+              title: Text(event.eventType.replaceAll('_', ' '), style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
+              subtitle: Text('${event.offsetLabel} | ${event.payload}', style: AppTypography.bodySmall(AppColors.darkTextSecondary)),
+              trailing: StatusChip(label: event.kind, status: ChipStatus.info),
+            ),
+          ),
         );
       },
     );

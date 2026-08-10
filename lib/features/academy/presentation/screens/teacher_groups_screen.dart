@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/components/glass_card.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
 import 'teacher_group_details_screen.dart';
@@ -63,51 +66,89 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Assigned Groups'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadGroups),
-        ],
-      ),
-      body: _isLoading
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return RefreshIndicator(
+      onRefresh: _loadGroups,
+      child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Error: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
+          ? CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Error: $_errorMessage',
+                          style: AppTypography.bodyMedium(AppColors.error),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: _loadGroups,
+                          child: Text('Retry', style: AppTypography.labelMedium(textColor)),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadGroups,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+                ),
+              ],
             )
           : _groups.isEmpty
-          ? const Center(child: Text('No groups currently assigned to you.'))
+          ? CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
+                  child: Center(
+                    child: Text(
+                      'No groups currently assigned to you.',
+                      style: AppTypography.bodyMedium(subtitleColor),
+                    ),
+                  ),
+                ),
+              ],
+            )
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: _groups.length,
-              separatorBuilder: (ctx, i) => const Divider(height: 1),
+              separatorBuilder: (ctx, i) => const SizedBox(height: 12),
               itemBuilder: (ctx, i) {
                 final g = _groups[i];
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.group)),
-                  title: Text(
-                    g.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                return FadeInSlide(
+                  delay: Duration(milliseconds: 50 * i),
+                  child: GlassCard(
+                    color: surfaceColor,
+                    onTap: () => _openGroupDetails(g),
+                    child: Row(
+                      children: [
+                        const CircleIcon(
+                          icon: Icons.group,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                g.name,
+                                style: AppTypography.titleMedium(textColor),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Code: ${g.code} | Capacity: ${g.maxCapacity ?? "Unlimited"}',
+                                style: AppTypography.bodySmall(subtitleColor),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: subtitleColor),
+                      ],
+                    ),
                   ),
-                  subtitle: Text(
-                    'Code: ${g.code} | Capacity: ${g.maxCapacity ?? "Unlimited"}',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _openGroupDetails(g),
                 );
               },
             ),

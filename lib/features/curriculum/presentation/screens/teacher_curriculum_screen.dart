@@ -6,6 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/components/glass_card.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_curriculum_repositories.dart';
@@ -387,34 +390,37 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.tr('Academic Curriculum Hierarchy')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadCurriculum,
-          ),
-        ],
-      ),
-      body: _isLoading
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return RefreshIndicator(
+      onRefresh: _loadCurriculum,
+      child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '${context.tr('Error')}: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
+          ? CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${context.tr('Error')}: $_errorMessage',
+                          style: AppTypography.bodyMedium(AppColors.error),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: _loadCurriculum,
+                          child: Text(context.tr('Retry'), style: AppTypography.labelMedium(textColor)),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadCurriculum,
-                    child: Text(context.tr('Retry')),
-                  ),
-                ],
-              ),
+                ),
+              ],
             )
           : _semesters.isEmpty
           ? Column(
@@ -425,12 +431,19 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                   onChanged: _selectGroup,
                 ),
                 Expanded(
-                  child: Center(
-                    child: Text(
-                      context.tr(
-                        'No semesters found for your taught subjects.',
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverFillRemaining(
+                        child: Center(
+                          child: Text(
+                            context.tr(
+                              'No semesters found for your taught subjects.',
+                            ),
+                            style: AppTypography.bodyMedium(subtitleColor),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],
@@ -448,120 +461,132 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                     itemCount: _semesters.length,
                     itemBuilder: (ctx, semIdx) {
                       final sem = _semesters[semIdx];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: ExpansionTile(
-                          leading: const Icon(Icons.school, color: Colors.blue),
-                          title: Text(
-                            sem.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${context.tr('Code')}: ${sem.code} | ${context.tr('Units')}: ${sem.units.length}',
-                          ),
-                          children: sem.units.map((unit) {
-                            return Padding(
-                              padding: const EdgeInsets.only(left: 16.0),
-                              child: ExpansionTile(
-                                leading: const Icon(
-                                  Icons.folder,
-                                  color: Colors.orange,
-                                ),
-                                title: Text(
-                                  unit.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${context.tr('Lessons')}: ${unit.lessons.length}',
-                                ),
-                                trailing: IconButton(
-                                  icon: const Icon(
-                                    Icons.add_circle_outline,
-                                    color: Colors.orange,
-                                  ),
-                                  onPressed: () =>
-                                      _showCreateLessonDialog(unit),
-                                  tooltip: context.tr('Add Lesson'),
-                                ),
-                                children: unit.lessons.map((lesson) {
-                                  final isPublished =
-                                      lesson.status == LessonStatus.published;
-
-                                  return ExpansionTile(
-                                    leading: const Icon(
-                                      Icons.play_circle_outline,
-                                      color: Colors.green,
+                      return FadeInSlide(
+                        delay: Duration(milliseconds: 50 * semIdx),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: GlassCard(
+                            color: surfaceColor,
+                            padding: EdgeInsets.zero,
+                            child: ExpansionTile(
+                              leading: const CircleIcon(icon: Icons.school, color: AppColors.primary),
+                              title: Text(
+                                sem.name,
+                                style: AppTypography.titleMedium(textColor),
+                              ),
+                              subtitle: Text(
+                                '${context.tr('Code')}: ${sem.code} | ${context.tr('Units')}: ${sem.units.length}',
+                                style: AppTypography.bodySmall(subtitleColor),
+                              ),
+                              children: sem.units.map((unit) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(left: 16.0),
+                                  child: ExpansionTile(
+                                    leading: const CircleIcon(
+                                      icon: Icons.folder,
+                                      color: AppColors.warning,
                                     ),
-                                    title: Text(lesson.title),
+                                    title: Text(
+                                      unit.name,
+                                      style: AppTypography.titleSmall(textColor),
+                                    ),
                                     subtitle: Text(
-                                      '${context.tr('Type')}: ${context.tr(lesson.lessonType.name)} | ${context.tr('Status')}: ${context.tr(lesson.status.name)}',
+                                      '${context.tr('Lessons')}: ${unit.lessons.length}',
+                                      style: AppTypography.bodySmall(subtitleColor),
                                     ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.attach_file,
-                                            color: Colors.purple,
-                                          ),
-                                          onPressed: () =>
-                                              _showUploadResourceDialog(lesson),
-                                          tooltip: context.tr(
-                                            'Upload Resource',
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.code,
-                                            color: Colors.indigo,
-                                          ),
-                                          onPressed: () =>
-                                              _showCodeChallengesDialog(lesson),
-                                          tooltip: context.tr(
-                                            'Code Challenges',
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: Icon(
-                                            isPublished
-                                                ? Icons.visibility
-                                                : Icons.visibility_off,
-                                            color: isPublished
-                                                ? Colors.green
-                                                : Colors.grey,
-                                          ),
-                                          onPressed: () async {
-                                            await _lessonRepo.publishLesson(
-                                              lesson.id,
-                                            );
-                                            _loadCurriculum();
-                                          },
-                                          tooltip: context.tr('Toggle Publish'),
-                                        ),
-                                      ],
+                                    trailing: IconButton(
+                                      icon: const Icon(
+                                        Icons.add_circle_outline,
+                                        color: AppColors.warning,
+                                      ),
+                                      onPressed: () =>
+                                          _showCreateLessonDialog(unit),
+                                      tooltip: context.tr('Add Lesson'),
                                     ),
-                                    children: lesson.resources.map((res) {
-                                      return ListTile(
-                                        leading: const Icon(
-                                          Icons.picture_as_pdf,
-                                          color: Colors.red,
+                                    children: unit.lessons.map((lesson) {
+                                      final isPublished =
+                                          lesson.status == LessonStatus.published;
+
+                                      return ExpansionTile(
+                                        leading: const CircleIcon(
+                                          icon: Icons.play_circle_outline,
+                                          color: AppColors.success,
                                         ),
-                                        title: Text(res.title),
+                                        title: Text(
+                                          lesson.title,
+                                          style: AppTypography.bodyLarge(textColor),
+                                        ),
                                         subtitle: Text(
-                                          '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
+                                          '${context.tr('Type')}: ${context.tr(lesson.lessonType.name)} | ${context.tr('Status')}: ${context.tr(lesson.status.name)}',
+                                          style: AppTypography.bodySmall(subtitleColor),
                                         ),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.attach_file,
+                                                color: AppColors.purple,
+                                              ),
+                                              onPressed: () =>
+                                                  _showUploadResourceDialog(lesson),
+                                              tooltip: context.tr(
+                                                'Upload Resource',
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.code,
+                                                color: AppColors.info,
+                                              ),
+                                              onPressed: () =>
+                                                  _showCodeChallengesDialog(lesson),
+                                              tooltip: context.tr(
+                                                'Code Challenges',
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: Icon(
+                                                isPublished
+                                                    ? Icons.visibility
+                                                    : Icons.visibility_off,
+                                                color: isPublished
+                                                    ? AppColors.success
+                                                    : AppColors.darkTextSecondary,
+                                              ),
+                                              onPressed: () async {
+                                                await _lessonRepo.publishLesson(
+                                                  lesson.id,
+                                                );
+                                                _loadCurriculum();
+                                              },
+                                              tooltip: context.tr('Toggle Publish'),
+                                            ),
+                                          ],
+                                        ),
+                                        children: lesson.resources.map((res) {
+                                          return ListTile(
+                                            leading: const Icon(
+                                              Icons.picture_as_pdf,
+                                              color: AppColors.error,
+                                            ),
+                                            title: Text(
+                                              res.title,
+                                              style: AppTypography.bodyMedium(textColor),
+                                            ),
+                                            subtitle: Text(
+                                              '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
+                                              style: AppTypography.bodySmall(subtitleColor),
+                                            ),
+                                          );
+                                        }).toList(),
                                       );
                                     }).toList(),
-                                  );
-                                }).toList(),
-                              ),
-                            );
-                          }).toList(),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
                         ),
                       );
                     },

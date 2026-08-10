@@ -8,6 +8,10 @@ import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_assessment_repositories.dart';
 import '../../domain/models/assessment_models.dart';
 
+import '../../../../design_system/components/glass_card.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
+
 class TeacherExamScreen extends StatefulWidget {
   final String teacherId;
 
@@ -89,194 +93,219 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('${context.tr('Create Exam for')} ${group.name}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Exam title'),
-                ),
-              ),
-              TextField(
-                controller: durationCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Duration minutes'),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: passCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Pass score'),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty) return;
-              final nav = Navigator.of(ctx);
-              try {
-                await Supabase.instance.client.rpc(
-                  'create_exam_assignment',
-                  params: {
-                    'p_title': titleCtrl.text.trim(),
-                    'p_subject_id': group.subjectId,
-                    'p_group_id': group.id,
-                    'p_duration_minutes': int.tryParse(durationCtrl.text) ?? 60,
-                    'p_pass_score': double.tryParse(passCtrl.text) ?? 60.0,
-                    'p_status': 'published',
-                  },
-                );
-                nav.pop();
-                await _loadGroupsAndExams();
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(context.tr('Exam published.'))),
-                );
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${context.tr('Creation failed')}: $e'),
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(16),
+          child: GlassCard(
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${context.tr('Create Exam for')} ${group.name}',
+                    style: AppTypography.displaySmall(textColor),
+                    textAlign: TextAlign.center,
                   ),
-                );
-              }
-            },
-            child: Text(context.tr('Publish')),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.tr('Teacher Exam & Quiz Workspace')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadGroupsAndExams,
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _selectedGroup == null ? null : _showCreateExamDialog,
-        icon: const Icon(Icons.quiz),
-        label: Text(context.tr('Create Exam')),
-      ),
-      body: Column(
-        children: [
-          _GroupPicker(
-            groups: _groups,
-            selectedGroup: _selectedGroup,
-            onChanged: _selectGroup,
-          ),
-          Expanded(child: _buildBody()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_errorMessage != null) {
-      return _ErrorState(message: _errorMessage!, onRetry: _loadGroupsAndExams);
-    }
-    if (_selectedGroup == null) {
-      return Center(child: Text(context.tr('No assigned groups found.')));
-    }
-    if (_exams.isEmpty) {
-      return Center(child: Text(context.tr('No exams published yet.')));
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: _exams.length,
-      separatorBuilder: (ctx, i) => const Divider(height: 1),
-      itemBuilder: (ctx, i) {
-        final exam = _exams[i];
-        return ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.quiz)),
-          title: Text(
-            exam.title,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text(
-            '${context.tr('Duration')}: ${exam.durationMinutes} ${context.tr('min')} | ${context.tr('Pass Score')}: ${exam.passScore} | ${context.tr('Status')}: ${context.tr(exam.status)}',
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: titleCtrl,
+                    style: TextStyle(color: textColor),
+                    decoration: InputDecoration(labelText: context.tr('Exam title')),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: durationCtrl,
+                    style: TextStyle(color: textColor),
+                    decoration: InputDecoration(labelText: context.tr('Duration minutes')),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: passCtrl,
+                    style: TextStyle(color: textColor),
+                    decoration: InputDecoration(labelText: context.tr('Pass score')),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(context.tr('Cancel'), style: TextStyle(color: textColor)),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () async {
+                          if (titleCtrl.text.trim().isEmpty) return;
+                          final nav = Navigator.of(ctx);
+                          try {
+                            await Supabase.instance.client.rpc(
+                              'create_exam_assignment',
+                              params: {
+                                'p_title': titleCtrl.text.trim(),
+                                'p_subject_id': group.subjectId,
+                                'p_group_id': group.id,
+                                'p_duration_minutes': int.tryParse(durationCtrl.text) ?? 60,
+                                'p_pass_score': double.tryParse(passCtrl.text) ?? 60.0,
+                                'p_status': 'published',
+                              },
+                            );
+                            nav.pop();
+                            await _loadGroupsAndExams();
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(context.tr('Exam published.')), backgroundColor: Colors.green),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('${context.tr('Creation failed')}: $e'), backgroundColor: Colors.red),
+                            );
+                          }
+                        },
+                        child: Text(context.tr('Publish')),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },
     );
   }
-}
-
-class _GroupPicker extends StatelessWidget {
-  final List<GroupEntity> groups;
-  final GroupEntity? selectedGroup;
-  final ValueChanged<GroupEntity?> onChanged;
-
-  const _GroupPicker({
-    required this.groups,
-    required this.selectedGroup,
-    required this.onChanged,
-  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: DropdownButtonFormField<GroupEntity>(
-        initialValue: selectedGroup,
-        decoration: InputDecoration(
-          labelText: context.tr('Assigned group'),
-          border: const OutlineInputBorder(),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: _loadGroupsAndExams,
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _errorMessage != null
+                  ? ListView(
+                      children: [
+                        const SizedBox(height: 100),
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('${context.tr('Error')}: $_errorMessage', style: const TextStyle(color: Colors.red)),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: _loadGroupsAndExams,
+                                child: Text(context.tr('Retry')),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: GlassCard(
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                              child: DropdownButtonFormField<GroupEntity>(
+                                initialValue: _selectedGroup,
+                                dropdownColor: isDark ? AppColors.darkCard : AppColors.lightCard,
+                                decoration: InputDecoration(
+                                  labelText: context.tr('Assigned group'),
+                                  border: InputBorder.none,
+                                ),
+                                items: _groups.map((g) => DropdownMenuItem(value: g, child: Text(g.name, style: TextStyle(color: textColor)))).toList(),
+                                onChanged: _groups.isEmpty ? null : _selectGroup,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                        if (_selectedGroup == null)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Text(context.tr('No assigned groups found.'), style: AppTypography.bodyMedium(subtitleColor)),
+                            ),
+                          )
+                        else if (_exams.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Text(context.tr('No exams published yet.'), style: AppTypography.bodyMedium(subtitleColor)),
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (ctx, i) {
+                                  final exam = _exams[i];
+                                  return FadeInSlide(
+                                    duration: Duration(milliseconds: 300 + (i * 50)),
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(bottom: 12.0),
+                                      child: GlassCard(
+                                        padding: const EdgeInsets.all(16),
+                                        child: ListTile(
+                                          contentPadding: EdgeInsets.zero,
+                                          leading: CircleAvatar(
+                                            backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                                            child: const Icon(Icons.quiz, color: AppColors.primary),
+                                          ),
+                                          title: Text(
+                                            exam.title,
+                                            style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold),
+                                          ),
+                                          subtitle: Text(
+                                            '${context.tr('Duration')}: ${exam.durationMinutes} ${context.tr('min')} | ${context.tr('Pass Score')}: ${exam.passScore} | ${context.tr('Status')}: ${context.tr(exam.status)}',
+                                            style: AppTypography.caption(subtitleColor),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                childCount: _exams.length,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
         ),
-        items: groups
-            .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))
-            .toList(),
-        onChanged: groups.isEmpty ? null : onChanged,
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorState({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: Text(context.tr('Retry')),
+        if (_selectedGroup != null)
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton.extended(
+              onPressed: _showCreateExamDialog,
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.quiz),
+              label: Text(context.tr('Create Exam')),
             ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 }

@@ -8,6 +8,10 @@ import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_assessment_repositories.dart';
 import '../../domain/models/assessment_models.dart';
 
+import '../../../../design_system/components/glass_card.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
+
 class TeacherQuestionBankScreen extends StatefulWidget {
   final String teacherId;
 
@@ -90,269 +94,289 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-          title: Text(context.tr('Create MCQ Question with Answer Key')),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: promptCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr(
-                      'Question Prompt (e.g. What is 2 + 2?)',
+        builder: (context, setStateDialog) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(16),
+            child: GlassCard(
+              padding: const EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      context.tr('Create MCQ Question with Answer Key'),
+                      style: AppTypography.displaySmall(textColor),
                     ),
-                  ),
-                  maxLines: 2,
-                ),
-                TextField(
-                  controller: opt1Ctrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Option 1'),
-                  ),
-                ),
-                TextField(
-                  controller: opt2Ctrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Option 2'),
-                  ),
-                ),
-                TextField(
-                  controller: opt3Ctrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Option 3'),
-                  ),
-                ),
-                TextField(
-                  controller: opt4Ctrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Option 4'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  initialValue: correctIdx,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Correct Option (Answer Key)'),
-                  ),
-                  items: [
-                    DropdownMenuItem(
-                      value: 0,
-                      child: Text(context.tr('Option 1 is Correct')),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: promptCtrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Question Prompt (e.g. What is 2 + 2?)'),
+                      ),
+                      maxLines: 2,
                     ),
-                    DropdownMenuItem(
-                      value: 1,
-                      child: Text(context.tr('Option 2 is Correct')),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: opt1Ctrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(labelText: context.tr('Option 1')),
                     ),
-                    DropdownMenuItem(
-                      value: 2,
-                      child: Text(context.tr('Option 3 is Correct')),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: opt2Ctrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(labelText: context.tr('Option 2')),
                     ),
-                    DropdownMenuItem(
-                      value: 3,
-                      child: Text(context.tr('Option 4 is Correct')),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: opt3Ctrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(labelText: context.tr('Option 3')),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: opt4Ctrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(labelText: context.tr('Option 4')),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<int>(
+                      initialValue: correctIdx,
+                      dropdownColor: isDark ? AppColors.darkCard : AppColors.lightCard,
+                      decoration: InputDecoration(
+                        labelText: context.tr('Correct Option (Answer Key)'),
+                      ),
+                      items: [
+                        DropdownMenuItem(value: 0, child: Text(context.tr('Option 1 is Correct'), style: TextStyle(color: textColor))),
+                        DropdownMenuItem(value: 1, child: Text(context.tr('Option 2 is Correct'), style: TextStyle(color: textColor))),
+                        DropdownMenuItem(value: 2, child: Text(context.tr('Option 3 is Correct'), style: TextStyle(color: textColor))),
+                        DropdownMenuItem(value: 3, child: Text(context.tr('Option 4 is Correct'), style: TextStyle(color: textColor))),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setStateDialog(() => correctIdx = v);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: ptsCtrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(labelText: context.tr('Default Points')),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(context.tr('Cancel'), style: TextStyle(color: textColor)),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () async {
+                            if (promptCtrl.text.trim().isEmpty) return;
+                            final nav = Navigator.of(ctx);
+                            try {
+                              final opts = [
+                                QuestionOption(id: '', questionId: '', text: opt1Ctrl.text.trim(), isCorrect: correctIdx == 0, orderNumber: 1),
+                                QuestionOption(id: '', questionId: '', text: opt2Ctrl.text.trim(), isCorrect: correctIdx == 1, orderNumber: 2),
+                                QuestionOption(id: '', questionId: '', text: opt3Ctrl.text.trim(), isCorrect: correctIdx == 2, orderNumber: 3),
+                                QuestionOption(id: '', questionId: '', text: opt4Ctrl.text.trim(), isCorrect: correctIdx == 3, orderNumber: 4),
+                              ];
+
+                              final q = Question(
+                                id: '',
+                                subjectId: selectedGroup.subjectId,
+                                questionType: QuestionType.multipleChoice,
+                                prompt: promptCtrl.text.trim(),
+                                defaultPoints: double.tryParse(ptsCtrl.text) ?? 5.0,
+                                options: opts,
+                              );
+
+                              await _questionRepo.createQuestion(q, opts);
+                              nav.pop();
+                              _loadQuestions();
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(context.tr('MCQ Question & Answer Key saved to Question Bank!')),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${context.tr('Creation failed')}: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          child: Text(context.tr('Save MCQ Question')),
+                        ),
+                      ],
                     ),
                   ],
-                  onChanged: (v) {
-                    if (v != null) setStateDialog(() => correctIdx = v);
-                  },
                 ),
-                TextField(
-                  controller: ptsCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Default Points'),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (promptCtrl.text.trim().isEmpty) return;
-
-                final nav = Navigator.of(ctx);
-                try {
-                  final opts = [
-                    QuestionOption(
-                      id: '',
-                      questionId: '',
-                      text: opt1Ctrl.text.trim(),
-                      isCorrect: correctIdx == 0,
-                      orderNumber: 1,
-                    ),
-                    QuestionOption(
-                      id: '',
-                      questionId: '',
-                      text: opt2Ctrl.text.trim(),
-                      isCorrect: correctIdx == 1,
-                      orderNumber: 2,
-                    ),
-                    QuestionOption(
-                      id: '',
-                      questionId: '',
-                      text: opt3Ctrl.text.trim(),
-                      isCorrect: correctIdx == 2,
-                      orderNumber: 3,
-                    ),
-                    QuestionOption(
-                      id: '',
-                      questionId: '',
-                      text: opt4Ctrl.text.trim(),
-                      isCorrect: correctIdx == 3,
-                      orderNumber: 4,
-                    ),
-                  ];
-
-                  final q = Question(
-                    id: '',
-                    subjectId: selectedGroup.subjectId,
-                    questionType: QuestionType.multipleChoice,
-                    prompt: promptCtrl.text.trim(),
-                    defaultPoints: double.tryParse(ptsCtrl.text) ?? 5.0,
-                    options: opts,
-                  );
-
-                  await _questionRepo.createQuestion(q, opts);
-                  nav.pop();
-                  _loadQuestions();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          context.tr(
-                            'MCQ Question & Answer Key saved to Question Bank!',
-                          ),
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('${context.tr('Creation failed')}: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: Text(context.tr('Save MCQ Question')),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.tr('Teacher Question Bank')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadQuestions,
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _selectedGroup == null ? null : _showCreateMcqDialog,
-        icon: const Icon(Icons.help_outline),
-        label: Text(context.tr('Add MCQ Question')),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '${context.tr('Error')}: $_errorMessage',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadQuestions,
-                    child: Text(context.tr('Retry')),
-                  ),
-                ],
-              ),
-            )
-          : Column(
-              children: [
-                if (_groups.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    child: DropdownButtonFormField<GroupEntity>(
-                      initialValue: _selectedGroup,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Teaching Group'),
-                        border: const OutlineInputBorder(),
-                      ),
-                      items: _groups
-                          .map(
-                            (g) => DropdownMenuItem(
-                              value: g,
-                              child: Text('${g.name} (${g.code})'),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (group) {
-                        if (group == null) return;
-                        setState(() => _selectedGroup = group);
-                        _loadQuestions();
-                      },
-                    ),
-                  ),
-                Expanded(
-                  child: _selectedGroup == null
-                      ? Center(
-                          child: Text(
-                            context.tr('No assigned teaching groups found.'),
-                          ),
-                        )
-                      : _questions.isEmpty
-                      ? Center(
-                          child: Text(
-                            context.tr('No questions found in Question Bank.'),
-                          ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _questions.length,
-                          separatorBuilder: (ctx, i) =>
-                              const Divider(height: 1),
-                          itemBuilder: (ctx, i) {
-                            final q = _questions[i];
-                            return ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.help_outline),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: _loadQuestions,
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _errorMessage != null
+                  ? ListView(
+                      children: [
+                        const SizedBox(height: 100),
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '${context.tr('Error')}: $_errorMessage',
+                                style: const TextStyle(color: Colors.red),
                               ),
-                              title: Text(
-                                q.prompt,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: _loadQuestions,
+                                child: Text(context.tr('Retry')),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                        if (_groups.isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: GlassCard(
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                                child: DropdownButtonFormField<GroupEntity>(
+                                  initialValue: _selectedGroup,
+                                  dropdownColor: isDark ? AppColors.darkCard : AppColors.lightCard,
+                                  decoration: InputDecoration(
+                                    labelText: context.tr('Teaching Group'),
+                                    border: InputBorder.none,
+                                  ),
+                                  items: _groups.map(
+                                    (g) => DropdownMenuItem(
+                                      value: g,
+                                      child: Text('${g.name} (${g.code})', style: TextStyle(color: textColor)),
+                                    ),
+                                  ).toList(),
+                                  onChanged: (group) {
+                                    if (group == null) return;
+                                    setState(() => _selectedGroup = group);
+                                    _loadQuestions();
+                                  },
                                 ),
                               ),
-                              subtitle: Text(
-                                '${context.tr('Type')}: ${context.tr(q.questionType.name)} | ${context.tr('Points')}: ${q.defaultPoints}',
+                            ),
+                          ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                        if (_selectedGroup == null)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Text(
+                                context.tr('No assigned teaching groups found.'),
+                                style: AppTypography.bodyMedium(subtitleColor),
                               ),
-                            );
-                          },
-                        ),
-                ),
-              ],
+                            ),
+                          )
+                        else if (_questions.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Text(
+                                context.tr('No questions found in Question Bank.'),
+                                style: AppTypography.bodyMedium(subtitleColor),
+                              ),
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (ctx, i) {
+                                  final q = _questions[i];
+                                  return FadeInSlide(
+                                    duration: Duration(milliseconds: 300 + (i * 50)),
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(bottom: 12.0),
+                                      child: GlassCard(
+                                        padding: const EdgeInsets.all(16),
+                                        child: ListTile(
+                                          contentPadding: EdgeInsets.zero,
+                                          leading: CircleAvatar(
+                                            backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                                            child: const Icon(Icons.help_outline, color: AppColors.primary),
+                                          ),
+                                          title: Text(
+                                            q.prompt,
+                                            style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold),
+                                          ),
+                                          subtitle: Text(
+                                            '${context.tr('Type')}: ${context.tr(q.questionType.name)} | ${context.tr('Points')}: ${q.defaultPoints}',
+                                            style: AppTypography.caption(subtitleColor),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                childCount: _questions.length,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+        ),
+        if (_selectedGroup != null)
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton.extended(
+              onPressed: _showCreateMcqDialog,
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.help_outline),
+              label: Text(context.tr('Add MCQ Question')),
             ),
+          ),
+      ],
     );
   }
 }
