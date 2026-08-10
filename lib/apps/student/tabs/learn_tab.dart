@@ -12,6 +12,7 @@ class LearnTab extends StatelessWidget {
   final List<StudyLessonSummary> lessons;
   final List<GroupEntity> groups;
   final ValueChanged<StudyLessonSummary> onOpenLesson;
+  final ValueChanged<GroupEntity> onOpenGroup;
 
   const LearnTab({
     super.key,
@@ -19,6 +20,7 @@ class LearnTab extends StatelessWidget {
     required this.lessons,
     required this.groups,
     required this.onOpenLesson,
+    required this.onOpenGroup,
   });
 
   @override
@@ -105,7 +107,11 @@ class LearnTab extends StatelessWidget {
                     delay: const Duration(milliseconds: 400),
                     child: SizedBox(
                       height: 380,
-                      child: GroupListWidget(groups: groups, isLoading: false),
+                      child: GroupListWidget(
+                        groups: groups,
+                        isLoading: false,
+                        onGroupSelected: onOpenGroup,
+                      ),
                     ),
                   ),
                 ],

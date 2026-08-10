@@ -8,7 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/localization/app_localizations.dart';
+import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../domain/models/study_workspace_models.dart';
 import '../../domain/repositories/study_workspace_repository.dart';
 import '../viewmodels/study_workspace_viewmodel.dart';
@@ -367,12 +370,19 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, _) {
         return Scaffold(
+          backgroundColor: bgColor,
           appBar: AppBar(
-            title: Text(widget.lesson.title),
+            backgroundColor: surfaceColor,
+            title: Text(widget.lesson.title, style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800)),
             actions: [
               Padding(
                 padding: const EdgeInsetsDirectional.only(end: 16),
@@ -384,11 +394,12 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                             key: ValueKey('saving'),
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
                           )
                         : const Icon(
                             key: ValueKey('saved'),
-                            Icons.cloud_done_outlined,
+                            Icons.cloud_done_rounded,
+                            color: AppColors.success,
                           ),
                   ),
                 ),
@@ -396,7 +407,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
             ],
           ),
           body: !_viewModel.isLoaded
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
               : LayoutBuilder(
                   builder: (context, constraints) {
                     final isWide = constraints.maxWidth >= 900;
@@ -405,65 +416,82 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                       child: Column(
                         children: [
                           _WorkspaceHeader(lesson: widget.lesson),
-                          const TabBar(
-                            tabs: [
-                              Tab(
-                                icon: Icon(Icons.picture_as_pdf),
-                                text: 'PDF',
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TabBar(
+                              dividerColor: Colors.transparent,
+                              indicator: BoxDecoration(
+                                color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 2)),
+                                  BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4)),
+                                ],
                               ),
-                              Tab(
-                                icon: Icon(Icons.draw_outlined),
-                                text: 'Notebook',
-                              ),
-                              Tab(icon: Icon(Icons.code), text: 'Code'),
-                            ],
+                              indicatorSize: TabBarIndicatorSize.tab,
+                              labelColor: textPrimary,
+                              unselectedLabelColor: textPrimary.withValues(alpha: 0.5),
+                              labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                              unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              tabs: [
+                                Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.picture_as_pdf_rounded, size: 18), const SizedBox(width: 8), Text(context.tr('PDF'))])),
+                                Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.draw_rounded, size: 18), const SizedBox(width: 8), Text(context.tr('Notebook'))])),
+                                Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.code_rounded, size: 18), const SizedBox(width: 8), Text(context.tr('Code'))])),
+                              ],
+                            ),
                           ),
                           Expanded(
-                            child: isWide
-                                ? _WideWorkspace(
-                                    viewModel: _viewModel,
-                                    notebookController: _notebookController,
-                                    codeController: _codeController,
-                                    boardStrokes: _boardStrokes,
-                                    pdfAnnotations: _pdfAnnotations,
-                                    onNotebookChanged: _queueNotebookSave,
-                                    onCodeChanged: _queueCodeSave,
-                                    onBoardChanged: _queueBoardSave,
-                                    onPdfNote: _addStickyNote,
-                                    onPdfHighlight: _addHighlight,
-                                    onPdfBookmark: _toggleBookmark,
-                                    onPdfAnnotationDelete: _deletePdfAnnotation,
-                                    onPdfFreehandChanged: _savePdfFreehand,
-                                    onPreviousPdfPage: () => _goToPage(-1),
-                                    onNextPdfPage: () => _goToPage(1),
-                                  )
-                                : TabBarView(
-                                    children: [
-                                      _PdfPane(
-                                        viewModel: _viewModel,
-                                        annotations: _pdfAnnotations,
-                                        onAddNote: _addStickyNote,
-                                        onAddHighlight: _addHighlight,
-                                        onToggleBookmark: _toggleBookmark,
-                                        onDeleteAnnotation:
-                                            _deletePdfAnnotation,
-                                        onFreehandChanged: _savePdfFreehand,
-                                        onPreviousPage: () => _goToPage(-1),
-                                        onNextPage: () => _goToPage(1),
-                                      ),
-                                      _NotebookPane(
-                                        controller: _notebookController,
-                                        strokes: _boardStrokes,
-                                        onChanged: _queueNotebookSave,
-                                        onBoardChanged: _queueBoardSave,
-                                      ),
-                                      _CodePane(
-                                        viewModel: _viewModel,
-                                        controller: _codeController,
-                                        onChanged: _queueCodeSave,
-                                      ),
-                                    ],
-                                  ),
+                            child: FadeInSlide(
+                              duration: const Duration(milliseconds: 500),
+                              child: isWide
+                                  ? _WideWorkspace(
+                                      viewModel: _viewModel,
+                                      notebookController: _notebookController,
+                                      codeController: _codeController,
+                                      boardStrokes: _boardStrokes,
+                                      pdfAnnotations: _pdfAnnotations,
+                                      onNotebookChanged: _queueNotebookSave,
+                                      onCodeChanged: _queueCodeSave,
+                                      onBoardChanged: _queueBoardSave,
+                                      onPdfNote: _addStickyNote,
+                                      onPdfHighlight: _addHighlight,
+                                      onPdfBookmark: _toggleBookmark,
+                                      onPdfAnnotationDelete: _deletePdfAnnotation,
+                                      onPdfFreehandChanged: _savePdfFreehand,
+                                      onPreviousPdfPage: () => _goToPage(-1),
+                                      onNextPdfPage: () => _goToPage(1),
+                                    )
+                                  : TabBarView(
+                                      children: [
+                                        _PdfPane(
+                                          viewModel: _viewModel,
+                                          annotations: _pdfAnnotations,
+                                          onAddNote: _addStickyNote,
+                                          onAddHighlight: _addHighlight,
+                                          onToggleBookmark: _toggleBookmark,
+                                          onDeleteAnnotation: _deletePdfAnnotation,
+                                          onFreehandChanged: _savePdfFreehand,
+                                          onPreviousPage: () => _goToPage(-1),
+                                          onNextPage: () => _goToPage(1),
+                                        ),
+                                        _NotebookPane(
+                                          controller: _notebookController,
+                                          strokes: _boardStrokes,
+                                          onChanged: _queueNotebookSave,
+                                          onBoardChanged: _queueBoardSave,
+                                        ),
+                                        _CodePane(
+                                          viewModel: _viewModel,
+                                          controller: _codeController,
+                                          onChanged: _queueCodeSave,
+                                        ),
+                                      ],
+                                    ),
+                            ),
                           ),
                         ],
                       ),
@@ -483,37 +511,44 @@ class _WorkspaceHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: isDark ? AppColors.darkBackgroundElevated : AppColors.lightSurface,
         border: Border(
-          bottom: BorderSide(color: theme.dividerColor.withValues(alpha: .4)),
+          bottom: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, width: 0.5),
         ),
       ),
       child: Wrap(
-        spacing: 12,
+        spacing: 10,
         runSpacing: 12,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          _HeaderChip(icon: Icons.route, label: lesson.pathName),
-          _HeaderChip(icon: Icons.menu_book_outlined, label: lesson.unitName),
+          _HeaderChip(icon: Icons.route_rounded, label: lesson.pathName),
+          _HeaderChip(icon: Icons.menu_book_rounded, label: lesson.unitName),
           _HeaderChip(
             icon: Icons.timer_outlined,
-            label: '${lesson.estimatedMinutes} min',
+            label: '${lesson.estimatedMinutes} ${context.tr("min")}',
           ),
-          _HeaderChip(icon: Icons.auto_awesome, label: '${lesson.xp} XP'),
+          _HeaderChip(icon: Icons.auto_awesome_rounded, label: '${lesson.xp} XP', isHighlight: true),
+          const SizedBox(width: 8),
           SizedBox(
-            width: 180,
-            child: LinearProgressIndicator(
-              value: lesson.progress,
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(8),
+            width: 140,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: lesson.progress,
+                minHeight: 6,
+                backgroundColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.success),
+              ),
             ),
           ),
-          Text('${lesson.progressPercentage}% complete'),
+          const SizedBox(width: 8),
+          Text('${lesson.progressPercentage}% ${context.tr("complete")}', style: AppTypography.labelLarge(isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
         ],
       ),
     );
@@ -523,15 +558,31 @@ class _WorkspaceHeader extends StatelessWidget {
 class _HeaderChip extends StatelessWidget {
   final IconData icon;
   final String label;
+  final bool isHighlight;
 
-  const _HeaderChip({required this.icon, required this.label});
+  const _HeaderChip({required this.icon, required this.label, this.isHighlight = false});
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      avatar: Icon(icon, size: 18),
-      label: Text(label),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isHighlight ? AppColors.warning : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
+    final bgColor = isHighlight ? AppColors.warningSubtle : (isDark ? AppColors.darkSurfaceSecondary : AppColors.lightCardSecondary);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isHighlight ? AppColors.warning.withValues(alpha: 0.3) : Colors.transparent),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+        ],
+      ),
     );
   }
 }
@@ -1287,7 +1338,7 @@ class _SignedPdfViewerState extends State<_SignedPdfViewer> {
                     children: [
                       LinearProgressIndicator(value: progress),
                       const SizedBox(height: 12),
-                      const Text('Loading PDF...'),
+                      Text(context.tr('Loading PDF...')),
                     ],
                   ),
                 ),
@@ -1307,7 +1358,7 @@ class _SignedPdfViewerState extends State<_SignedPdfViewer> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'PDF failed to load',
+                        context.tr('PDF failed to load'),
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w900),
                       ),

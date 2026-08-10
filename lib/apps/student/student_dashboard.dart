@@ -7,6 +7,7 @@ import '../../core/network/supabase_client_wrapper.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
+import 'screens/student_group_details_screen.dart';
 import '../../features/assessment/data/repositories/supabase_assessment_repositories.dart';
 import '../../features/assessment/presentation/screens/assessment_screens.dart';
 import '../../features/attendance/presentation/screens/student_qr_attendance_screen.dart';
@@ -170,6 +171,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => _SessionBoardScreen(board: board),
     ));
+  }
+
+  void _openGroupDetails(GroupEntity group) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StudentGroupDetailsScreen(group: group),
+      ),
+    );
   }
 
   Future<void> _scanAttendanceQr() async {
@@ -388,6 +398,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         lessons: _snapshot?.availableLessons ?? const [],
         groups: _enrolledGroups,
         onOpenLesson: _openWorkspace,
+        onOpenGroup: _openGroupDetails,
       ),
       ActivityTab(
         isLoading: _isLoading,
@@ -486,8 +497,6 @@ class _SessionBoardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final strokes = decodeSessionBoard(board.boardData);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return Scaffold(
       appBar: AppBar(title: Text(board.title)),
       body: Padding(
@@ -501,7 +510,7 @@ class _SessionBoardScreen extends StatelessWidget {
               children: [
                 Chip(avatar: const Icon(Icons.group_work, size: 18), label: Text(board.groupName), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                 Chip(avatar: const Icon(Icons.event, size: 18), label: Text(DateFormat.yMMMd().format(board.sessionDate)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                Chip(avatar: const Icon(Icons.update, size: 18), label: Text('Updated ${DateFormat.yMMMd().format(board.updatedAt)}'), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                Chip(avatar: const Icon(Icons.update, size: 18), label: Text('${context.tr("Updated")} ${DateFormat.yMMMd().format(board.updatedAt)}'), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
               ],
             ),
             const SizedBox(height: 12),
@@ -510,7 +519,7 @@ class _SessionBoardScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                    color: Colors.white, // Force white so dark strokes are visible
                     border: Border.all(color: Theme.of(context).dividerColor),
                     borderRadius: BorderRadius.circular(12),
                   ),

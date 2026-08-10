@@ -137,7 +137,7 @@ class _ActivityTabState extends State<ActivityTab> with SingleTickerProviderStat
                     labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -0.2),
                     unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -0.2),
                     tabs: [
-                      Tab(text: context.tr('Homework')),
+                      Tab(text: '${context.tr('Homework')} & ${context.tr('Exams')}'),
                       Tab(text: context.tr('Attendance')),
                       Tab(text: context.tr('Boards')),
                     ],
