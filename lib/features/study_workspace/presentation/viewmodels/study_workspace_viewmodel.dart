@@ -16,6 +16,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
 
   final StudyLessonSummary lesson;
   final String? studentId;
+  final String? teacherId;
   final IStudyWorkspaceRepository? repository;
 
   bool _isLoaded = false;
@@ -30,6 +31,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   StudyWorkspaceViewModel({
     required this.lesson,
     this.studentId,
+    this.teacherId,
     this.repository,
   }) : _currentPage = lesson.lastPage;
 
@@ -55,6 +57,33 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       _notebookText = draft.notebookContent;
       _codeText = draft.code;
       _boardData = draft.boardData;
+      
+      if (studentId != null && repository != null) {
+        final teacherDraft = await repository!.fetchTeacherDraftForStudent(
+          studentId: studentId!,
+          lessonId: lesson.id,
+        );
+        if (teacherDraft.boardData.isNotEmpty) {
+           try {
+             final decoded = jsonDecode(teacherDraft.boardData);
+             if (decoded is Map && decoded['strokes'] is List) {
+               final strokes = (decoded['strokes'] as List).whereType<Map>().map((s) {
+                 final st = Map<String, dynamic>.from(s);
+                 st['is_teacher'] = true;
+                 return st;
+               }).toList();
+               
+               List<dynamic> studentStrokes = [];
+               if (_boardData.isNotEmpty) {
+                 final std = jsonDecode(_boardData);
+                 if (std is Map && std['strokes'] is List) studentStrokes = std['strokes'];
+               }
+               _boardData = jsonEncode({'strokes': [...strokes, ...studentStrokes]});
+             }
+           } catch (_) {}
+        }
+      }
+
       await preferences.setString(
         '$_notebookPrefix${lesson.id}',
         _notebookText,
@@ -109,13 +138,22 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       final preferences = await SharedPreferences.getInstance();
       await preferences.setString('$_boardPrefix${lesson.id}', value);
       final currentStudentId = studentId;
-      if (repository != null && currentStudentId != null) {
+      final currentTeacherId = teacherId;
+      if (repository != null) {
         try {
-          await repository!.saveBoard(
-            studentId: currentStudentId,
-            lessonId: lesson.id,
-            boardData: value,
-          );
+          if (currentTeacherId != null) {
+            await repository!.saveTeacherBoard(
+              teacherId: currentTeacherId,
+              lessonId: lesson.id,
+              boardData: value,
+            );
+          } else if (currentStudentId != null) {
+            await repository!.saveBoard(
+              studentId: currentStudentId,
+              lessonId: lesson.id,
+              boardData: value,
+            );
+          }
         } catch (_) {}
       }
     });
@@ -223,15 +261,23 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
 
   Future<StudyWorkspaceDraft?> _fetchCloudDraft() async {
     final currentStudentId = studentId;
-    if (repository == null || currentStudentId == null) return null;
+    final currentTeacherId = teacherId;
+    if (repository == null) return null;
+    
     try {
-      return repository!.fetchDraft(
-        studentId: currentStudentId,
-        lessonId: lesson.id,
-      );
-    } catch (_) {
-      return null;
-    }
+      if (currentTeacherId != null) {
+        return await repository!.fetchTeacherDraft(
+          teacherId: currentTeacherId,
+          lessonId: lesson.id,
+        );
+      } else if (currentStudentId != null) {
+        return await repository!.fetchDraft(
+          studentId: currentStudentId,
+          lessonId: lesson.id,
+        );
+      }
+    } catch (_) {}
+    return null;
   }
 
   String _buildPreviewOutput(String code) {

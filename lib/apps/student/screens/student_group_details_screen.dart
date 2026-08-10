@@ -342,8 +342,12 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                                   .from(res.bucket)
                                   .getPublicUrl(res.objectPath);
                               final uri = Uri.parse(url);
-                              if (await canLaunchUrl(uri)) {
+                              try {
                                 await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open file: $e')));
+                                }
                               }
                             },
                           );
@@ -512,6 +516,22 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                         child: Text(
                           context.tr('Reset Rejected'),
                           style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  } else if (exam.resetRequestStatus == 'approved' && !exam.canStart) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+                      ),
+                      child: Center(
+                        child: Text(
+                          context.tr('Attempts Exhausted'),
+                          style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                       ),

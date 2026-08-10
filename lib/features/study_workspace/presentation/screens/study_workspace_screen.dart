@@ -19,12 +19,14 @@ import '../viewmodels/study_workspace_viewmodel.dart';
 class StudyWorkspaceScreen extends StatefulWidget {
   final StudyLessonSummary lesson;
   final String? studentId;
+  final String? teacherId;
   final IStudyWorkspaceRepository? repository;
 
   const StudyWorkspaceScreen({
     super.key,
     required this.lesson,
     this.studentId,
+    this.teacherId,
     this.repository,
   });
 
@@ -217,16 +219,46 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
       _encodePdfAnnotations(annotations),
     );
     final repository = widget.repository;
-    final studentId = widget.studentId;
-    if (repository == null || studentId == null) return;
+    final currentStudentId = widget.studentId;
+    final currentTeacherId = widget.teacherId;
+    if (repository == null) return;
     try {
-      await repository.savePdfAnnotations(
-        studentId: studentId,
-        lessonId: widget.lesson.id,
-        annotations: annotations
-            .map((annotation) => annotation.toJson())
-            .toList(),
-      );
+      List<Map<String, dynamic>> annotationsToSave = [];
+      
+      if (currentTeacherId != null) {
+        annotationsToSave = annotations.map((a) => a.toJson()).toList();
+        await repository.saveTeacherPdfAnnotations(
+          teacherId: currentTeacherId,
+          lessonId: widget.lesson.id,
+          annotations: annotationsToSave,
+        );
+      } else if (currentStudentId != null) {
+        annotationsToSave = annotations
+            .map((a) {
+              if (a.type == _PdfAnnotationType.freehand && a.strokes.isNotEmpty) {
+                final studentStrokes = a.strokes.where((s) => !s.isTeacher).toList();
+                if (studentStrokes.isEmpty) return null;
+                return _PdfAnnotation(
+                  id: a.id,
+                  page: a.page,
+                  type: a.type,
+                  text: a.text,
+                  createdAt: a.createdAt,
+                  strokes: studentStrokes,
+                  isTeacher: false,
+                ).toJson();
+              }
+              return a.isTeacher ? null : a.toJson();
+            })
+            .whereType<Map<String, dynamic>>()
+            .toList();
+            
+        await repository.savePdfAnnotations(
+          studentId: currentStudentId,
+          lessonId: widget.lesson.id,
+          annotations: annotationsToSave,
+        );
+      }
     } catch (_) {}
   }
 
@@ -271,6 +303,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
         type: _PdfAnnotationType.note,
         text: text,
         createdAt: DateTime.now(),
+        isTeacher: widget.teacherId != null,
       ),
     ]);
     _recordReplayEvent('pdf_note_added', {
@@ -288,6 +321,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
         type: _PdfAnnotationType.highlight,
         text: 'Highlighted section',
         createdAt: DateTime.now(),
+        isTeacher: widget.teacherId != null,
       ),
     ]);
     _recordReplayEvent('pdf_highlight_added', {'page': _viewModel.currentPage});
@@ -321,6 +355,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
         type: _PdfAnnotationType.bookmark,
         text: 'Bookmarked page',
         createdAt: DateTime.now(),
+        isTeacher: widget.teacherId != null,
       ),
     ]);
     _recordReplayEvent('pdf_bookmark_added', {'page': page});
@@ -352,6 +387,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
               text: 'Freehand drawing',
               createdAt: DateTime.now(),
               strokes: strokes,
+              isTeacher: widget.teacherId != null,
             ),
           ];
     await _savePdfAnnotations(nextAnnotations);
@@ -454,6 +490,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                                       codeController: _codeController,
                                       boardStrokes: _boardStrokes,
                                       pdfAnnotations: _pdfAnnotations,
+                                      teacherId: widget.teacherId,
                                       onNotebookChanged: _queueNotebookSave,
                                       onCodeChanged: _queueCodeSave,
                                       onBoardChanged: _queueBoardSave,
@@ -477,6 +514,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                                           onFreehandChanged: _savePdfFreehand,
                                           onPreviousPage: () => _goToPage(-1),
                                           onNextPage: () => _goToPage(1),
+                                          teacherId: widget.teacherId,
                                         ),
                                         _NotebookPane(
                                           controller: _notebookController,
@@ -593,6 +631,7 @@ class _WideWorkspace extends StatelessWidget {
   final TextEditingController codeController;
   final List<_BoardStroke> boardStrokes;
   final List<_PdfAnnotation> pdfAnnotations;
+  final String? teacherId;
   final ValueChanged<String> onNotebookChanged;
   final ValueChanged<String> onCodeChanged;
   final ValueChanged<List<_BoardStroke>> onBoardChanged;
@@ -611,6 +650,7 @@ class _WideWorkspace extends StatelessWidget {
     required this.codeController,
     required this.boardStrokes,
     required this.pdfAnnotations,
+    this.teacherId,
     required this.onNotebookChanged,
     required this.onCodeChanged,
     required this.onBoardChanged,
@@ -639,6 +679,7 @@ class _WideWorkspace extends StatelessWidget {
             onFreehandChanged: onPdfFreehandChanged,
             onPreviousPage: onPreviousPdfPage,
             onNextPage: onNextPdfPage,
+            teacherId: teacherId,
           ),
         ),
         VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
@@ -656,6 +697,7 @@ class _WideWorkspace extends StatelessWidget {
                 onFreehandChanged: onPdfFreehandChanged,
                 onPreviousPage: onPreviousPdfPage,
                 onNextPage: onNextPdfPage,
+                teacherId: teacherId,
               ),
               _NotebookPane(
                 controller: notebookController,
@@ -686,6 +728,7 @@ class _PdfPane extends StatefulWidget {
   final void Function(int page, List<_BoardStroke> strokes) onFreehandChanged;
   final VoidCallback onPreviousPage;
   final VoidCallback onNextPage;
+  final String? teacherId;
 
   const _PdfPane({
     required this.viewModel,
@@ -697,6 +740,7 @@ class _PdfPane extends StatefulWidget {
     required this.onFreehandChanged,
     required this.onPreviousPage,
     required this.onNextPage,
+    this.teacherId,
   });
 
   @override
@@ -766,11 +810,27 @@ class _PdfPaneState extends State<_PdfPane> {
     final page = widget.viewModel.currentPage;
     final strokes = _pageStrokes(widget.annotations, page);
     if (strokes.isEmpty) return;
-    widget.onFreehandChanged(page, strokes.take(strokes.length - 1).toList());
+    
+    if (widget.teacherId == null) {
+      final studentStrokes = strokes.where((s) => !s.isTeacher).toList();
+      if (studentStrokes.isEmpty) return;
+      final teacherStrokes = strokes.where((s) => s.isTeacher).toList();
+      widget.onFreehandChanged(
+          page, [...teacherStrokes, ...studentStrokes.take(studentStrokes.length - 1)]);
+    } else {
+      widget.onFreehandChanged(page, strokes.take(strokes.length - 1).toList());
+    }
   }
 
   void _clearStrokes() {
-    widget.onFreehandChanged(widget.viewModel.currentPage, []);
+    final page = widget.viewModel.currentPage;
+    if (widget.teacherId == null) {
+      final strokes = _pageStrokes(widget.annotations, page);
+      final teacherStrokes = strokes.where((s) => s.isTeacher).toList();
+      widget.onFreehandChanged(page, teacherStrokes);
+    } else {
+      widget.onFreehandChanged(page, []);
+    }
   }
 
   @override
@@ -1197,6 +1257,7 @@ class _PdfAnnotation {
   final String text;
   final DateTime createdAt;
   final List<_BoardStroke> strokes;
+  final bool isTeacher;
 
   const _PdfAnnotation({
     required this.id,
@@ -1205,6 +1266,7 @@ class _PdfAnnotation {
     required this.text,
     required this.createdAt,
     this.strokes = const [],
+    this.isTeacher = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -1215,6 +1277,7 @@ class _PdfAnnotation {
     if (type == _PdfAnnotationType.freehand)
       'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
     'created_at': createdAt.toIso8601String(),
+    'isTeacher': isTeacher,
   };
 
   factory _PdfAnnotation.fromJson(Map<String, dynamic> json) {
@@ -1231,6 +1294,7 @@ class _PdfAnnotation {
           DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
       strokes: _decodeStrokeList(json['strokes']),
+      isTeacher: json['isTeacher'] as bool? ?? false,
     );
   }
 
@@ -1635,18 +1699,21 @@ class _BoardStroke {
   final Color color;
   final double width;
   final List<Offset> points;
+  final bool isTeacher;
 
   const _BoardStroke({
     required this.color,
     required this.width,
     required this.points,
+    this.isTeacher = false,
   });
 
-  _BoardStroke copyWith({List<Offset>? points}) {
+  _BoardStroke copyWith({Color? color, double? width, List<Offset>? points, bool? isTeacher}) {
     return _BoardStroke(
-      color: color,
-      width: width,
+      color: color ?? this.color,
+      width: width ?? this.width,
       points: points ?? this.points,
+      isTeacher: isTeacher ?? this.isTeacher,
     );
   }
 
@@ -1654,6 +1721,7 @@ class _BoardStroke {
     'color': color.toARGB32(),
     'width': width,
     'points': points.map((p) => {'x': p.dx, 'y': p.dy}).toList(),
+    'isTeacher': isTeacher,
   };
 
   static _BoardStroke fromJson(Map<String, dynamic> json) {
@@ -1668,6 +1736,7 @@ class _BoardStroke {
           (point['y'] as num? ?? 0).toDouble(),
         );
       }).toList(),
+      isTeacher: json['isTeacher'] as bool? ?? false,
     );
   }
 }

@@ -1,11 +1,13 @@
-
-
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:get_it/get_it.dart';
+import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../study_workspace/data/repositories/supabase_study_workspace_repository.dart';
+import '../../../study_workspace/domain/models/study_workspace_models.dart';
+import '../../../study_workspace/presentation/screens/study_workspace_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/localization/app_localizations.dart';
-import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -706,6 +708,33 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                 '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
                                                 style: AppTypography.bodySmall(subtitleColor),
                                               ),
+                                              onTap: () {
+                                                if (res.resourceType == 'pdf') {
+                                                  final summary = StudyLessonSummary(
+                                                    id: lesson.id,
+                                                    title: lesson.title,
+                                                    pathName: 'Curriculum',
+                                                    unitName: unit.name,
+                                                    progressPercentage: 0,
+                                                    estimatedMinutes: 30,
+                                                    lastPage: 1,
+                                                    totalPages: 0,
+                                                    xp: 0,
+                                                    hasPdf: true,
+                                                    hasCodePlayground: false,
+                                                    pdfUrl: Supabase.instance.client.storage.from(res.bucket).getPublicUrl(res.objectPath),
+                                                  );
+                                                  Navigator.of(context).push(MaterialPageRoute(
+                                                    builder: (_) => StudyWorkspaceScreen(
+                                                      lesson: summary,
+                                                      teacherId: widget.teacherId,
+                                                      repository: SupabaseStudyWorkspaceRepository(
+                                                        GetIt.I<SupabaseClientWrapper>(),
+                                                      ),
+                                                    ),
+                                                  ));
+                                                }
+                                              },
                                             ),
                                           );
                                         }).toList(),

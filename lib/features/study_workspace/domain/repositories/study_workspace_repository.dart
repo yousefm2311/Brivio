@@ -6,6 +6,16 @@ abstract class IStudyWorkspaceRepository {
     required String lessonId,
   });
 
+  Future<StudyWorkspaceDraft> fetchTeacherDraftForStudent({
+    required String studentId,
+    required String lessonId,
+  });
+
+  Future<StudyWorkspaceDraft> fetchTeacherDraft({
+    required String teacherId,
+    required String lessonId,
+  });
+
   Future<void> saveNotebook({
     required String studentId,
     required String lessonId,
@@ -25,6 +35,12 @@ abstract class IStudyWorkspaceRepository {
     required String boardData,
   });
 
+  Future<void> saveTeacherBoard({
+    required String teacherId,
+    required String lessonId,
+    required String boardData,
+  });
+
   Future<List<Map<String, dynamic>>> fetchPdfAnnotations({
     required String studentId,
     required String lessonId,
@@ -32,6 +48,22 @@ abstract class IStudyWorkspaceRepository {
 
   Future<void> savePdfAnnotations({
     required String studentId,
+    required String lessonId,
+    required List<Map<String, dynamic>> annotations,
+  });
+
+  Future<List<Map<String, dynamic>>> fetchTeacherPdfAnnotationsForStudent({
+    required String studentId,
+    required String lessonId,
+  });
+
+  Future<List<Map<String, dynamic>>> fetchTeacherPdfAnnotations({
+    required String teacherId,
+    required String lessonId,
+  });
+
+  Future<void> saveTeacherPdfAnnotations({
+    required String teacherId,
     required String lessonId,
     required List<Map<String, dynamic>> annotations,
   });
