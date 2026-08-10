@@ -708,8 +708,12 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                 '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
                                                 style: AppTypography.bodySmall(subtitleColor),
                                               ),
-                                              onTap: () {
+                                              onTap: () async {
                                                 if (res.resourceType == 'pdf') {
+                                                  final url = await Supabase.instance.client.storage
+                                                      .from(res.bucket)
+                                                      .createSignedUrl(res.objectPath, 3600);
+                                                  if (!context.mounted) return;
                                                   final summary = StudyLessonSummary(
                                                     id: lesson.id,
                                                     title: lesson.title,
@@ -722,7 +726,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                     xp: 0,
                                                     hasPdf: true,
                                                     hasCodePlayground: false,
-                                                    pdfUrl: Supabase.instance.client.storage.from(res.bucket).getPublicUrl(res.objectPath),
+                                                    pdfUrl: url,
                                                   );
                                                   Navigator.of(context).push(MaterialPageRoute(
                                                     builder: (_) => StudyWorkspaceScreen(

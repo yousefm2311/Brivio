@@ -341,9 +341,9 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                             avatar: const Icon(Icons.insert_drive_file, size: 16),
                             label: Text(res.title),
                             onPressed: () async {
-                              final url = Supabase.instance.client.storage
+                              final url = await Supabase.instance.client.storage
                                   .from(res.bucket)
-                                  .getPublicUrl(res.objectPath);
+                                  .createSignedUrl(res.objectPath, 3600);
                               final uri = Uri.parse(url);
                               if (res.resourceType == 'pdf') {
                                 final summary = StudyLessonSummary(
