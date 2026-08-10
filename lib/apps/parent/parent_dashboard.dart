@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/di/injection.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/settings/app_settings_screen.dart';
@@ -10,6 +12,7 @@ import '../../features/academy/data/repositories/supabase_academy_repositories.d
 import '../../features/academy/domain/models/academy_models.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../features/communication/data/repositories/supabase_notification_repository.dart';
+import '../../features/communication/domain/repositories/i_notification_repository.dart';
 import '../../features/communication/domain/models/notification.dart';
 import '../../features/payments/data/repositories/supabase_payment_repositories.dart';
 import '../../features/payments/domain/models/payment_models.dart';
@@ -40,6 +43,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
   List<_ParentLeaveItem> _leaveRequests = [];
   List<AppNotification> _notifications = [];
   int _unreadCount = 0;
+  StreamSubscription<AppNotification>? _notificationSubscription;
 
   static const _destinations = [
     PortalDestination(icon: Icons.dashboard_customize, label: 'Overview'),
@@ -54,7 +58,25 @@ class _ParentDashboardState extends State<ParentDashboard> {
   @override
   void initState() {
     super.initState();
+    _subscribeToNotifications();
     _loadLinkedChildren();
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToNotifications() {
+    final notificationRepo = getIt<INotificationRepository>();
+    _notificationSubscription = notificationRepo.subscribeToNotifications().listen((notification) {
+      if (!mounted) return;
+      setState(() {
+        _notifications.insert(0, notification);
+        _unreadCount++;
+      });
+    });
   }
 
   SupabaseClientWrapper get _wrapper =>
@@ -112,7 +134,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       final learningRepo = SupabaseStudentLearningRepository(wrapper);
       final paymentRepo = SupabasePaymentRepository(wrapper);
       final invoiceRepo = SupabaseInvoiceRepository(wrapper);
-      final notificationRepo = SupabaseNotificationRepository(wrapper);
+      final notificationRepo = getIt<INotificationRepository>();
 
       final results = await Future.wait<Object>([
         enrollmentRepo.fetchGroupsForStudent(child.id),

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/di/injection.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../design_system/tokens/colors.dart';
@@ -14,6 +16,7 @@ import '../../features/attendance/presentation/screens/student_qr_attendance_scr
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../features/communication/data/repositories/supabase_announcement_repository.dart';
 import '../../features/communication/data/repositories/supabase_notification_repository.dart';
+import '../../features/communication/domain/repositories/i_notification_repository.dart';
 import '../../features/communication/domain/models/announcement.dart';
 import '../../features/communication/domain/models/notification.dart';
 import '../../features/payments/data/repositories/supabase_payment_repositories.dart';
@@ -57,11 +60,30 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<StudentAttendanceItem> _attendanceItems = [];
   List<StudentLeaveItem> _leaveItems = [];
   int _unreadCount = 0;
+  StreamSubscription<AppNotification>? _notificationSubscription;
 
   @override
   void initState() {
     super.initState();
+    _subscribeToNotifications();
     _loadAll();
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToNotifications() {
+    final notificationRepo = getIt<INotificationRepository>();
+    _notificationSubscription = notificationRepo.subscribeToNotifications().listen((notification) {
+      if (!mounted) return;
+      setState(() {
+        _notifications.insert(0, notification);
+        _unreadCount++;
+      });
+    });
   }
 
   // ── data loading ──
@@ -85,6 +107,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       }
 
       final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+      final notificationRepo = getIt<INotificationRepository>();
       final results = await Future.wait([
         SupabaseEnrollmentRepository(wrapper).fetchGroupsForStudent(studentId),
         SupabaseStudentLearningRepository(wrapper).fetchSnapshotForStudent(studentId),
@@ -92,8 +115,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
         SupabaseInvoiceRepository(wrapper).fetchInvoicesForStudent(studentId),
         SupabaseReceiptRepository(wrapper).fetchReceiptsForStudent(studentId),
         SupabaseAnnouncementRepository(wrapper).getTargetedAnnouncements(),
-        SupabaseNotificationRepository(wrapper).getNotifications(),
-        SupabaseNotificationRepository(wrapper).getUnreadCount(),
+        notificationRepo.getNotifications(),
+        notificationRepo.getUnreadCount(),
         _fetchSessionBoards(),
         _fetchHomeworkFeed(),
         _fetchExamFeed(),

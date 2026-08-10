@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/di/injection.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/tokens/colors.dart';
@@ -18,6 +20,8 @@ import '../../features/assessment/presentation/screens/homework_management_scree
 import '../../features/assessment/presentation/screens/question_bank_screen.dart';
 import '../../features/attendance/presentation/screens/attendance_operations_screen.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import '../../features/communication/domain/models/notification.dart';
+import '../../features/communication/domain/repositories/i_notification_repository.dart';
 import '../../features/curriculum/presentation/screens/curriculum_editor_screen.dart';
 import '../../features/payments/presentation/screens/finance_management_screen.dart';
 import '../../features/people/presentation/screens/parent_management_screen.dart';
@@ -52,11 +56,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _parentTotal = 0;
   _AdminOpsMetrics _opsMetrics = const _AdminOpsMetrics();
   List<_AdminActivityItem> _recentActivity = [];
+  List<AppNotification> _notifications = [];
+  int _unreadCount = 0;
+  StreamSubscription<AppNotification>? _notificationSubscription;
+
+  int get unreadCount => _unreadCount;
+  List<AppNotification> get notifications => _notifications;
 
   @override
   void initState() {
     super.initState();
+    _subscribeToNotifications();
     _loadSummaryData();
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToNotifications() {
+    final notificationRepo = getIt<INotificationRepository>();
+    _notificationSubscription = notificationRepo.subscribeToNotifications().listen((notification) {
+      if (!mounted) return;
+      setState(() {
+        _notifications.insert(0, notification);
+        _unreadCount++;
+      });
+    });
   }
 
   Future<void> _loadSummaryData() async {
@@ -74,6 +102,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final subjectRepo = SupabaseSubjectRepository(wrapper);
       final groupRepo = SupabaseGroupRepository(wrapper);
       final summaryRepo = SupabaseAcademySummaryRepository(wrapper);
+      final notificationRepo = getIt<INotificationRepository>();
 
       final results = await Future.wait([
         studentRepo.fetchStudents(),
@@ -85,6 +114,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         summaryRepo.fetchSummary(),
         _fetchOpsMetrics(),
         _fetchRecentActivity(),
+        notificationRepo.getNotifications().catchError((_) => <AppNotification>[]),
+        notificationRepo.getUnreadCount().catchError((_) => 0),
       ]);
 
       if (!mounted) return;
@@ -100,6 +131,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _summary = results[6] as AcademyCoreSummary;
         _opsMetrics = results[7] as _AdminOpsMetrics;
         _recentActivity = results[8] as List<_AdminActivityItem>;
+        _notifications = results[9] as List<AppNotification>;
+        _unreadCount = results[10] as int;
         _isLoading = false;
       });
     } catch (e) {

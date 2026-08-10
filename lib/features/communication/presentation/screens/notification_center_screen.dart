@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../../core/localization/app_localizations.dart';
+import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../core/notifications/push_notification_service.dart';
 import '../viewmodels/notification_center_viewmodel.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
@@ -99,6 +102,19 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                           if (!notif.isRead) {
                             vm.markRead(notif.id);
                           }
+                          final pushService =
+                              GetIt.instance.isRegistered<PushNotificationService>()
+                                  ? GetIt.instance<PushNotificationService>()
+                                  : PushNotificationService(
+                                    GetIt.instance<SupabaseClientWrapper>(),
+                                  );
+                          pushService.handleNotificationTap({
+                            'type': notif.type,
+                            'reference_id': notif.referenceId,
+                            'id': notif.id,
+                            'title': notif.title,
+                            'message': notif.message,
+                          });
                         },
                       );
                     },

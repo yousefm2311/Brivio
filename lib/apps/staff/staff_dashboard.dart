@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/di/injection.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/security/permission.dart';
@@ -11,6 +13,8 @@ import '../../features/academy/data/repositories/supabase_academy_repositories.d
 import '../../features/academy/domain/models/academy_models.dart';
 import '../../features/academy/presentation/screens/academy_screens.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import '../../features/communication/domain/models/notification.dart';
+import '../../features/communication/domain/repositories/i_notification_repository.dart';
 
 class StaffDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -32,6 +36,12 @@ class _StaffDashboardState extends State<StaffDashboard> {
   List<_StaffQueueItem> _attendanceQueue = [];
   List<_StaffQueueItem> _enrollmentQueue = [];
   List<_StaffQueueItem> _operationsQueue = [];
+  List<AppNotification> _notifications = [];
+  int _unreadCount = 0;
+  StreamSubscription<AppNotification>? _notificationSubscription;
+
+  int get unreadCount => _unreadCount;
+  List<AppNotification> get notifications => _notifications;
 
   static const _destinations = [
     PortalDestination(icon: Icons.dashboard_customize, label: 'Overview'),
@@ -44,7 +54,25 @@ class _StaffDashboardState extends State<StaffDashboard> {
   @override
   void initState() {
     super.initState();
+    _subscribeToNotifications();
     _loadStaffData();
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToNotifications() {
+    final notificationRepo = getIt<INotificationRepository>();
+    _notificationSubscription = notificationRepo.subscribeToNotifications().listen((notification) {
+      if (!mounted) return;
+      setState(() {
+        _notifications.insert(0, notification);
+        _unreadCount++;
+      });
+    });
   }
 
   SupabaseClientWrapper get _wrapper =>
@@ -62,6 +90,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       final wrapper = _wrapper;
       final studentRepo = SupabaseStudentRepository(wrapper);
       final groupRepo = SupabaseGroupRepository(wrapper);
+      final notificationRepo = getIt<INotificationRepository>();
 
       final results = await Future.wait<Object>([
         _has(Permission.studentsView)
@@ -82,6 +111,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
         _fetchAttendanceQueue(),
         _fetchEnrollmentQueue(),
         _fetchOperationsQueue(),
+        notificationRepo.getNotifications().catchError((_) => <AppNotification>[]),
+        notificationRepo.getUnreadCount().catchError((_) => 0),
       ]);
 
       if (!mounted) return;
@@ -93,6 +124,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
         _attendanceQueue = results[4] as List<_StaffQueueItem>;
         _enrollmentQueue = results[5] as List<_StaffQueueItem>;
         _operationsQueue = results[6] as List<_StaffQueueItem>;
+        _notifications = results[7] as List<AppNotification>;
+        _unreadCount = results[8] as int;
         _isLoading = false;
       });
     } catch (e) {

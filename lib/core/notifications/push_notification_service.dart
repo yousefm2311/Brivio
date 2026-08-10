@@ -3,10 +3,16 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../apps/student/screens/student_group_details_screen.dart';
+import '../../features/academy/domain/models/academy_models.dart';
+import '../../features/study_workspace/domain/models/study_workspace_models.dart';
+import '../../features/study_workspace/presentation/screens/study_workspace_screen.dart';
 import '../../firebase_options.dart';
+import '../../main.dart';
 import '../config/app_config.dart';
 import '../logging/app_logger.dart';
 import '../network/supabase_client_wrapper.dart';
@@ -39,6 +45,7 @@ class PushNotificationService {
   bool _started = false;
   StreamSubscription<String>? _tokenRefreshSub;
   StreamSubscription<RemoteMessage>? _foregroundMessageSub;
+  StreamSubscription<RemoteMessage>? _messageOpenedSub;
 
   PushNotificationService(
     this._clientWrapper, {
@@ -94,6 +101,89 @@ class PushNotificationService {
     _foregroundMessageSub = FirebaseMessaging.onMessage.listen(
       _showForegroundNotification,
     );
+    _messageOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      handleNotificationTap(message.data);
+    });
+
+    final initialMessage = await messaging?.getInitialMessage();
+    if (initialMessage != null) {
+      handleNotificationTap(initialMessage.data);
+    }
+  }
+
+  void handleNotificationTap(Map<String, dynamic> data) {
+    final type = data['type']?.toString();
+    final referenceId =
+        data['reference_id']?.toString() ?? data['referenceId']?.toString();
+
+    final navigatorState = globalNavigatorKey.currentState;
+    if (navigatorState == null) {
+      AppLogger.warning(
+        'globalNavigatorKey.currentState is null; cannot navigate from notification tap.',
+      );
+      return;
+    }
+
+    AppLogger.info('Notification tapped: type=$type, referenceId=$referenceId');
+
+    if (type == 'study_workspace' || type == 'lesson') {
+      if (referenceId != null && referenceId.isNotEmpty) {
+        navigatorState.push(
+          MaterialPageRoute(
+            builder: (_) => StudyWorkspaceScreen(
+              lesson: StudyLessonSummary(
+                id: referenceId,
+                title: data['title']?.toString() ?? 'Study Workspace',
+                pathName: '',
+                unitName: '',
+                progressPercentage: 0,
+                estimatedMinutes: 0,
+                lastPage: 1,
+                totalPages: 1,
+                xp: 0,
+                hasPdf: false,
+                hasCodePlayground: false,
+              ),
+            ),
+          ),
+        );
+      }
+    } else if (type == 'group' ||
+        type == 'group_details' ||
+        type == 'academic' ||
+        type == 'academic_group') {
+      if (referenceId != null && referenceId.isNotEmpty) {
+        navigatorState.push(
+          MaterialPageRoute(
+            builder: (_) => StudentGroupDetailsScreen(
+              group: GroupEntity(
+                id: referenceId,
+                name: data['title']?.toString() ?? 'Group Details',
+                code: '',
+                subjectId: '',
+                branchId: '',
+                status: 'active',
+              ),
+            ),
+          ),
+        );
+      }
+    } else if (referenceId != null && referenceId.isNotEmpty) {
+      navigatorState.push(
+        MaterialPageRoute(
+          builder: (_) => StudentGroupDetailsScreen(
+            group: GroupEntity(
+              id: referenceId,
+              name: data['title']?.toString() ?? 'Details',
+              code: '',
+              subjectId: '',
+              branchId: '',
+              status: 'active',
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> syncCurrentToken() async {
@@ -180,6 +270,7 @@ class PushNotificationService {
   Future<void> dispose() async {
     await _tokenRefreshSub?.cancel();
     await _foregroundMessageSub?.cancel();
+    await _messageOpenedSub?.cancel();
     _started = false;
   }
 }

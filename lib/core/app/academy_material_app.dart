@@ -7,16 +7,20 @@ import '../localization/app_locale_controller.dart';
 import '../localization/app_localizations.dart';
 import '../notifications/push_notification_service.dart';
 
+import '../../main.dart';
+
 class AcademyMaterialApp extends StatelessWidget {
   final String titleKey;
   final Widget home;
   final ThemeMode themeMode;
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   const AcademyMaterialApp({
     super.key,
     required this.titleKey,
     required this.home,
     this.themeMode = ThemeMode.system,
+    this.navigatorKey,
   });
 
   @override
@@ -32,6 +36,7 @@ class AcademyMaterialApp extends StatelessWidget {
             : TextDirection.ltr;
 
         return MaterialApp(
+          navigatorKey: navigatorKey ?? globalNavigatorKey,
           title: AppLocalizations(locale).t(titleKey),
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme(),

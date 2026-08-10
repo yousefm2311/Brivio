@@ -13,6 +13,9 @@ import 'features/auth/domain/models/user_role.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/viewmodels/auth_viewmodel.dart';
 
+final GlobalKey<NavigatorState> globalNavigatorKey =
+    GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
@@ -114,6 +117,7 @@ class _MainAppSelectorState extends State<MainAppSelector> {
   @override
   Widget build(BuildContext context) {
     return AcademyMaterialApp(
+      navigatorKey: globalNavigatorKey,
       titleKey: 'academy_platform',
       home: ListenableBuilder(
         listenable: _viewModel,

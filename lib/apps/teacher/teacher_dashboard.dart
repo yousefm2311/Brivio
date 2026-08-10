@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/di/injection.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import '../../features/communication/domain/models/notification.dart';
+import '../../features/communication/domain/repositories/i_notification_repository.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/classes_tab.dart';
 import 'tabs/workspace_tab.dart';
@@ -32,11 +36,35 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   int _todaySessionsCount = 0;
   int _savedBoardCount = 0;
   List<TeacherGroupAnalytics> _groupAnalytics = [];
+  List<AppNotification> _notifications = [];
+  int _unreadCount = 0;
+  StreamSubscription<AppNotification>? _notificationSubscription;
+
+  int get unreadCount => _unreadCount;
+  List<AppNotification> get notifications => _notifications;
 
   @override
   void initState() {
     super.initState();
+    _subscribeToNotifications();
     _loadTeacherMetrics();
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToNotifications() {
+    final notificationRepo = getIt<INotificationRepository>();
+    _notificationSubscription = notificationRepo.subscribeToNotifications().listen((notification) {
+      if (!mounted) return;
+      setState(() {
+        _notifications.insert(0, notification);
+        _unreadCount++;
+      });
+    });
   }
 
   Future<void> _loadTeacherMetrics() async {
@@ -56,6 +84,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           'Teacher account is missing its linked teacher profile. Contact an admin to complete provisioning.',
         );
       }
+
+      final notificationRepo = getIt<INotificationRepository>();
+      final initialNotifications = await notificationRepo.getNotifications().catchError((_) => <AppNotification>[]);
+      final initialUnreadCount = await notificationRepo.getUnreadCount().catchError((_) => 0);
 
       final groups = await teacherRepo.fetchAssignedGroups(teacherId);
       final hwRes = await Supabase.instance.client
@@ -105,6 +137,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               .whereType<Map>()
               .map(TeacherGroupAnalytics.fromJson)
               .toList();
+          _notifications = initialNotifications;
+          _unreadCount = initialUnreadCount;
           _isLoading = false;
         });
       }
