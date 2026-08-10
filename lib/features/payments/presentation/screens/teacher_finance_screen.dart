@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 
@@ -123,10 +124,11 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                 ],
               ),
               const SizedBox(height: 18),
-              const PortalSectionTitle(
-                title: 'Groups',
-                subtitle:
-                    'Open a group to review students and request discounts.',
+              PortalSectionTitle(
+                title: context.tr('Groups'),
+                subtitle: context.tr(
+                  'Open a group to review students and request discounts.',
+                ),
               ),
               const SizedBox(height: 10),
               ..._groups.map(
@@ -137,12 +139,12 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                     accentColor: AppColors.teacherRole,
                     title: group.groupName,
                     subtitle:
-                        '${group.subjectName} - ${group.paidStudents}/${group.totalStudents} paid - Remaining ${_money(group.remainingAmountMinor, group.currency)}',
+                        '${group.subjectName} - ${group.paidStudents}/${group.totalStudents} ${context.tr('paid')} - ${context.tr('Remaining')} ${_money(group.remainingAmountMinor, group.currency)}',
                     trailing: [
                       PortalStatusChip(
                         status: group.unpaidStudents == 0
                             ? 'paid'
-                            : '${group.unpaidStudents} unpaid',
+                            : '${group.unpaidStudents} ${context.tr('unpaid')}',
                       ),
                       const Icon(Icons.chevron_right),
                     ],
@@ -230,9 +232,9 @@ class _TeacherFinanceRosterSheetState
         },
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Adjustment request sent.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('Adjustment request sent.'))),
+      );
       await _load();
       widget.onChanged();
     } catch (e) {
@@ -263,12 +265,12 @@ class _TeacherFinanceRosterSheetState
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Refresh',
+                    tooltip: context.tr('Refresh'),
                     onPressed: _load,
                     icon: const Icon(Icons.refresh),
                   ),
                   IconButton(
-                    tooltip: 'Close',
+                    tooltip: context.tr('Close'),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close),
                   ),
@@ -302,7 +304,7 @@ class _TeacherFinanceRosterSheetState
                             : Colors.orange,
                         title: student.studentName,
                         subtitle:
-                            '${student.studentCode} - Final ${_money(student.finalPriceMinor, student.currency)} - Paid ${_money(student.paidAmountMinor, student.currency)} - Remaining ${_money(student.remainingAmountMinor, student.currency)}',
+                            '${student.studentCode} - ${context.tr('Final')} ${_money(student.finalPriceMinor, student.currency)} - ${context.tr('Paid')} ${_money(student.paidAmountMinor, student.currency)} - ${context.tr('Remaining')} ${_money(student.remainingAmountMinor, student.currency)}',
                         trailing: [
                           PortalStatusChip(
                             status: student.paymentExempt
@@ -310,9 +312,13 @@ class _TeacherFinanceRosterSheetState
                                 : student.paymentStatus,
                           ),
                           if (student.pendingAdjustmentCount > 0)
-                            const PortalStatusChip(status: 'pending request'),
+                            PortalStatusChip(
+                              status: context.tr('pending request'),
+                            ),
                           IconButton.filledTonal(
-                            tooltip: 'Request discount or exemption',
+                            tooltip: context.tr(
+                              'Request discount or exemption',
+                            ),
                             onPressed: canRequest
                                 ? () => _requestAdjustment(student)
                                 : null,
@@ -376,7 +382,9 @@ class _AdjustmentDialogState extends State<_AdjustmentDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Request adjustment for ${widget.student.studentName}'),
+      title: Text(
+        '${context.tr('Request adjustment for')} ${widget.student.studentName}',
+      ),
       content: Form(
         key: _formKey,
         child: Column(
@@ -388,18 +396,19 @@ class _AdjustmentDialogState extends State<_AdjustmentDialog> {
                 decimal: true,
               ),
               decoration: InputDecoration(
-                labelText: 'Discount amount (${widget.student.currency})',
+                labelText:
+                    '${context.tr('Discount amount')} (${widget.student.currency})',
                 prefixIcon: const Icon(Icons.percent),
                 helperText:
-                    'Use ${_money(widget.student.finalPriceMinor, widget.student.currency)} for full exemption.',
+                    '${context.tr('Use')} ${_money(widget.student.finalPriceMinor, widget.student.currency)} ${context.tr('for full exemption.')}',
               ),
               validator: (value) {
                 final amount = double.tryParse(value?.trim() ?? '');
                 if (amount == null || amount < 0) {
-                  return 'Enter a valid amount';
+                  return context.tr('Enter a valid amount');
                 }
                 if ((amount * 100).round() > widget.student.finalPriceMinor) {
-                  return 'Discount cannot exceed final price';
+                  return context.tr('Discount cannot exceed final price');
                 }
                 return null;
               },
@@ -408,9 +417,9 @@ class _AdjustmentDialogState extends State<_AdjustmentDialog> {
             TextFormField(
               controller: _reasonController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Reason',
-                prefixIcon: Icon(Icons.notes),
+              decoration: InputDecoration(
+                labelText: context.tr('Reason'),
+                prefixIcon: const Icon(Icons.notes),
               ),
             ),
           ],
@@ -419,12 +428,12 @@ class _AdjustmentDialogState extends State<_AdjustmentDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(context.tr('Cancel')),
         ),
         FilledButton.icon(
           onPressed: _submit,
           icon: const Icon(Icons.send),
-          label: const Text('Send request'),
+          label: Text(context.tr('Send request')),
         ),
       ],
     );

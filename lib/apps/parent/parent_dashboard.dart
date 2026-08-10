@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/tokens/colors.dart';
@@ -213,11 +214,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
                 DropdownButtonFormField<String?>(
                   initialValue: selectedSessionId,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Class session'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Class session'),
+                  ),
                   items: [
-                    const DropdownMenuItem<String?>(
+                    DropdownMenuItem<String?>(
                       value: null,
-                      child: Text('General request'),
+                      child: Text(context.tr('General request')),
                     ),
                     ..._attendance.map(
                       (item) => DropdownMenuItem<String?>(
@@ -237,8 +240,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
                 TextField(
                   controller: reasonController,
                   maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Reason',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Reason'),
                     alignLabelWithHint: true,
                   ),
                 ),
@@ -248,12 +251,12 @@ class _ParentDashboardState extends State<ParentDashboard> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             FilledButton.icon(
               onPressed: () => Navigator.of(context).pop(true),
               icon: const Icon(Icons.send),
-              label: const Text('Submit'),
+              label: Text(context.tr('Submit')),
             ),
           ],
         ),
@@ -356,7 +359,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         child: DropdownButtonFormField<Student>(
           initialValue: _selectedChild,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Child'),
+          decoration: InputDecoration(labelText: context.tr('Child')),
           items: _linkedChildren
               .map(
                 (child) => DropdownMenuItem<Student>(
@@ -565,7 +568,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
             FilledButton.icon(
               onPressed: _selectedChild == null ? null : _createLeaveRequest,
               icon: const Icon(Icons.add),
-              label: const Text('Request'),
+              label: Text(context.tr('Request')),
             ),
           ],
         ),
@@ -798,7 +801,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                   ? null
                   : _markAllNotificationsRead,
               icon: const Icon(Icons.done_all),
-              label: const Text('Mark read'),
+              label: Text(context.tr('Mark read')),
             ),
           ],
         ),
@@ -976,7 +979,7 @@ class _InfoList extends StatelessWidget {
             children: [
               const Icon(Icons.info_outline),
               const SizedBox(width: 10),
-              Expanded(child: Text(emptyText)),
+              Expanded(child: Text(context.l10n.t(emptyText))),
             ],
           ),
         ),
@@ -1031,10 +1034,10 @@ class _ParentInsightPanel extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            insight.title,
+                            context.l10n.t(insight.title),
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
-                          Text(insight.body),
+                          Text(context.l10n.t(insight.body)),
                         ],
                       ),
                     ),

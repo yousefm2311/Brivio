@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -70,31 +71,37 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Provision Staff / Admin Account'),
+          title: Text(context.tr('Provision Staff / Admin Account')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Full Name'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Full Name'),
+                  ),
                 ),
                 TextField(
                   controller: emailCtrl,
-                  decoration: const InputDecoration(labelText: 'Email Address'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Email Address'),
+                  ),
                   keyboardType: TextInputType.emailAddress,
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: targetRole,
-                  decoration: const InputDecoration(labelText: 'Target Role'),
-                  items: const [
+                  decoration: InputDecoration(
+                    labelText: context.tr('Target Role'),
+                  ),
+                  items: [
                     DropdownMenuItem(
                       value: 'staff',
-                      child: Text('Operations Staff'),
+                      child: Text(context.tr('Operations Staff')),
                     ),
                     DropdownMenuItem(
                       value: 'admin',
-                      child: Text('Branch Admin'),
+                      child: Text(context.tr('Branch Admin')),
                     ),
                   ],
                   onChanged: (v) {
@@ -104,8 +111,8 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                 if (_branches.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: selectedBranchId,
-                    decoration: const InputDecoration(
-                      labelText: 'Branch Assignment',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Branch Assignment'),
                     ),
                     items: _branches
                         .map(
@@ -124,7 +131,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -177,7 +184,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   }
                 }
               },
-              child: const Text('Provision Account'),
+              child: Text(context.tr('Provision Account')),
             ),
           ],
         ),
@@ -224,7 +231,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
               accentColor: AppColors.info,
               title: (p['full_name'] as String?) ?? 'Staff Member',
               subtitle:
-                  'Email: ${p['email']} | Role: ${(p['role'] as String? ?? "staff").toUpperCase()}',
+                  '${context.tr('Email')}: ${p['email']} | ${context.tr('Role')}: ${context.l10n.t(p['role'] as String? ?? "staff").toUpperCase()}',
               trailing: [
                 PortalStatusChip(status: (p['status'] as String? ?? "active")),
               ],

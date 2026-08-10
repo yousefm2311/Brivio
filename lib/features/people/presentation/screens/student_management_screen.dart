@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -75,25 +76,29 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Provision New Student Account'),
+          title: Text(context.tr('Provision New Student Account')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Full Name'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Full Name'),
+                  ),
                 ),
                 TextField(
                   controller: emailCtrl,
-                  decoration: const InputDecoration(labelText: 'Email Address'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Email Address'),
+                  ),
                   keyboardType: TextInputType.emailAddress,
                 ),
                 if (_branches.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: selectedBranchId,
-                    decoration: const InputDecoration(
-                      labelText: 'Branch Assignment',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Branch Assignment'),
                     ),
                     items: _branches
                         .map(
@@ -112,7 +117,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -165,7 +170,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   }
                 }
               },
-              child: const Text('Provision Student'),
+              child: Text(context.tr('Provision Student')),
             ),
           ],
         ),
@@ -240,10 +245,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     icon: Icons.school,
                     accentColor: AppColors.studentRole,
                     title: s.fullName,
-                    subtitle: 'Code: ${s.studentCode} | Email: ${s.email}',
+                    subtitle:
+                        '${context.tr('Code')}: ${s.studentCode} | ${context.tr('Email')}: ${s.email}',
                     trailing: [
                       IconButton(
-                        tooltip: 'Login QR',
+                        tooltip: context.tr('Login QR'),
                         onPressed: () => _showLoginQr(s),
                         icon: const Icon(Icons.qr_code_2),
                       ),

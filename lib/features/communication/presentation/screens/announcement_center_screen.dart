@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../viewmodels/announcement_viewmodel.dart';
 
 class AnnouncementCenterScreen extends StatefulWidget {
@@ -26,21 +28,21 @@ class _AnnouncementCenterScreenState extends State<AnnouncementCenterScreen> {
         final vm = widget.viewModel;
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Announcements')),
+          appBar: AppBar(title: Text(context.tr('Announcements'))),
           body: vm.isLoading
               ? const Center(child: CircularProgressIndicator())
               : vm.errorMessage != null
               ? Center(
                   child: Text(
-                    'Error: ${vm.errorMessage}',
+                    '${context.tr('Error')}: ${vm.errorMessage}',
                     style: const TextStyle(color: Colors.red),
                   ),
                 )
               : vm.announcements.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
-                    'No announcements for your targeted group.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    context.tr('No announcements for your targeted group.'),
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 )
               : RefreshIndicator(
@@ -116,7 +118,7 @@ class _AnnouncementCenterScreenState extends State<AnnouncementCenterScreen> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    'Published: ${ann.publishAt.year}-${ann.publishAt.month}-${ann.publishAt.day}',
+                                    '${context.tr('Published')}: ${ann.publishAt.year}-${ann.publishAt.month}-${ann.publishAt.day}',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey,
@@ -124,17 +126,17 @@ class _AnnouncementCenterScreenState extends State<AnnouncementCenterScreen> {
                                   ),
                                   if (ann.requiresAcknowledgement)
                                     ann.isAcknowledged
-                                        ? const Row(
+                                        ? Row(
                                             children: [
-                                              Icon(
+                                              const Icon(
                                                 Icons.check_circle,
                                                 color: Colors.green,
                                                 size: 16,
                                               ),
-                                              SizedBox(width: 4),
+                                              const SizedBox(width: 4),
                                               Text(
-                                                'Acknowledged',
-                                                style: TextStyle(
+                                                context.tr('Acknowledged'),
+                                                style: const TextStyle(
                                                   color: Colors.green,
                                                   fontWeight: FontWeight.bold,
                                                 ),
@@ -149,7 +151,9 @@ class _AnnouncementCenterScreenState extends State<AnnouncementCenterScreen> {
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: Colors.orange,
                                             ),
-                                            child: const Text('I Acknowledge'),
+                                            child: Text(
+                                              context.tr('I Acknowledge'),
+                                            ),
                                           ),
                                 ],
                               ),

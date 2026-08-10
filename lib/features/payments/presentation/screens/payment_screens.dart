@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../domain/models/payment_models.dart';
 
 class InvoiceListWidget extends StatelessWidget {
@@ -20,10 +21,10 @@ class InvoiceListWidget extends StatelessWidget {
     }
 
     if (invoices.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('No invoices issued.'),
+          padding: const EdgeInsets.all(32),
+          child: Text(context.tr('No invoices issued.')),
         ),
       );
     }
@@ -48,22 +49,22 @@ class InvoiceListWidget extends StatelessWidget {
               size: 36,
             ),
             title: Text(
-              'Invoice ${inv.invoiceNumber}',
+              '${context.tr('Invoice')} ${inv.invoiceNumber}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              'Total: ${inv.totalMinor / 100.0} ${inv.currency} | Paid: ${inv.amountPaidMinor / 100.0} ${inv.currency}\nStatus: ${inv.status.toUpperCase()}',
+              '${context.tr('Total')}: ${inv.totalMinor / 100.0} ${inv.currency} | ${context.tr('Paid')}: ${inv.amountPaidMinor / 100.0} ${inv.currency}\n${context.tr('Status')}: ${context.l10n.t(inv.status).toUpperCase()}',
             ),
             trailing: isPaid
-                ? const Chip(
-                    label: Text('PAID'),
+                ? Chip(
+                    label: Text(context.tr('PAID')),
                     backgroundColor: Colors.greenAccent,
                   )
                 : ElevatedButton(
                     onPressed: onInvoiceSelected != null
                         ? () => onInvoiceSelected!(inv)
                         : null,
-                    child: const Text('Record Cash'),
+                    child: Text(context.tr('Record Cash')),
                   ),
           ),
         );
@@ -86,8 +87,8 @@ class FinancialSummaryWidget extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Financial Summary',
+            Text(
+              context.tr('Financial Summary'),
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
@@ -95,17 +96,17 @@ class FinancialSummaryWidget extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatBadge(
-                  'Total Due',
+                  context.tr('Total Due'),
                   '${summary.totalDueMinor / 100.0} ${summary.currency}',
                   Colors.black,
                 ),
                 _buildStatBadge(
-                  'Total Paid',
+                  context.tr('Total Paid'),
                   '${summary.totalPaidMinor / 100.0} ${summary.currency}',
                   Colors.green,
                 ),
                 _buildStatBadge(
-                  'Balance',
+                  context.tr('Balance'),
                   '${summary.remainingBalanceMinor / 100.0} ${summary.currency}',
                   Colors.red,
                 ),

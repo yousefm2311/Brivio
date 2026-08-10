@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/di/injection.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../domain/repositories/i_conversation_repository.dart';
 import '../../domain/repositories/i_message_repository.dart';
 import '../viewmodels/chat_thread_viewmodel.dart';
@@ -83,10 +85,12 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                 child: _viewModel.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _viewModel.messages.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
-                          'No messages yet. Send a message to start conversing!',
-                          style: TextStyle(color: Colors.grey),
+                          context.tr(
+                            'No messages yet. Send a message to start conversing!',
+                          ),
+                          style: const TextStyle(color: Colors.grey),
                         ),
                       )
                     : ListView.builder(
@@ -122,7 +126,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     isDeleted
-                                        ? 'This message was deleted'
+                                        ? context.tr('This message was deleted')
                                         : (msg.textContent ?? ''),
                                     style: TextStyle(
                                       fontStyle: isDeleted
@@ -162,7 +166,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Replying to: ${_viewModel.replyToTarget!.textContent}',
+                          '${context.tr('Replying to')}: ${_viewModel.replyToTarget!.textContent}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -192,10 +196,12 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                     Expanded(
                       child: TextField(
                         controller: _textController,
-                        decoration: const InputDecoration(
-                          hintText: 'Type your message...',
+                        decoration: InputDecoration(
+                          hintText: context.tr('Type your message...'),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                          ),
                         ),
                         onSubmitted: (_) => _handleSend(),
                       ),

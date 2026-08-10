@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../domain/models/academy_models.dart';
 
 class StudentListWidget extends StatelessWidget {
@@ -30,10 +31,12 @@ class StudentListWidget extends StatelessWidget {
             children: [
               Expanded(
                 child: TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Search Students (Name, Code, Email)',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.tr(
+                      'Search Students (Name, Code, Email)',
+                    ),
+                    prefixIcon: const Icon(Icons.search),
+                    border: const OutlineInputBorder(),
                   ),
                   onChanged: onSearchChanged,
                 ),
@@ -57,10 +60,10 @@ class StudentListWidget extends StatelessWidget {
               ),
             )
           else if (students.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('No students found.'),
+                padding: const EdgeInsets.all(32),
+                child: Text(context.tr('No students found.')),
               ),
             )
           else
@@ -85,10 +88,10 @@ class StudentListWidget extends StatelessWidget {
                       title: Text(
                         s.fullName.isNotEmpty
                             ? s.fullName
-                            : 'Student Code: ${s.studentCode}',
+                            : '${context.tr('Student Code')}: ${s.studentCode}',
                       ),
                       subtitle: Text(
-                        '${s.studentCode} | ${s.email} | Grade: ${s.gradeLevel ?? "N/A"}',
+                        '${s.studentCode} | ${s.email} | ${context.tr('Grade')}: ${s.gradeLevel ?? context.tr("N/A")}',
                       ),
                       trailing: Chip(
                         label: Text(s.status),
@@ -131,10 +134,10 @@ class ParentListWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
-            decoration: const InputDecoration(
-              labelText: 'Search Parents (Name, Email, Phone)',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.tr('Search Parents (Name, Email, Phone)'),
+              prefixIcon: const Icon(Icons.search),
+              border: const OutlineInputBorder(),
             ),
             onChanged: onSearchChanged,
           ),
@@ -142,10 +145,10 @@ class ParentListWidget extends StatelessWidget {
           if (isLoading)
             const Center(child: CircularProgressIndicator())
           else if (parents.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('No parents found.'),
+                padding: const EdgeInsets.all(32),
+                child: Text(context.tr('No parents found.')),
               ),
             )
           else
@@ -168,10 +171,12 @@ class ParentListWidget extends StatelessWidget {
                         ),
                       ),
                       title: Text(
-                        p.fullName.isNotEmpty ? p.fullName : 'Parent Record',
+                        p.fullName.isNotEmpty
+                            ? p.fullName
+                            : context.tr('Parent Record'),
                       ),
                       subtitle: Text(
-                        '${p.email} | Occ: ${p.occupation ?? "N/A"}',
+                        '${p.email} | ${context.tr('Occupation')}: ${p.occupation ?? context.tr("N/A")}',
                       ),
                     ),
                   );
@@ -208,10 +213,10 @@ class TeacherListWidget extends StatelessWidget {
           if (isLoading)
             const Center(child: CircularProgressIndicator())
           else if (teachers.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('No teachers found.'),
+                padding: const EdgeInsets.all(32),
+                child: Text(context.tr('No teachers found.')),
               ),
             )
           else
@@ -234,10 +239,12 @@ class TeacherListWidget extends StatelessWidget {
                         ),
                       ),
                       title: Text(
-                        t.fullName.isNotEmpty ? t.fullName : 'Teacher Record',
+                        t.fullName.isNotEmpty
+                            ? t.fullName
+                            : context.tr('Teacher Record'),
                       ),
                       subtitle: Text(
-                        'Spec: ${t.specialization ?? "General"} | ${t.email}',
+                        '${context.tr('Specialization')}: ${t.specialization ?? context.tr("General")} | ${t.email}',
                       ),
                     ),
                   );
@@ -272,10 +279,10 @@ class GroupListWidget extends StatelessWidget {
           if (isLoading)
             const Center(child: CircularProgressIndicator())
           else if (groups.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('No active groups found.'),
+                padding: const EdgeInsets.all(32),
+                child: Text(context.tr('No active groups found.')),
               ),
             )
           else
@@ -293,7 +300,7 @@ class GroupListWidget extends StatelessWidget {
                       leading: const Icon(Icons.group_work, color: Colors.blue),
                       title: Text('${g.name} (${g.code})'),
                       subtitle: Text(
-                        'Max Capacity: ${g.maxCapacity ?? "Unlimited"}',
+                        '${context.tr('Max Capacity')}: ${g.maxCapacity ?? context.tr("Unlimited")}',
                       ),
                       trailing: Chip(
                         label: Text(g.status),
@@ -334,10 +341,10 @@ class BranchListWidget extends StatelessWidget {
           if (isLoading)
             const Center(child: CircularProgressIndicator())
           else if (branches.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('No active branches found.'),
+                padding: const EdgeInsets.all(32),
+                child: Text(context.tr('No active branches found.')),
               ),
             )
           else
@@ -354,7 +361,9 @@ class BranchListWidget extends StatelessWidget {
                           : null,
                       leading: const Icon(Icons.domain, color: Colors.indigo),
                       title: Text('${b.name} (${b.code})'),
-                      subtitle: Text(b.address ?? 'No address provided'),
+                      subtitle: Text(
+                        b.address ?? context.tr('No address provided'),
+                      ),
                       trailing: Chip(
                         label: Text(b.status),
                         backgroundColor: b.status == 'active'
@@ -394,10 +403,10 @@ class SubjectListWidget extends StatelessWidget {
           if (isLoading)
             const Center(child: CircularProgressIndicator())
           else if (subjects.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('No active subjects found.'),
+                padding: const EdgeInsets.all(32),
+                child: Text(context.tr('No active subjects found.')),
               ),
             )
           else
@@ -414,7 +423,9 @@ class SubjectListWidget extends StatelessWidget {
                           : null,
                       leading: const Icon(Icons.book, color: Colors.deepOrange),
                       title: Text('${s.name} (${s.code})'),
-                      subtitle: Text(s.description ?? 'No description'),
+                      subtitle: Text(
+                        s.description ?? context.tr('No description'),
+                      ),
                     ),
                   );
                 },
@@ -446,10 +457,10 @@ class ScheduleListWidget extends StatelessWidget {
           if (isLoading)
             const Center(child: CircularProgressIndicator())
           else if (schedules.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('No active schedules found.'),
+                padding: const EdgeInsets.all(32),
+                child: Text(context.tr('No active schedules found.')),
               ),
             )
           else
@@ -463,10 +474,10 @@ class ScheduleListWidget extends StatelessWidget {
                     child: ListTile(
                       leading: const Icon(Icons.schedule, color: Colors.teal),
                       title: Text(
-                        'Day ${sc.dayOfWeek}: ${sc.startTime} - ${sc.endTime}',
+                        '${context.tr('Day')} ${sc.dayOfWeek}: ${sc.startTime} - ${sc.endTime}',
                       ),
                       subtitle: Text(
-                        'Location: ${sc.roomLocation ?? "Unassigned Room"}',
+                        '${context.tr('Location')}: ${sc.roomLocation ?? context.tr("Unassigned Room")}',
                       ),
                     ),
                   );
@@ -493,7 +504,7 @@ class EntityDetailsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(title),
+      title: Text(context.l10n.t(title)),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -505,10 +516,10 @@ class EntityDetailsDialog extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${e.key}: ',
+                    '${context.l10n.t(e.key)}: ',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  Expanded(child: Text(e.value)),
+                  Expanded(child: Text(context.l10n.t(e.value))),
                 ],
               ),
             );
@@ -518,7 +529,7 @@ class EntityDetailsDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
+          child: Text(context.tr('Close')),
         ),
       ],
     );

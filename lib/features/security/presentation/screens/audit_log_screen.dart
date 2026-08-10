@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 
@@ -90,7 +91,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 child: DropdownButtonFormField<String>(
                   initialValue: _tableFilter,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Table'),
+                  decoration: InputDecoration(labelText: context.tr('Table')),
                   items: tables
                       .map(
                         (table) =>
@@ -131,7 +132,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                     trailing: [
                       PortalStatusChip(status: item.action),
                       IconButton(
-                        tooltip: 'View details',
+                        tooltip: context.tr('View details'),
                         onPressed: () => _showAuditDetails(item),
                         icon: const Icon(Icons.open_in_new),
                       ),
@@ -155,18 +156,18 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           width: 680,
           child: SingleChildScrollView(
             child: SelectableText(
-              'Actor: ${item.actorUserId ?? "system"}\n'
-              'Record: ${item.recordId ?? "unknown"}\n'
-              'Time: ${item.createdLabel}\n\n'
-              'Old:\n${item.oldData ?? "{}"}\n\n'
-              'New:\n${item.newData ?? "{}"}',
+              '${context.tr('Actor')}: ${item.actorUserId ?? context.tr("system")}\n'
+              '${context.tr('Record')}: ${item.recordId ?? context.tr("unknown")}\n'
+              '${context.tr('Time')}: ${item.createdLabel}\n\n'
+              '${context.tr('Old')}:\n${item.oldData ?? "{}"}\n\n'
+              '${context.tr('New')}:\n${item.newData ?? "{}"}',
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(context.tr('Close')),
           ),
         ],
       ),

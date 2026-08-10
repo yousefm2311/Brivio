@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/components/buttons.dart';
 import '../../../../design_system/components/cards.dart';
 import '../../../../design_system/components/text_fields.dart';
@@ -60,7 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Change Password'),
+          title: Text(context.tr('Change Password')),
           content: CustomTextField(
             label: 'New Password',
             hint: 'At least 6 characters',
@@ -70,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () {
@@ -80,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _passwordController.clear();
                 }
               },
-              child: const Text('Update'),
+              child: Text(context.tr('Update')),
             ),
           ],
         );
@@ -106,7 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Account Profile'),
+            title: Text(context.tr('Account Profile')),
             actions: [
               if (widget.onSignedOut != null)
                 IconButton(
@@ -115,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: AppColors.error,
                   ),
                   onPressed: widget.onSignedOut,
-                  tooltip: 'Sign Out',
+                  tooltip: context.tr('Sign Out'),
                 ),
             ],
           ),
@@ -154,7 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        profile?.fullName ?? 'User',
+                        profile?.fullName ?? context.tr('User'),
                         style: AppTypography.titleLarge(textPrimary),
                       ),
                       Text(
@@ -188,7 +189,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               controller: _nameController,
                               prefixIcon: Icons.person_outline,
                               validator: (v) => v == null || v.trim().isEmpty
-                                  ? 'Name is required'
+                                  ? context.tr('Name is required')
                                   : null,
                             ),
                             const SizedBox(height: 16),
@@ -222,7 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       OutlinedButton.icon(
                         onPressed: () => _showChangePasswordDialog(context),
                         icon: const Icon(Icons.key_rounded),
-                        label: const Text('Change Password'),
+                        label: Text(context.tr('Change Password')),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(50),
                           shape: RoundedRectangleBorder(

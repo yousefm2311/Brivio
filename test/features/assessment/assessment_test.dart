@@ -77,7 +77,7 @@ void main() {
 
       expect(find.text('What is Binary Search?'), findsOneWidget);
       expect(
-        find.text('Type: MULTIPLECHOICE | Points: 5.0 | Difficulty: medium'),
+        find.text('Type: multipleChoice | Points: 5.0 | Difficulty: medium'),
         findsOneWidget,
       );
     });

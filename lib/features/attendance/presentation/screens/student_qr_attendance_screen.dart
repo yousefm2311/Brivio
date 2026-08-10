@@ -7,6 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/localization/app_localizations.dart';
+
 class StudentQrAttendanceScreen extends StatefulWidget {
   const StudentQrAttendanceScreen({super.key});
 
@@ -56,14 +58,14 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
       setState(() {
         _isSuccess = json['success'] == true;
         _message = _isSuccess
-            ? 'Attendance marked successfully.'
-            : 'Attendance was not accepted.';
+            ? context.tr('Attendance marked successfully.')
+            : context.tr('Attendance was not accepted.');
         _isSubmitting = false;
       });
       await _scannerController.stop();
     } catch (e) {
       setState(() {
-        _message = 'Attendance scan failed: $e';
+        _message = '${context.tr('Attendance scan failed')}: $e';
         _isSubmitting = false;
         _hasScanned = false;
       });
@@ -139,7 +141,7 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan Attendance QR')),
+      appBar: AppBar(title: Text(context.tr('Scan Attendance QR'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -155,7 +157,9 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Scan the QR shown by your teacher. The code changes every minute.',
+            context.tr(
+              'Scan the QR shown by your teacher. The code changes every minute.',
+            ),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
@@ -181,10 +185,10 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
           const SizedBox(height: 16),
           TextField(
             controller: _manualTokenController,
-            decoration: const InputDecoration(
-              labelText: 'Manual token',
-              prefixIcon: Icon(Icons.key),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.tr('Manual token'),
+              prefixIcon: const Icon(Icons.key),
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),
@@ -193,7 +197,7 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
                 ? null
                 : () => _submitToken(_manualTokenController.text),
             icon: const Icon(Icons.check_circle),
-            label: const Text('Submit Token'),
+            label: Text(context.tr('Submit Token')),
           ),
         ],
       ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -93,28 +95,32 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('Create New Group'),
+            title: Text(context.tr('Create New Group')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Group Name (e.g. Programming Level 1)',
+                    decoration: InputDecoration(
+                      labelText: context.tr(
+                        'Group Name (e.g. Programming Level 1)',
+                      ),
                     ),
                   ),
                   TextField(
                     controller: codeCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Group Code (e.g. GRP-PROG1)',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Group Code (e.g. GRP-PROG1)'),
                     ),
                   ),
                   if (_subjects.isNotEmpty)
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       initialValue: selectedSubjectId,
-                      decoration: const InputDecoration(labelText: 'Subject'),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Subject'),
+                      ),
                       items: _subjects
                           .map(
                             (s) => DropdownMenuItem(
@@ -130,7 +136,9 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       initialValue: selectedBranchId,
-                      decoration: const InputDecoration(labelText: 'Branch'),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Branch'),
+                      ),
                       items: _branches
                           .map(
                             (b) => DropdownMenuItem(
@@ -144,8 +152,8 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                     ),
                   TextField(
                     controller: capacityCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Max Capacity',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Max Capacity'),
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -155,7 +163,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(context.tr('Cancel')),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -185,14 +193,16 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Failed to create group: $e'),
+                          content: Text(
+                            '${context.tr('Failed to create group')}: $e',
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Create Group'),
+                child: Text(context.tr('Create Group')),
               ),
             ],
           );
@@ -369,7 +379,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('Enroll Student in Group'),
+            title: Text(context.tr('Enroll Student in Group')),
             content: SizedBox(
               width: 420,
               child: Column(
@@ -379,8 +389,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       initialValue: selectedStudentId,
-                      decoration: const InputDecoration(
-                        labelText: 'Select Student',
+                      decoration: InputDecoration(
+                        labelText: context.tr('Select Student'),
                       ),
                       items: _allStudents
                           .map(
@@ -401,10 +411,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Group price (EGP)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.payments),
+                    decoration: InputDecoration(
+                      labelText: context.tr('Group price (EGP)'),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.payments),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -413,15 +423,17 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Discount / exemption (EGP)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.discount),
+                    decoration: InputDecoration(
+                      labelText: context.tr('Discount / exemption (EGP)'),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.discount),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Content stays locked until the cash invoice is fully paid. If final price is 0, access is activated as an exemption.',
+                  Text(
+                    context.tr(
+                      'Content stays locked until the cash invoice is fully paid. If final price is 0, access is activated as an exemption.',
+                    ),
                   ),
                 ],
               ),
@@ -429,7 +441,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(context.tr('Cancel')),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -453,8 +465,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         SnackBar(
                           content: Text(
                             totalMinor > discountMinor
-                                ? 'Student enrolled. Content is pending cash payment.'
-                                : 'Student enrolled with payment exemption.',
+                                ? context.tr(
+                                    'Student enrolled. Content is pending cash payment.',
+                                  )
+                                : context.tr(
+                                    'Student enrolled with payment exemption.',
+                                  ),
                           ),
                           backgroundColor: Colors.green,
                         ),
@@ -464,14 +480,16 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Enrollment failed: $e'),
+                          content: Text(
+                            '${context.tr('Enrollment failed')}: $e',
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Enroll'),
+                child: Text(context.tr('Enroll')),
               ),
             ],
           );
@@ -499,7 +517,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('Assign Teacher to Group'),
+            title: Text(context.tr('Assign Teacher to Group')),
             content: SizedBox(
               width: 420,
               child: Column(
@@ -509,8 +527,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       initialValue: selectedTeacherId,
-                      decoration: const InputDecoration(
-                        labelText: 'Select Teacher',
+                      decoration: InputDecoration(
+                        labelText: context.tr('Select Teacher'),
                       ),
                       items: _allTeachers
                           .map(
@@ -526,15 +544,15 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   DropdownButtonFormField<String>(
                     isExpanded: true,
                     initialValue: role,
-                    decoration: const InputDecoration(labelText: 'Role'),
-                    items: const [
+                    decoration: InputDecoration(labelText: context.tr('Role')),
+                    items: [
                       DropdownMenuItem(
                         value: 'primary',
-                        child: Text('Primary Teacher'),
+                        child: Text(context.tr('Primary Teacher')),
                       ),
                       DropdownMenuItem(
                         value: 'co_teacher',
-                        child: Text('Co-Teacher'),
+                        child: Text(context.tr('Co-Teacher')),
                       ),
                     ],
                     onChanged: (v) {
@@ -547,7 +565,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(context.tr('Cancel')),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -566,8 +584,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     _loadTabResources();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Teacher assigned successfully!'),
+                        SnackBar(
+                          content: Text(
+                            context.tr('Teacher assigned successfully!'),
+                          ),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -576,14 +596,16 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Teacher assignment failed: $e'),
+                          content: Text(
+                            '${context.tr('Teacher assignment failed')}: $e',
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Assign Teacher'),
+                child: Text(context.tr('Assign Teacher')),
               ),
             ],
           );
@@ -599,7 +621,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       child: PortalPageShell(
         title: widget.group.name,
         subtitle:
-            'Code: ${widget.group.code} | Capacity: ${widget.group.maxCapacity ?? "Unlimited"}',
+            '${context.tr('Code')}: ${widget.group.code} | ${context.tr('Capacity')}: ${widget.group.maxCapacity ?? context.tr("Unlimited")}',
         icon: Icons.group_work,
         accentColor: AppColors.adminRole,
         actions: [
@@ -616,11 +638,17 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         ],
         child: Column(
           children: [
-            const TabBar(
+            TabBar(
               tabs: [
-                Tab(icon: Icon(Icons.info), text: 'Overview'),
-                Tab(icon: Icon(Icons.people), text: 'Students'),
-                Tab(icon: Icon(Icons.person), text: 'Teachers'),
+                Tab(icon: const Icon(Icons.info), text: context.tr('Overview')),
+                Tab(
+                  icon: const Icon(Icons.people),
+                  text: context.tr('Students'),
+                ),
+                Tab(
+                  icon: const Icon(Icons.person),
+                  text: context.tr('Teachers'),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -672,7 +700,11 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     Stack(
                       children: [
                         _enrolledStudents.isEmpty
-                            ? const Center(child: Text('No enrolled students.'))
+                            ? Center(
+                                child: Text(
+                                  context.tr('No enrolled students.'),
+                                ),
+                              )
                             : ListView.separated(
                                 padding: const EdgeInsets.only(bottom: 72),
                                 itemCount: _enrolledStudents.length,
@@ -685,7 +717,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                     accentColor: AppColors.studentRole,
                                     title: s.fullName,
                                     subtitle:
-                                        'Code: ${s.studentCode} | Email: ${s.email}',
+                                        '${context.tr('Code')}: ${s.studentCode} | ${context.tr('Email')}: ${s.email}',
                                     trailing: [
                                       PortalStatusChip(status: s.status),
                                     ],
@@ -698,7 +730,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           child: FilledButton.icon(
                             onPressed: _showEnrollStudentDialog,
                             icon: const Icon(Icons.person_add),
-                            label: const Text('Enroll'),
+                            label: Text(context.tr('Enroll')),
                           ),
                         ),
                       ],
@@ -706,7 +738,11 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     Stack(
                       children: [
                         _assignedTeachers.isEmpty
-                            ? const Center(child: Text('No assigned teachers.'))
+                            ? Center(
+                                child: Text(
+                                  context.tr('No assigned teachers.'),
+                                ),
+                              )
                             : ListView.separated(
                                 padding: const EdgeInsets.only(bottom: 72),
                                 itemCount: _assignedTeachers.length,
@@ -719,7 +755,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                     accentColor: AppColors.teacherRole,
                                     title: t.fullName,
                                     subtitle:
-                                        'Email: ${t.email} | Specialization: ${t.specialization ?? "N/A"}',
+                                        '${context.tr('Email')}: ${t.email} | ${context.tr('Specialization')}: ${t.specialization ?? context.tr("N/A")}',
                                   );
                                 },
                               ),
@@ -729,7 +765,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           child: FilledButton.icon(
                             onPressed: _showAssignTeacherDialog,
                             icon: const Icon(Icons.person_add),
-                            label: const Text('Assign'),
+                            label: Text(context.tr('Assign')),
                           ),
                         ),
                       ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/localization/app_localizations.dart';
+
 class TeacherGradingScreen extends StatefulWidget {
   final String teacherId;
 
@@ -58,18 +60,20 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Manual Grading & Feedback'),
+        title: Text(context.tr('Manual Grading & Feedback')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: scoreCtrl,
-              decoration: const InputDecoration(labelText: 'Final Score'),
+              decoration: InputDecoration(labelText: context.tr('Final Score')),
               keyboardType: TextInputType.number,
             ),
             TextField(
               controller: feedbackCtrl,
-              decoration: const InputDecoration(labelText: 'Teacher Feedback'),
+              decoration: InputDecoration(
+                labelText: context.tr('Teacher Feedback'),
+              ),
               maxLines: 2,
             ),
           ],
@@ -77,7 +81,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -99,8 +103,10 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                 _loadGradingQueue();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Grade & feedback submitted to student!'),
+                    SnackBar(
+                      content: Text(
+                        context.tr('Grade & feedback submitted to student!'),
+                      ),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -109,14 +115,14 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Grading failed: $e'),
+                      content: Text('${context.tr('Grading failed')}: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: const Text('Submit Grade'),
+            child: Text(context.tr('Submit Grade')),
           ),
         ],
       ),
@@ -127,7 +133,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Submissions & Manual Grading Queue'),
+        title: Text(context.tr('Submissions & Manual Grading Queue')),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -143,20 +149,22 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Error: $_errorMessage',
+                    '${context.tr('Error')}: $_errorMessage',
                     style: const TextStyle(color: Colors.red),
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: _loadGradingQueue,
-                    child: const Text('Retry'),
+                    child: Text(context.tr('Retry')),
                   ),
                 ],
               ),
             )
           : _homeworkSubmissions.isEmpty
-          ? const Center(
-              child: Text('No pending submissions requiring manual grading.'),
+          ? Center(
+              child: Text(
+                context.tr('No pending submissions requiring manual grading.'),
+              ),
             )
           : ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -177,23 +185,26 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                     ),
                   ),
                   title: Text(
-                    'Student: ${sub['student_full_name'] ?? "Learner"}',
+                    '${context.tr('Student')}: ${sub['student_full_name'] ?? context.tr("Learner")}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    '${sub['homework_title'] ?? "Homework"} | Status: ${(sub['status'] as String? ?? "submitted").toUpperCase()} | Score: ${sub['score'] ?? "Pending"}',
+                    '${sub['homework_title'] ?? context.tr("Homework")} | ${context.tr('Status')}: ${context.tr((sub['status'] as String? ?? "submitted"))} | ${context.tr('Score')}: ${sub['score'] ?? context.tr("Pending")}',
                   ),
                   trailing: isGraded
-                      ? const Chip(
+                      ? Chip(
                           label: Text(
-                            'GRADED',
-                            style: TextStyle(color: Colors.white, fontSize: 10),
+                            context.tr('graded'),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
                           ),
                           backgroundColor: Colors.green,
                         )
                       : ElevatedButton(
                           onPressed: () => _showGradeSubmissionDialog(sub),
-                          child: const Text('Grade'),
+                          child: Text(context.tr('Grade')),
                         ),
                 );
               },

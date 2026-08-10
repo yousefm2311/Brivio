@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../viewmodels/notification_center_viewmodel.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
@@ -27,14 +29,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Notifications'),
+            title: Text(context.tr('Notifications')),
             actions: [
               if (vm.notifications.any((n) => !n.isRead))
                 TextButton(
                   onPressed: vm.markAllRead,
-                  child: const Text(
-                    'Mark All Read',
-                    style: TextStyle(color: Colors.white),
+                  child: Text(
+                    context.tr('Mark All Read'),
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ),
             ],
@@ -44,15 +46,15 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               : vm.errorMessage != null
               ? Center(
                   child: Text(
-                    'Error: ${vm.errorMessage}',
+                    '${context.tr('Error')}: ${vm.errorMessage}',
                     style: const TextStyle(color: Colors.red),
                   ),
                 )
               : vm.notifications.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
-                    'No notifications in your inbox.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    context.tr('No notifications in your inbox.'),
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 )
               : RefreshIndicator(

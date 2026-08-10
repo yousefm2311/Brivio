@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
@@ -89,25 +90,29 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Create Exam for ${group.name}'),
+        title: Text('${context.tr('Create Exam for')} ${group.name}'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'Exam title'),
+                decoration: InputDecoration(
+                  labelText: context.tr('Exam title'),
+                ),
               ),
               TextField(
                 controller: durationCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Duration minutes',
+                decoration: InputDecoration(
+                  labelText: context.tr('Duration minutes'),
                 ),
                 keyboardType: TextInputType.number,
               ),
               TextField(
                 controller: passCtrl,
-                decoration: const InputDecoration(labelText: 'Pass score'),
+                decoration: InputDecoration(
+                  labelText: context.tr('Pass score'),
+                ),
                 keyboardType: TextInputType.number,
               ),
             ],
@@ -116,7 +121,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -138,16 +143,18 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                 await _loadGroupsAndExams();
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Exam published.')),
+                  SnackBar(content: Text(context.tr('Exam published.'))),
                 );
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Creation failed: $e')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${context.tr('Creation failed')}: $e'),
+                  ),
+                );
               }
             },
-            child: const Text('Publish'),
+            child: Text(context.tr('Publish')),
           ),
         ],
       ),
@@ -158,7 +165,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Teacher Exam & Quiz Workspace'),
+        title: Text(context.tr('Teacher Exam & Quiz Workspace')),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -169,7 +176,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _selectedGroup == null ? null : _showCreateExamDialog,
         icon: const Icon(Icons.quiz),
-        label: const Text('Create Exam'),
+        label: Text(context.tr('Create Exam')),
       ),
       body: Column(
         children: [
@@ -190,10 +197,10 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
       return _ErrorState(message: _errorMessage!, onRetry: _loadGroupsAndExams);
     }
     if (_selectedGroup == null) {
-      return const Center(child: Text('No assigned groups found.'));
+      return Center(child: Text(context.tr('No assigned groups found.')));
     }
     if (_exams.isEmpty) {
-      return const Center(child: Text('No exams published yet.'));
+      return Center(child: Text(context.tr('No exams published yet.')));
     }
 
     return ListView.separated(
@@ -209,7 +216,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           subtitle: Text(
-            'Duration: ${exam.durationMinutes} min | Pass Score: ${exam.passScore} | Status: ${exam.status.toUpperCase()}',
+            '${context.tr('Duration')}: ${exam.durationMinutes} ${context.tr('min')} | ${context.tr('Pass Score')}: ${exam.passScore} | ${context.tr('Status')}: ${context.tr(exam.status)}',
           ),
         );
       },
@@ -234,9 +241,9 @@ class _GroupPicker extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: DropdownButtonFormField<GroupEntity>(
         initialValue: selectedGroup,
-        decoration: const InputDecoration(
-          labelText: 'Assigned group',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: context.tr('Assigned group'),
+          border: const OutlineInputBorder(),
         ),
         items: groups
             .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))
@@ -263,7 +270,10 @@ class _ErrorState extends StatelessWidget {
           children: [
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: Text(context.tr('Retry')),
+            ),
           ],
         ),
       ),

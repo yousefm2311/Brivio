@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -105,34 +107,38 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('Create Subscription Plan'),
+            title: Text(context.tr('Create Subscription Plan')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Plan Name (e.g. Full Semester CS 101)',
+                    decoration: InputDecoration(
+                      labelText: context.tr(
+                        'Plan Name (e.g. Full Semester CS 101)',
+                      ),
                     ),
                   ),
                   TextField(
                     controller: descCtrl,
-                    decoration: const InputDecoration(labelText: 'Description'),
+                    decoration: InputDecoration(
+                      labelText: context.tr('Description'),
+                    ),
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: billingType,
-                    decoration: const InputDecoration(
-                      labelText: 'Billing Type',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Billing Type'),
                     ),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: 'installment',
-                        child: Text('Installments'),
+                        child: Text(context.tr('Installments')),
                       ),
                       DropdownMenuItem(
                         value: 'one_time',
-                        child: Text('One-Time Payment'),
+                        child: Text(context.tr('One-Time Payment')),
                       ),
                     ],
                     onChanged: (v) {
@@ -141,8 +147,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                   ),
                   TextField(
                     controller: amountCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Total Amount (EGP)',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Total Amount (EGP)'),
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -152,7 +158,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(context.tr('Cancel')),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -179,8 +185,10 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     _loadFinanceData();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Subscription plan created!'),
+                        SnackBar(
+                          content: Text(
+                            context.tr('Subscription plan created!'),
+                          ),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -189,14 +197,14 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Creation failed: $e'),
+                          content: Text('${context.tr('Creation failed')}: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Create Plan'),
+                child: Text(context.tr('Create Plan')),
               ),
             ],
           );
@@ -209,7 +217,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     final selectedStudent = _selectedStudent;
     if (selectedStudent == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Create an active student first.')),
+        SnackBar(content: Text(context.tr('Create an active student first.'))),
       );
       return;
     }
@@ -220,14 +228,16 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('Assign Subscription to Student'),
+            title: Text(context.tr('Assign Subscription to Student')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (_plans.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: selectedPlanId,
-                    decoration: const InputDecoration(labelText: 'Select Plan'),
+                    decoration: InputDecoration(
+                      labelText: context.tr('Select Plan'),
+                    ),
                     items: _plans
                         .map(
                           (p) => DropdownMenuItem(
@@ -243,7 +253,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(context.tr('Cancel')),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -273,14 +283,14 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Assignment failed: $e'),
+                          content: Text('${context.tr('Assignment failed')}: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Assign Subscription'),
+                child: Text(context.tr('Assign Subscription')),
               ),
             ],
           );
@@ -298,27 +308,31 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Record Manual Cash Payment (${inv.invoiceNumber})'),
+        title: Text(
+          '${context.tr('Record Manual Cash Payment')} (${inv.invoiceNumber})',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: amountCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Payment Amount (EGP)',
+              decoration: InputDecoration(
+                labelText: context.tr('Payment Amount (EGP)'),
               ),
               keyboardType: TextInputType.number,
             ),
             TextField(
               controller: notesCtrl,
-              decoration: const InputDecoration(labelText: 'Notes / Reference'),
+              decoration: InputDecoration(
+                labelText: context.tr('Notes / Reference'),
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -336,8 +350,10 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 _loadFinanceData();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Manual cash payment recorded & settled!'),
+                    SnackBar(
+                      content: Text(
+                        context.tr('Manual cash payment recorded & settled!'),
+                      ),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -346,14 +362,14 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Payment failed: $e'),
+                      content: Text('${context.tr('Payment failed')}: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: const Text('Record Cash Payment'),
+            child: Text(context.tr('Record Cash Payment')),
           ),
         ],
       ),
@@ -380,7 +396,9 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              approve ? 'Adjustment applied.' : 'Request rejected.',
+              approve
+                  ? context.tr('Adjustment applied.')
+                  : context.tr('Request rejected.'),
             ),
             backgroundColor: approve ? Colors.green : Colors.orange,
           ),
@@ -390,7 +408,9 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Adjustment decision failed: $e'),
+            content: Text(
+              '${context.tr('Adjustment decision failed')}: $e',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -422,14 +442,29 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
         ],
         child: Column(
           children: [
-            const TabBar(
+            TabBar(
               isScrollable: true,
               tabs: [
-                Tab(icon: Icon(Icons.card_membership), text: 'Plans'),
-                Tab(icon: Icon(Icons.assignment_ind), text: 'Assign'),
-                Tab(icon: Icon(Icons.receipt_long), text: 'Invoices'),
-                Tab(icon: Icon(Icons.receipt), text: 'Receipts'),
-                Tab(icon: Icon(Icons.percent), text: 'Adjustments'),
+                Tab(
+                  icon: const Icon(Icons.card_membership),
+                  text: context.tr('Plans'),
+                ),
+                Tab(
+                  icon: const Icon(Icons.assignment_ind),
+                  text: context.tr('Assign'),
+                ),
+                Tab(
+                  icon: const Icon(Icons.receipt_long),
+                  text: context.tr('Invoices'),
+                ),
+                Tab(
+                  icon: const Icon(Icons.receipt),
+                  text: context.tr('Receipts'),
+                ),
+                Tab(
+                  icon: const Icon(Icons.percent),
+                  text: context.tr('Adjustments'),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -445,8 +480,10 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 child: TabBarView(
                   children: [
                     _plans.isEmpty
-                        ? const Center(
-                            child: Text('No subscription plans found.'),
+                        ? Center(
+                            child: Text(
+                              context.tr('No subscription plans found.'),
+                            ),
                           )
                         : ListView.separated(
                             padding: EdgeInsets.zero,
@@ -460,7 +497,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                 accentColor: AppColors.adminRole,
                                 title: p.name,
                                 subtitle:
-                                    '${p.description ?? ""}\nBilling: ${p.billingType.toUpperCase()} | Total: ${(p.totalAmountMinor / 100).toStringAsFixed(0)} EGP',
+                                    '${p.description ?? ""}\n${context.tr('Billing')}: ${context.tr(p.billingType)} | ${context.tr('Total')}: ${(p.totalAmountMinor / 100).toStringAsFixed(0)} EGP',
                                 trailing: [PortalStatusChip(status: p.status)],
                               );
                             },
@@ -477,9 +514,9 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               ),
                               child: DropdownButtonFormField<Student>(
                                 initialValue: _selectedStudent,
-                                decoration: const InputDecoration(
-                                  labelText: 'Student',
-                                  border: OutlineInputBorder(),
+                                decoration: InputDecoration(
+                                  labelText: context.tr('Student'),
+                                  border: const OutlineInputBorder(),
                                 ),
                                 items: _students
                                     .map(
@@ -504,9 +541,11 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                             color: Colors.blue,
                           ),
                           const SizedBox(height: 16),
-                          const Text(
-                            'Assign Tuition & Subscription Plans to Students',
-                            style: TextStyle(
+                          Text(
+                            context.tr(
+                              'Assign Tuition & Subscription Plans to Students',
+                            ),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -518,14 +557,16 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                 ? null
                                 : _showAssignSubscriptionDialog,
                             icon: const Icon(Icons.add),
-                            label: const Text('Assign Subscription to Student'),
+                            label: Text(
+                              context.tr('Assign Subscription to Student'),
+                            ),
                           ),
                         ],
                       ),
                     ),
                     // Tab 3: Invoices
                     _invoices.isEmpty
-                        ? const Center(child: Text('No invoices found.'))
+                        ? Center(child: Text(context.tr('No invoices found.')))
                         : ListView.separated(
                             padding: const EdgeInsets.all(16),
                             itemCount: _invoices.length,
@@ -554,18 +595,20 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                   ),
                                 ),
                                 subtitle: Text(
-                                  'Total: ${(inv.totalMinor / 100).toStringAsFixed(0)} EGP | Paid: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} EGP\nStatus: ${inv.status.toUpperCase()}',
+                                  '${context.tr('Total')}: ${(inv.totalMinor / 100).toStringAsFixed(0)} EGP | ${context.tr('Paid')}: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} EGP\n${context.tr('Status')}: ${context.tr(inv.status)}',
                                 ),
                                 trailing: isUnpaid
                                     ? ElevatedButton(
                                         onPressed: () =>
                                             _showRecordPaymentDialog(inv),
-                                        child: const Text('Record Payment'),
+                                        child: Text(
+                                          context.tr('Record Payment'),
+                                        ),
                                       )
-                                    : const Chip(
+                                    : Chip(
                                         label: Text(
-                                          'SETTLED',
-                                          style: TextStyle(
+                                          context.tr('settled'),
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 10,
                                           ),
@@ -577,8 +620,12 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                           ),
                     // Tab 4: Receipts
                     _receipts.isEmpty
-                        ? const Center(
-                            child: Text('No payment receipts generated yet.'),
+                        ? Center(
+                            child: Text(
+                              context.tr(
+                                'No payment receipts generated yet.',
+                              ),
+                            ),
                           )
                         : ListView.separated(
                             padding: const EdgeInsets.all(16),
@@ -592,20 +639,22 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                   child: Icon(Icons.receipt),
                                 ),
                                 title: Text(
-                                  'Receipt #${rec.id.substring(0, 8)}',
+                                  '${context.tr('Receipt')} #${rec.id.substring(0, 8)}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 subtitle: Text(
-                                  'Amount Paid: ${(rec.amountMinor / 100).toStringAsFixed(0)} ${rec.currency}\nIssued: ${rec.issuedAt.year}-${rec.issuedAt.month}-${rec.issuedAt.day}',
+                                  '${context.tr('Amount Paid')}: ${(rec.amountMinor / 100).toStringAsFixed(0)} ${rec.currency}\n${context.tr('Issued')}: ${rec.issuedAt.year}-${rec.issuedAt.month}-${rec.issuedAt.day}',
                                 ),
                               );
                             },
                           ),
                     _adjustmentRequests.isEmpty
-                        ? const Center(
-                            child: Text('No discount or exemption requests.'),
+                        ? Center(
+                            child: Text(
+                              context.tr('No discount or exemption requests.'),
+                            ),
                           )
                         : ListView.separated(
                             padding: const EdgeInsets.all(16),
@@ -624,12 +673,12 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                     : AppColors.adminRole,
                                 title: '${req.studentName} - ${req.groupName}',
                                 subtitle:
-                                    'Teacher: ${req.teacherName}\nOriginal ${_money(req.originalPriceMinor, req.currency)} | Discount ${_money(req.requestedDiscountMinor, req.currency)} | Final ${_money(req.requestedFinalPriceMinor, req.currency)}${req.reason.isEmpty ? '' : '\nReason: ${req.reason}'}',
+                                    '${context.tr('Teacher')}: ${req.teacherName}\n${context.tr('Original')} ${_money(req.originalPriceMinor, req.currency)} | ${context.tr('Discount')} ${_money(req.requestedDiscountMinor, req.currency)} | ${context.tr('Final')} ${_money(req.requestedFinalPriceMinor, req.currency)}${req.reason.isEmpty ? '' : '\n${context.tr('Reason')}: ${req.reason}'}',
                                 trailing: [
                                   PortalStatusChip(status: req.status),
                                   if (isPending)
                                     IconButton.filledTonal(
-                                      tooltip: 'Reject',
+                                      tooltip: context.tr('Reject'),
                                       onPressed: () =>
                                           _decideAdjustment(req, false),
                                       icon: const Icon(Icons.close),
@@ -639,7 +688,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                       onPressed: () =>
                                           _decideAdjustment(req, true),
                                       icon: const Icon(Icons.check),
-                                      label: const Text('Approve'),
+                                      label: Text(context.tr('Approve')),
                                     ),
                                 ],
                               );

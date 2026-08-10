@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
@@ -71,7 +73,9 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     final selectedGroup = _selectedGroup;
     if (selectedGroup == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No assigned teaching groups found.')),
+        SnackBar(
+          content: Text(context.tr('No assigned teaching groups found.')),
+        ),
       );
       return;
     }
@@ -87,56 +91,66 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Create MCQ Question with Answer Key'),
+          title: Text(context.tr('Create MCQ Question with Answer Key')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: promptCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Question Prompt (e.g. What is 2 + 2?)',
+                  decoration: InputDecoration(
+                    labelText: context.tr(
+                      'Question Prompt (e.g. What is 2 + 2?)',
+                    ),
                   ),
                   maxLines: 2,
                 ),
                 TextField(
                   controller: opt1Ctrl,
-                  decoration: const InputDecoration(labelText: 'Option 1'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Option 1'),
+                  ),
                 ),
                 TextField(
                   controller: opt2Ctrl,
-                  decoration: const InputDecoration(labelText: 'Option 2'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Option 2'),
+                  ),
                 ),
                 TextField(
                   controller: opt3Ctrl,
-                  decoration: const InputDecoration(labelText: 'Option 3'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Option 3'),
+                  ),
                 ),
                 TextField(
                   controller: opt4Ctrl,
-                  decoration: const InputDecoration(labelText: 'Option 4'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Option 4'),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
                   initialValue: correctIdx,
-                  decoration: const InputDecoration(
-                    labelText: 'Correct Option (Answer Key)',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Correct Option (Answer Key)'),
                   ),
-                  items: const [
+                  items: [
                     DropdownMenuItem(
                       value: 0,
-                      child: Text('Option 1 is Correct'),
+                      child: Text(context.tr('Option 1 is Correct')),
                     ),
                     DropdownMenuItem(
                       value: 1,
-                      child: Text('Option 2 is Correct'),
+                      child: Text(context.tr('Option 2 is Correct')),
                     ),
                     DropdownMenuItem(
                       value: 2,
-                      child: Text('Option 3 is Correct'),
+                      child: Text(context.tr('Option 3 is Correct')),
                     ),
                     DropdownMenuItem(
                       value: 3,
-                      child: Text('Option 4 is Correct'),
+                      child: Text(context.tr('Option 4 is Correct')),
                     ),
                   ],
                   onChanged: (v) {
@@ -145,8 +159,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                 ),
                 TextField(
                   controller: ptsCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Default Points',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Default Points'),
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -156,7 +170,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -209,9 +223,11 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                   _loadQuestions();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
+                      SnackBar(
                         content: Text(
-                          'MCQ Question & Answer Key saved to Question Bank!',
+                          context.tr(
+                            'MCQ Question & Answer Key saved to Question Bank!',
+                          ),
                         ),
                         backgroundColor: Colors.green,
                       ),
@@ -221,14 +237,14 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Creation failed: $e'),
+                        content: Text('${context.tr('Creation failed')}: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: const Text('Save MCQ Question'),
+              child: Text(context.tr('Save MCQ Question')),
             ),
           ],
         ),
@@ -240,7 +256,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Teacher Question Bank'),
+        title: Text(context.tr('Teacher Question Bank')),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -251,7 +267,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _selectedGroup == null ? null : _showCreateMcqDialog,
         icon: const Icon(Icons.help_outline),
-        label: const Text('Add MCQ Question'),
+        label: Text(context.tr('Add MCQ Question')),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -261,13 +277,13 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Error: $_errorMessage',
+                    '${context.tr('Error')}: $_errorMessage',
                     style: const TextStyle(color: Colors.red),
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: _loadQuestions,
-                    child: const Text('Retry'),
+                    child: Text(context.tr('Retry')),
                   ),
                 ],
               ),
@@ -279,9 +295,9 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     child: DropdownButtonFormField<GroupEntity>(
                       initialValue: _selectedGroup,
-                      decoration: const InputDecoration(
-                        labelText: 'Teaching Group',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Teaching Group'),
+                        border: const OutlineInputBorder(),
                       ),
                       items: _groups
                           .map(
@@ -300,12 +316,16 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                   ),
                 Expanded(
                   child: _selectedGroup == null
-                      ? const Center(
-                          child: Text('No assigned teaching groups found.'),
+                      ? Center(
+                          child: Text(
+                            context.tr('No assigned teaching groups found.'),
+                          ),
                         )
                       : _questions.isEmpty
-                      ? const Center(
-                          child: Text('No questions found in Question Bank.'),
+                      ? Center(
+                          child: Text(
+                            context.tr('No questions found in Question Bank.'),
+                          ),
                         )
                       : ListView.separated(
                           padding: const EdgeInsets.all(16),
@@ -325,7 +345,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 ),
                               ),
                               subtitle: Text(
-                                'Type: ${q.questionType.name.toUpperCase()} | Points: ${q.defaultPoints}',
+                                '${context.tr('Type')}: ${context.tr(q.questionType.name)} | ${context.tr('Points')}: ${q.defaultPoints}',
                               ),
                             );
                           },

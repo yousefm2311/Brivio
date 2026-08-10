@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/security/permission.dart';
 import '../../core/settings/app_settings_screen.dart';
@@ -245,9 +246,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
           : 'Reject leave request',
       content: TextField(
         controller: noteController,
-        decoration: const InputDecoration(
-          labelText: 'Reviewer note',
-          prefixIcon: Icon(Icons.notes),
+        decoration: InputDecoration(
+          labelText: context.tr('Reviewer note'),
+          prefixIcon: const Icon(Icons.notes),
         ),
         minLines: 2,
         maxLines: 4,
@@ -292,9 +293,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
           const SizedBox(height: 12),
           TextField(
             controller: noteController,
-            decoration: const InputDecoration(
-              labelText: 'Notes',
-              prefixIcon: Icon(Icons.notes),
+            decoration: InputDecoration(
+              labelText: context.tr('Notes'),
+              prefixIcon: const Icon(Icons.notes),
             ),
           ),
         ],
@@ -340,9 +341,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
           : 'Mark attendance present',
       content: TextField(
         controller: noteController,
-        decoration: const InputDecoration(
-          labelText: 'Resolution note',
-          prefixIcon: Icon(Icons.notes),
+        decoration: InputDecoration(
+          labelText: context.tr('Resolution note'),
+          prefixIcon: const Icon(Icons.notes),
         ),
         minLines: 2,
         maxLines: 4,
@@ -404,7 +405,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
@@ -722,7 +723,7 @@ class _QueueList extends StatelessWidget {
             children: [
               const Icon(Icons.inbox_outlined),
               const SizedBox(width: 10),
-              Expanded(child: Text(emptyText)),
+              Expanded(child: Text(context.l10n.t(emptyText))),
             ],
           ),
         ),
@@ -819,7 +820,7 @@ class _AccessCard extends StatelessWidget {
           children: [
             const Icon(Icons.lock_outline),
             const SizedBox(width: 10),
-            Expanded(child: Text(message)),
+            Expanded(child: Text(context.l10n.t(message))),
           ],
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/tokens/colors.dart';
@@ -178,21 +179,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Request Leave'),
+          title: Text(context.tr('Request Leave')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String?>(
                   initialValue: selectedSessionId,
-                  decoration: const InputDecoration(
-                    labelText: 'Session',
-                    prefixIcon: Icon(Icons.event),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Session'),
+                    prefixIcon: const Icon(Icons.event),
                   ),
                   items: [
-                    const DropdownMenuItem<String?>(
+                    DropdownMenuItem<String?>(
                       value: null,
-                      child: Text('General leave request'),
+                      child: Text(context.tr('General leave request')),
                     ),
                     for (final item in _attendanceItems.take(30))
                       DropdownMenuItem<String?>(
@@ -209,8 +210,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: reasonController,
-                  decoration: const InputDecoration(
-                    labelText: 'Reason',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Reason'),
                     alignLabelWithHint: true,
                   ),
                   minLines: 3,
@@ -222,12 +223,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             FilledButton.icon(
               onPressed: () => Navigator.pop(ctx, true),
               icon: const Icon(Icons.send),
-              label: const Text('Send'),
+              label: Text(context.tr('Send')),
             ),
           ],
         ),
@@ -249,9 +250,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
       );
       await _loadStudentLearning();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Leave request sent.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('Leave request sent.'))),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -275,8 +276,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
             children: [
               TextField(
                 controller: textController,
-                decoration: const InputDecoration(
-                  labelText: 'Answer / notes',
+                decoration: InputDecoration(
+                  labelText: context.tr('Answer / notes'),
                   alignLabelWithHint: true,
                 ),
                 minLines: 4,
@@ -285,9 +286,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
               const SizedBox(height: 12),
               TextField(
                 controller: attachmentController,
-                decoration: const InputDecoration(
-                  labelText: 'Attachment URL',
-                  prefixIcon: Icon(Icons.link),
+                decoration: InputDecoration(
+                  labelText: context.tr('Attachment URL'),
+                  prefixIcon: const Icon(Icons.link),
                 ),
                 keyboardType: TextInputType.url,
               ),
@@ -297,12 +298,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
             icon: const Icon(Icons.upload_file),
-            label: const Text('Submit'),
+            label: Text(context.tr('Submit')),
           ),
         ],
       ),
@@ -326,9 +327,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
       );
       await _loadStudentLearning();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Homework submitted.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('Homework submitted.'))),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -2061,7 +2062,7 @@ class _InlineNotice extends StatelessWidget {
           children: [
             Icon(icon, color: color),
             const SizedBox(width: 10),
-            Expanded(child: Text(text)),
+            Expanded(child: Text(context.l10n.t(text))),
           ],
         ),
       ),
@@ -2084,7 +2085,7 @@ class _InlineEmptyState extends StatelessWidget {
           children: [
             Icon(icon, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 10),
-            Expanded(child: Text(text)),
+            Expanded(child: Text(context.l10n.t(text))),
           ],
         ),
       ),
@@ -2190,8 +2191,10 @@ class _HeroPanel extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Your learning workspace opens only from published lessons assigned to your active groups.',
+              Text(
+                context.tr(
+                  'Your learning workspace opens only from published lessons assigned to your active groups.',
+                ),
                 style: TextStyle(color: Colors.white),
               ),
               const SizedBox(height: 18),
@@ -2203,7 +2206,11 @@ class _HeroPanel extends StatelessWidget {
                 onPressed: onOpenWorkspace,
                 icon: const Icon(Icons.play_arrow),
                 label: Text(
-                  onOpenWorkspace == null ? 'No lesson ready' : 'Resume lesson',
+                  context.tr(
+                    onOpenWorkspace == null
+                        ? 'No lesson ready'
+                        : 'Resume lesson',
+                  ),
                 ),
               ),
             ],
@@ -2260,17 +2267,19 @@ class _HeroProgressCard extends StatelessWidget {
           if (isLoading)
             const LinearProgressIndicator()
           else if (lesson == null) ...[
-            const Text(
-              'No published lesson is available.',
-              style: TextStyle(
+            Text(
+              context.tr('No published lesson is available.'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Enroll the student and publish curriculum content to start.',
-              style: TextStyle(color: Colors.white),
+            Text(
+              context.tr(
+                'Enroll the student and publish curriculum content to start.',
+              ),
+              style: const TextStyle(color: Colors.white),
             ),
           ] else ...[
             if (gamification != null) ...[
@@ -2610,8 +2619,12 @@ class _NoPublishedContentState extends StatelessWidget {
             Expanded(
               child: Text(
                 hasEnrollment
-                    ? 'You are enrolled, but no published lessons are available yet.'
-                    : 'You are not enrolled in any active group yet.',
+                    ? context.tr(
+                        'You are enrolled, but no published lessons are available yet.',
+                      )
+                    : context.tr(
+                        'You are not enrolled in any active group yet.',
+                      ),
               ),
             ),
           ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../domain/models/assessment_models.dart';
 
 class QuestionBankWidget extends StatelessWidget {
@@ -18,10 +19,10 @@ class QuestionBankWidget extends StatelessWidget {
     }
 
     if (questions.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('No questions found in Question Bank.'),
+          padding: const EdgeInsets.all(32),
+          child: Text(context.tr('No questions found in Question Bank.')),
         ),
       );
     }
@@ -49,10 +50,10 @@ class QuestionBankWidget extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              'Type: ${q.questionType.name.toUpperCase()} | Points: ${q.defaultPoints} | Difficulty: ${q.difficulty}',
+              '${context.tr('Type')}: ${context.tr(q.questionType.name)} | ${context.tr('Points')}: ${q.defaultPoints} | ${context.tr('Difficulty')}: ${context.tr(q.difficulty)}',
             ),
             trailing: Chip(
-              label: Text('${q.options.length} options'),
+              label: Text('${q.options.length} ${context.tr('options')}'),
               backgroundColor: Colors.grey.shade200,
             ),
           ),
@@ -79,10 +80,10 @@ class HomeworkListWidget extends StatelessWidget {
     }
 
     if (homeworkList.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('No assigned homework found.'),
+          padding: const EdgeInsets.all(32),
+          child: Text(context.tr('No assigned homework found.')),
         ),
       );
     }
@@ -100,10 +101,10 @@ class HomeworkListWidget extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              'Due: ${hw.dueAt.toLocal().toString().split(' ')[0]} | Max Score: ${hw.maxScore}',
+              '${context.tr('Due')}: ${hw.dueAt.toLocal().toString().split(' ')[0]} | ${context.tr('Max Score')}: ${hw.maxScore}',
             ),
             trailing: Chip(
-              label: Text(hw.status.toUpperCase()),
+              label: Text(context.l10n.t(hw.status).toUpperCase()),
               backgroundColor: Colors.blue.shade100,
             ),
           ),
@@ -132,10 +133,10 @@ class ExamListWidget extends StatelessWidget {
     }
 
     if (exams.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('No available exams found.'),
+          padding: const EdgeInsets.all(32),
+          child: Text(context.tr('No available exams found.')),
         ),
       );
     }
@@ -157,11 +158,11 @@ class ExamListWidget extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              'Duration: ${exam.durationMinutes} min | Questions: ${exam.questions.length}',
+              '${context.tr('Duration')}: ${exam.durationMinutes} ${context.tr('min')} | ${context.tr('Questions')}: ${exam.questions.length}',
             ),
             trailing: ElevatedButton.icon(
               icon: const Icon(Icons.play_arrow),
-              label: const Text('Start'),
+              label: Text(context.tr('Start')),
               onPressed: onStartExam != null ? () => onStartExam!(exam) : null,
             ),
           ),
@@ -201,8 +202,8 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
     if (questions.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: Text(exam.title)),
-        body: const Center(
-          child: Text('No questions configured for this exam.'),
+        body: Center(
+          child: Text(context.tr('No questions configured for this exam.')),
         ),
       );
     }
@@ -242,15 +243,19 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Question ${_currentQuestionIndex + 1} of ${questions.length}',
+                  '${context.tr('Question')} ${_currentQuestionIndex + 1} ${context.tr('of')} ${questions.length}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Chip(
-                  avatar: Icon(Icons.cloud_done, size: 16, color: Colors.green),
-                  label: Text('Autosaved'),
+                Chip(
+                  avatar: const Icon(
+                    Icons.cloud_done,
+                    size: 16,
+                    color: Colors.green,
+                  ),
+                  label: Text(context.tr('Autosaved')),
                 ),
               ],
             ),
@@ -293,17 +298,17 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
                   onPressed: _currentQuestionIndex > 0
                       ? () => setState(() => _currentQuestionIndex--)
                       : null,
-                  child: const Text('Previous'),
+                  child: Text(context.tr('Previous')),
                 ),
                 if (_currentQuestionIndex < questions.length - 1)
                   ElevatedButton(
                     onPressed: () => setState(() => _currentQuestionIndex++),
-                    child: const Text('Next'),
+                    child: Text(context.tr('Next')),
                   )
                 else
                   ElevatedButton.icon(
                     icon: const Icon(Icons.check),
-                    label: const Text('Submit Exam'),
+                    label: Text(context.tr('Submit Exam')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,

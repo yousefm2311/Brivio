@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 
@@ -78,12 +79,15 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
         ],
         child: Column(
           children: [
-            const TabBar(
+            TabBar(
               tabs: [
-                Tab(icon: Icon(Icons.security), text: 'Permissions Catalog'),
                 Tab(
-                  icon: Icon(Icons.admin_panel_settings),
-                  text: 'System Roles',
+                  icon: const Icon(Icons.security),
+                  text: context.tr('Permissions Catalog'),
+                ),
+                Tab(
+                  icon: const Icon(Icons.admin_panel_settings),
+                  text: context.tr('System Roles'),
                 ),
               ],
             ),
@@ -100,8 +104,10 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
                 child: TabBarView(
                   children: [
                     _permissions.isEmpty
-                        ? const Center(
-                            child: Text('No system permissions found.'),
+                        ? Center(
+                            child: Text(
+                              context.tr('No system permissions found.'),
+                            ),
                           )
                         : ListView.separated(
                             padding: EdgeInsets.zero,
@@ -116,15 +122,19 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
                                 title:
                                     p['code'] as String? ?? 'permission.code',
                                 subtitle:
-                                    'Module: ${(p['module'] as String? ?? "core").toUpperCase()} | Action: ${p['action']}',
-                                trailing: const [
-                                  PortalStatusChip(status: 'enforced'),
+                                    '${context.tr('Module')}: ${(p['module'] as String? ?? "core").toUpperCase()} | ${context.tr('Action')}: ${p['action']}',
+                                trailing: [
+                                  PortalStatusChip(
+                                    status: context.tr('enforced'),
+                                  ),
                                 ],
                               );
                             },
                           ),
                     _roles.isEmpty
-                        ? const Center(child: Text('No system roles found.'))
+                        ? Center(
+                            child: Text(context.tr('No system roles found.')),
+                          )
                         : ListView.separated(
                             padding: EdgeInsets.zero,
                             itemCount: _roles.length,
@@ -139,7 +149,7 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
                                     .toUpperCase(),
                                 subtitle:
                                     (r['description'] as String?) ??
-                                    'System Role',
+                                    context.tr('System Role'),
                                 trailing: const [
                                   Icon(
                                     Icons.verified_user,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../../domain/models/announcement.dart';
 import '../viewmodels/announcement_management_viewmodel.dart';
 
@@ -39,24 +41,30 @@ class _AnnouncementManagementScreenState
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              title: const Text('Create Announcement'),
+              title: Text(context.tr('Create Announcement')),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
                       controller: _titleController,
-                      decoration: const InputDecoration(labelText: 'Title'),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Title'),
+                      ),
                     ),
                     TextField(
                       controller: _bodyController,
-                      decoration: const InputDecoration(labelText: 'Body'),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Body'),
+                      ),
                       maxLines: 3,
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<AnnouncementPriority>(
                       initialValue: _priority,
-                      decoration: const InputDecoration(labelText: 'Priority'),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Priority'),
+                      ),
                       items: AnnouncementPriority.values
                           .map(
                             (p) => DropdownMenuItem(
@@ -70,7 +78,7 @@ class _AnnouncementManagementScreenState
                       },
                     ),
                     SwitchListTile(
-                      title: const Text('Requires Acknowledgement'),
+                      title: Text(context.tr('Requires Acknowledgement')),
                       value: _requiresAck,
                       onChanged: (val) =>
                           setStateDialog(() => _requiresAck = val),
@@ -81,7 +89,7 @@ class _AnnouncementManagementScreenState
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: Text(context.tr('Cancel')),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -112,7 +120,7 @@ class _AnnouncementManagementScreenState
                       nav.pop();
                     }
                   },
-                  child: const Text('Save Draft'),
+                  child: Text(context.tr('Save Draft')),
                 ),
               ],
             );
@@ -130,7 +138,7 @@ class _AnnouncementManagementScreenState
         final vm = widget.viewModel;
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Announcement Management')),
+          appBar: AppBar(title: Text(context.tr('Announcement Management'))),
           floatingActionButton: FloatingActionButton(
             onPressed: _showCreateDialog,
             child: const Icon(Icons.add),
@@ -140,12 +148,12 @@ class _AnnouncementManagementScreenState
               : vm.errorMessage != null
               ? Center(
                   child: Text(
-                    'Error: ${vm.errorMessage}',
+                    '${context.tr('Error')}: ${vm.errorMessage}',
                     style: const TextStyle(color: Colors.red),
                   ),
                 )
               : vm.adminAnnouncements.isEmpty
-              ? const Center(child: Text('No announcements found.'))
+              ? Center(child: Text(context.tr('No announcements found.')))
               : ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: vm.adminAnnouncements.length,
@@ -162,17 +170,17 @@ class _AnnouncementManagementScreenState
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
-                          '${ann.body}\nStatus: ${ann.status.name.toUpperCase()}',
+                          '${ann.body}\n${context.tr('Status')}: ${context.tr(ann.status.name)}',
                         ),
                         trailing: isDraft
                             ? ElevatedButton(
                                 onPressed: () => vm.publishAnnouncement(ann.id),
-                                child: const Text('Publish'),
+                                child: Text(context.tr('Publish')),
                               )
-                            : const Chip(
+                            : Chip(
                                 label: Text(
-                                  'PUBLISHED',
-                                  style: TextStyle(
+                                  context.tr('published'),
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 10,
                                   ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
@@ -95,7 +96,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     final messenger = ScaffoldMessenger.of(context);
     if (roster.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('No enrolled students in this group.')),
+        SnackBar(
+          content: Text(context.tr('No enrolled students in this group.')),
+        ),
       );
       return;
     }
@@ -108,7 +111,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text('Roll Call: ${session.location ?? "Session"}'),
+          title: Text(
+            '${context.tr('Roll Call')}: ${session.location ?? context.tr('Session')}',
+          ),
           content: SizedBox(
             width: 520,
             child: ListView.builder(
@@ -138,7 +143,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -160,16 +165,20 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   await _loadGroupsAndSessions();
                   if (!mounted) return;
                   messenger.showSnackBar(
-                    const SnackBar(content: Text('Attendance finalized.')),
+                    SnackBar(
+                      content: Text(context.tr('Attendance finalized.')),
+                    ),
                   );
                 } catch (e) {
                   if (!mounted) return;
                   messenger.showSnackBar(
-                    SnackBar(content: Text('Finalization error: $e')),
+                    SnackBar(
+                      content: Text('${context.tr('Finalization error')}: $e'),
+                    ),
                   );
                 }
               },
-              child: const Text('Finalize'),
+              child: Text(context.tr('Finalize')),
             ),
           ],
         ),
@@ -191,7 +200,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Teacher Daily Attendance Workspace'),
+        title: Text(context.tr('Teacher Daily Attendance Workspace')),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -221,11 +230,11 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       );
     }
     if (_selectedGroup == null) {
-      return const Center(child: Text('No assigned groups found.'));
+      return Center(child: Text(context.tr('No assigned groups found.')));
     }
     if (_sessions.isEmpty) {
-      return const Center(
-        child: Text('No active class sessions for this group.'),
+      return Center(
+        child: Text(context.tr('No active class sessions for this group.')),
       );
     }
 
@@ -247,18 +256,18 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             ),
           ),
           title: Text(
-            'Session: ${session.location ?? "Main Hall"}',
+            '${context.tr('Session')}: ${session.location ?? context.tr('Main Hall')}',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           subtitle: Text(
-            'Date: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day} | Status: ${session.status.name.toUpperCase()}',
+            '${context.tr('Date')}: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day} | ${context.tr('Status')}: ${context.tr(session.status.name)}',
           ),
           trailing: Wrap(
             spacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               IconButton.filledTonal(
-                tooltip: 'Open session board',
+                tooltip: context.tr('Open session board'),
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -273,16 +282,16 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               ),
               if (!isFinalized)
                 IconButton.filledTonal(
-                  tooltip: 'Show rotating attendance QR',
+                  tooltip: context.tr('Show rotating attendance QR'),
                   onPressed: () => _openQrAttendance(session),
                   icon: const Icon(Icons.qr_code_2),
                 ),
               if (isFinalized)
-                const Chip(label: Text('FINALIZED'))
+                Chip(label: Text(context.tr('FINALIZED')))
               else
                 ElevatedButton(
                   onPressed: () => _openRollCall(session),
-                  child: const Text('Take Attendance'),
+                  child: Text(context.tr('Take Attendance')),
                 ),
             ],
           ),
@@ -372,18 +381,20 @@ class _TeacherAttendanceQrDialogState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Finalize QR attendance?'),
-        content: const Text(
-          'Students who did not scan the QR will be marked absent and this session will be completed.',
+        title: Text(context.tr('Finalize QR attendance?')),
+        content: Text(
+          context.tr(
+            'Students who did not scan the QR will be marked absent and this session will be completed.',
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Finalize'),
+            child: Text(context.tr('Finalize')),
           ),
         ],
       ),
@@ -404,8 +415,8 @@ class _TeacherAttendanceQrDialogState
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            'Attendance finalized: ${json['present_count'] ?? 0} present, '
-            '${json['late_count'] ?? 0} late, ${json['absent_count'] ?? 0} absent.',
+            '${context.tr('Attendance finalized')}: ${json['present_count'] ?? 0} ${context.tr('present')}, '
+            '${json['late_count'] ?? 0} ${context.tr('late')}, ${json['absent_count'] ?? 0} ${context.tr('absent')}.',
           ),
         ),
       );
@@ -413,7 +424,7 @@ class _TeacherAttendanceQrDialogState
       if (!mounted) return;
       setState(() => _isFinalizing = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('Finalization failed: $e')),
+        SnackBar(content: Text('${context.tr('Finalization failed')}: $e')),
       );
     }
   }
@@ -433,14 +444,16 @@ class _TeacherAttendanceQrDialogState
         .length;
 
     return AlertDialog(
-      title: const Text('Attendance QR'),
+      title: Text(context.tr('Attendance QR')),
       content: SizedBox(
         width: 420,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Students scan this QR to mark themselves present. It rotates every minute.',
+              context.tr(
+                'Students scan this QR to mark themselves present. It rotates every minute.',
+              ),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -475,8 +488,8 @@ class _TeacherAttendanceQrDialogState
             const SizedBox(height: 12),
             Text(
               secondsLeft == null
-                  ? 'Waiting for token'
-                  : 'Expires in ${secondsLeft}s',
+                  ? context.tr('Waiting for token')
+                  : '${context.tr('Expires in')} ${secondsLeft}s',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
@@ -493,7 +506,7 @@ class _TeacherAttendanceQrDialogState
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 180),
               child: _roster.isEmpty
-                  ? const Center(child: Text('Roster will appear here.'))
+                  ? Center(child: Text(context.tr('Roster will appear here.')))
                   : ListView.separated(
                       shrinkWrap: true,
                       itemCount: _roster.length,
@@ -515,9 +528,9 @@ class _TeacherAttendanceQrDialogState
                           subtitle: Text(
                             item.checkInAt == null
                                 ? item.studentCode
-                                : '${item.studentCode} | ${_formatQrTime(item.checkInAt!)} | ${item.markedByQr ? "QR" : "Manual"}',
+                                : '${item.studentCode} | ${_formatQrTime(item.checkInAt!)} | ${item.markedByQr ? "QR" : context.tr("Manual")}',
                           ),
-                          trailing: Text(item.status.toUpperCase()),
+                          trailing: Text(context.tr(item.status)),
                         );
                       },
                     ),
@@ -528,7 +541,7 @@ class _TeacherAttendanceQrDialogState
       actions: [
         TextButton(
           onPressed: _isFinalizing ? null : () => Navigator.pop(context),
-          child: const Text('Close'),
+          child: Text(context.tr('Close')),
         ),
         OutlinedButton.icon(
           onPressed: _isFinalizing ? null : _finalizeAttendance,
@@ -539,12 +552,12 @@ class _TeacherAttendanceQrDialogState
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.done_all),
-          label: const Text('Finalize Attendance'),
+          label: Text(context.tr('Finalize Attendance')),
         ),
         FilledButton.icon(
           onPressed: _isFinalizing ? null : _refreshQrWorkspace,
           icon: const Icon(Icons.refresh),
-          label: const Text('Refresh'),
+          label: Text(context.tr('Refresh')),
         ),
       ],
     );
@@ -608,9 +621,9 @@ class _GroupPicker extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: DropdownButtonFormField<GroupEntity>(
         initialValue: selectedGroup,
-        decoration: const InputDecoration(
-          labelText: 'Assigned group',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: context.tr('Assigned group'),
+          border: const OutlineInputBorder(),
         ),
         items: groups
             .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))
@@ -637,7 +650,10 @@ class _ErrorState extends StatelessWidget {
           children: [
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: Text(context.tr('Retry')),
+            ),
           ],
         ),
       ),

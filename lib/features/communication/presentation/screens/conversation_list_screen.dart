@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../viewmodels/conversation_list_viewmodel.dart';
 import 'chat_thread_screen.dart';
 
@@ -27,13 +29,15 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Conversations'),
+            title: Text(context.tr('Conversations')),
             actions: [
               if (vm.totalUnreadCount > 0)
                 Padding(
                   padding: const EdgeInsets.only(right: 16.0),
                   child: Chip(
-                    label: Text('${vm.totalUnreadCount} Unread'),
+                    label: Text(
+                      '${vm.totalUnreadCount} ${context.tr('Unread')}',
+                    ),
                     backgroundColor: Colors.blue.shade100,
                   ),
                 ),
@@ -47,22 +51,22 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Error: ${vm.errorMessage}',
+                        '${context.tr('Error')}: ${vm.errorMessage}',
                         style: const TextStyle(color: Colors.red),
                       ),
                       const SizedBox(height: 8),
                       ElevatedButton(
                         onPressed: vm.loadConversations,
-                        child: const Text('Retry'),
+                        child: Text(context.tr('Retry')),
                       ),
                     ],
                   ),
                 )
               : vm.conversations.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
-                    'No active conversations.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    context.tr('No active conversations.'),
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 )
               : RefreshIndicator(
@@ -77,8 +81,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                       final displayTitle =
                           conv.title ??
                           (conv.members.isNotEmpty
-                              ? conv.members.first.userFullName ?? 'Direct Chat'
-                              : 'Conversation');
+                              ? conv.members.first.userFullName ??
+                                    context.tr('Direct Chat')
+                              : context.tr('Conversation'));
 
                       return ListTile(
                         leading: CircleAvatar(
@@ -95,7 +100,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
-                          conv.lastMessageText ?? 'No messages yet',
+                          conv.lastMessageText ?? context.tr('No messages yet'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

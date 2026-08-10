@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -68,30 +70,32 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Create New Branch'),
+        title: Text(context.tr('Create New Branch')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Branch Name (e.g. Nasr City)',
+                decoration: InputDecoration(
+                  labelText: context.tr('Branch Name (e.g. Nasr City)'),
                 ),
               ),
               TextField(
                 controller: codeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Branch Code (e.g. NASR-01)',
+                decoration: InputDecoration(
+                  labelText: context.tr('Branch Code (e.g. NASR-01)'),
                 ),
               ),
               TextField(
                 controller: addrCtrl,
-                decoration: const InputDecoration(labelText: 'Address'),
+                decoration: InputDecoration(labelText: context.tr('Address')),
               ),
               TextField(
                 controller: phoneCtrl,
-                decoration: const InputDecoration(labelText: 'Phone Number'),
+                decoration: InputDecoration(
+                  labelText: context.tr('Phone Number'),
+                ),
               ),
             ],
           ),
@@ -99,7 +103,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -130,14 +134,16 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Failed to create branch: $e'),
+                      content: Text(
+                        '${context.tr('Failed to create branch')}: $e',
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: const Text('Create Branch'),
+            child: Text(context.tr('Create Branch')),
           ),
         ],
       ),
@@ -155,35 +161,44 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text('Edit Branch (${branch.code})'),
+          title: Text('${context.tr('Edit Branch')} (${branch.code})'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Branch Name'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Branch Name'),
+                  ),
                 ),
                 TextField(
                   controller: codeCtrl,
-                  decoration: const InputDecoration(labelText: 'Branch Code'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Branch Code'),
+                  ),
                 ),
                 TextField(
                   controller: addrCtrl,
-                  decoration: const InputDecoration(labelText: 'Address'),
+                  decoration: InputDecoration(labelText: context.tr('Address')),
                 ),
                 TextField(
                   controller: phoneCtrl,
-                  decoration: const InputDecoration(labelText: 'Phone Number'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Phone Number'),
+                  ),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: status,
-                  decoration: const InputDecoration(labelText: 'Status'),
-                  items: const [
-                    DropdownMenuItem(value: 'active', child: Text('Active')),
+                  decoration: InputDecoration(labelText: context.tr('Status')),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'active',
+                      child: Text(context.tr('active')),
+                    ),
                     DropdownMenuItem(
                       value: 'archived',
-                      child: Text('Archived'),
+                      child: Text(context.tr('archived')),
                     ),
                   ],
                   onChanged: (v) {
@@ -196,7 +211,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -225,8 +240,10 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                   _loadBranches();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Branch updated successfully!'),
+                      SnackBar(
+                        content: Text(
+                          context.tr('Branch updated successfully!'),
+                        ),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -235,14 +252,16 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Failed to update branch: $e'),
+                        content: Text(
+                          '${context.tr('Failed to update branch')}: $e',
+                        ),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: const Text('Save Changes'),
+              child: Text(context.tr('Save Changes')),
             ),
           ],
         ),

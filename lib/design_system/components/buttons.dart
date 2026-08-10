@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/localization/app_localizations.dart';
 import '../tokens/colors.dart';
 import '../tokens/typography.dart';
 
@@ -62,7 +63,10 @@ class PrimaryButton extends StatelessWidget {
                     Icon(icon, color: Colors.white, size: 20),
                     const SizedBox(width: 8),
                   ],
-                  Text(text, style: AppTypography.labelLarge(Colors.white)),
+                  Text(
+                    context.l10n.t(text),
+                    style: AppTypography.labelLarge(Colors.white),
+                  ),
                 ],
               ),
       ),

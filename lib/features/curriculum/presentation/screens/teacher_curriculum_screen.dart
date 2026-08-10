@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
@@ -146,23 +148,33 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text('Create Lesson in ${unit.name}'),
+            title: Text('${context.tr('Create Lesson in')} ${unit.name}'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: titleCtrl,
-                  decoration: const InputDecoration(labelText: 'Lesson Title'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Lesson Title'),
+                  ),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: lessonTypeStr,
-                  decoration: const InputDecoration(labelText: 'Lesson Type'),
-                  items: const [
-                    DropdownMenuItem(value: 'video', child: Text('Video')),
-                    DropdownMenuItem(value: 'pdf', child: Text('PDF')),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Lesson Type'),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'video',
+                      child: Text(context.tr('Video')),
+                    ),
+                    DropdownMenuItem(
+                      value: 'pdf',
+                      child: Text(context.tr('PDF')),
+                    ),
                     DropdownMenuItem(
                       value: 'quiz',
-                      child: Text('Interactive Quiz'),
+                      child: Text(context.tr('Interactive Quiz')),
                     ),
                   ],
                   onChanged: (v) {
@@ -174,7 +186,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(context.tr('Cancel')),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -197,14 +209,16 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Failed to create lesson: $e'),
+                          content: Text(
+                            '${context.tr('Failed to create lesson')}: $e',
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Create Lesson'),
+                child: Text(context.tr('Create Lesson')),
               ),
             ],
           );
@@ -225,13 +239,15 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text('Upload PDF (${lesson.title})'),
+          title: Text('${context.tr('Upload PDF')} (${lesson.title})'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'Resource Title'),
+                decoration: InputDecoration(
+                  labelText: context.tr('Resource Title'),
+                ),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
@@ -256,13 +272,13 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                         });
                       },
                 icon: const Icon(Icons.picture_as_pdf),
-                label: const Text('Choose PDF'),
+                label: Text(context.tr('Choose PDF')),
               ),
               const SizedBox(height: 8),
               Text(
                 selectedFile == null
-                    ? 'No PDF selected.'
-                    : 'Selected: ${selectedFile!.name}',
+                    ? context.tr('No PDF selected.')
+                    : '${context.tr('Selected')}: ${selectedFile!.name}',
                 textAlign: TextAlign.center,
               ),
               if (isUploading) ...[
@@ -274,11 +290,11 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
           actions: [
             TextButton(
               onPressed: isUploading ? null : () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton.icon(
               icon: const Icon(Icons.cloud_upload),
-              label: const Text('Upload & Attach'),
+              label: Text(context.tr('Upload & Attach')),
               onPressed: isUploading
                   ? null
                   : () async {
@@ -325,8 +341,10 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                         await _loadCurriculum();
                         if (mounted) {
                           messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('PDF uploaded and attached.'),
+                            SnackBar(
+                              content: Text(
+                                context.tr('PDF uploaded and attached.'),
+                              ),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -336,7 +354,9 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                         if (mounted) {
                           messenger.showSnackBar(
                             SnackBar(
-                              content: Text('Upload failed: $e'),
+                              content: Text(
+                                '${context.tr('Upload failed')}: $e',
+                              ),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -369,7 +389,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Academic Curriculum Hierarchy'),
+        title: Text(context.tr('Academic Curriculum Hierarchy')),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -385,13 +405,13 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Error: $_errorMessage',
+                    '${context.tr('Error')}: $_errorMessage',
                     style: const TextStyle(color: Colors.red),
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: _loadCurriculum,
-                    child: const Text('Retry'),
+                    child: Text(context.tr('Retry')),
                   ),
                 ],
               ),
@@ -404,9 +424,13 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                   selectedGroup: _selectedGroup,
                   onChanged: _selectGroup,
                 ),
-                const Expanded(
+                Expanded(
                   child: Center(
-                    child: Text('No semesters found for your taught subjects.'),
+                    child: Text(
+                      context.tr(
+                        'No semesters found for your taught subjects.',
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -436,7 +460,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            'Code: ${sem.code} | Units: ${sem.units.length}',
+                            '${context.tr('Code')}: ${sem.code} | ${context.tr('Units')}: ${sem.units.length}',
                           ),
                           children: sem.units.map((unit) {
                             return Padding(
@@ -453,7 +477,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                   ),
                                 ),
                                 subtitle: Text(
-                                  'Lessons: ${unit.lessons.length}',
+                                  '${context.tr('Lessons')}: ${unit.lessons.length}',
                                 ),
                                 trailing: IconButton(
                                   icon: const Icon(
@@ -462,7 +486,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                   ),
                                   onPressed: () =>
                                       _showCreateLessonDialog(unit),
-                                  tooltip: 'Add Lesson',
+                                  tooltip: context.tr('Add Lesson'),
                                 ),
                                 children: unit.lessons.map((lesson) {
                                   final isPublished =
@@ -475,7 +499,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                     ),
                                     title: Text(lesson.title),
                                     subtitle: Text(
-                                      'Type: ${lesson.lessonType.name.toUpperCase()} | Status: ${lesson.status.name.toUpperCase()}',
+                                      '${context.tr('Type')}: ${context.tr(lesson.lessonType.name)} | ${context.tr('Status')}: ${context.tr(lesson.status.name)}',
                                     ),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -487,7 +511,9 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                           ),
                                           onPressed: () =>
                                               _showUploadResourceDialog(lesson),
-                                          tooltip: 'Upload Resource',
+                                          tooltip: context.tr(
+                                            'Upload Resource',
+                                          ),
                                         ),
                                         IconButton(
                                           icon: const Icon(
@@ -496,7 +522,9 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                           ),
                                           onPressed: () =>
                                               _showCodeChallengesDialog(lesson),
-                                          tooltip: 'Code Challenges',
+                                          tooltip: context.tr(
+                                            'Code Challenges',
+                                          ),
                                         ),
                                         IconButton(
                                           icon: Icon(
@@ -513,7 +541,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                             );
                                             _loadCurriculum();
                                           },
-                                          tooltip: 'Toggle Publish',
+                                          tooltip: context.tr('Toggle Publish'),
                                         ),
                                       ],
                                     ),
@@ -525,7 +553,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                         ),
                                         title: Text(res.title),
                                         subtitle: Text(
-                                          'Path: ${res.bucket}/${res.objectPath}',
+                                          '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
                                         ),
                                       );
                                     }).toList(),
@@ -698,7 +726,7 @@ class _LessonCodeChallengeDialogState
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Code Challenges - ${widget.lesson.title}'),
+      title: Text('${context.tr('Code Challenges')} - ${widget.lesson.title}'),
       content: SizedBox(
         width: 760,
         child: SingleChildScrollView(
@@ -712,13 +740,15 @@ class _LessonCodeChallengeDialogState
               ],
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Published challenges appear in the student code workspace.',
+                      context.tr(
+                        'Published challenges appear in the student code workspace.',
+                      ),
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Refresh',
+                    tooltip: context.tr('Refresh'),
                     onPressed: _isLoading ? null : _loadChallenges,
                     icon: const Icon(Icons.refresh),
                   ),
@@ -728,7 +758,7 @@ class _LessonCodeChallengeDialogState
               if (_isLoading)
                 const LinearProgressIndicator()
               else if (_challenges.isEmpty)
-                const Text('No challenges created for this lesson yet.')
+                Text(context.tr('No challenges created for this lesson yet.'))
               else
                 ..._challenges.map(
                   (challenge) => Card(
@@ -749,18 +779,18 @@ class _LessonCodeChallengeDialogState
                       ),
                       trailing: DropdownButton<String>(
                         value: challenge.status,
-                        items: const [
+                        items: [
                           DropdownMenuItem(
                             value: 'draft',
-                            child: Text('Draft'),
+                            child: Text(context.tr('draft')),
                           ),
                           DropdownMenuItem(
                             value: 'published',
-                            child: Text('Published'),
+                            child: Text(context.tr('published')),
                           ),
                           DropdownMenuItem(
                             value: 'archived',
-                            child: Text('Archived'),
+                            child: Text(context.tr('archived')),
                           ),
                         ],
                         onChanged: (value) {
@@ -774,17 +804,19 @@ class _LessonCodeChallengeDialogState
                   ),
                 ),
               const Divider(height: 28),
-              const Text(
-                'Create Challenge',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Text(
+                context.tr('Create Challenge'),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               TextField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: 'Title'),
+                decoration: InputDecoration(labelText: context.tr('Title')),
               ),
               TextField(
                 controller: _descriptionCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
+                decoration: InputDecoration(
+                  labelText: context.tr('Description'),
+                ),
                 maxLines: 3,
               ),
               const SizedBox(height: 8),
@@ -796,16 +828,22 @@ class _LessonCodeChallengeDialogState
                     width: 180,
                     child: DropdownButtonFormField<String>(
                       initialValue: _difficulty,
-                      decoration: const InputDecoration(
-                        labelText: 'Difficulty',
+                      decoration: InputDecoration(
+                        labelText: context.tr('Difficulty'),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'easy', child: Text('Easy')),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'easy',
+                          child: Text(context.tr('easy')),
+                        ),
                         DropdownMenuItem(
                           value: 'medium',
-                          child: Text('Medium'),
+                          child: Text(context.tr('medium')),
                         ),
-                        DropdownMenuItem(value: 'hard', child: Text('Hard')),
+                        DropdownMenuItem(
+                          value: 'hard',
+                          child: Text(context.tr('hard')),
+                        ),
                       ],
                       onChanged: (value) {
                         if (value != null) {
@@ -819,19 +857,24 @@ class _LessonCodeChallengeDialogState
                     child: TextField(
                       controller: _xpCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'XP'),
+                      decoration: InputDecoration(labelText: context.tr('XP')),
                     ),
                   ),
                   SizedBox(
                     width: 180,
                     child: DropdownButtonFormField<String>(
                       initialValue: _status,
-                      decoration: const InputDecoration(labelText: 'Status'),
-                      items: const [
-                        DropdownMenuItem(value: 'draft', child: Text('Draft')),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Status'),
+                      ),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'draft',
+                          child: Text(context.tr('draft')),
+                        ),
                         DropdownMenuItem(
                           value: 'published',
-                          child: Text('Published'),
+                          child: Text(context.tr('published')),
                         ),
                       ],
                       onChanged: (value) {
@@ -861,7 +904,7 @@ class _LessonCodeChallengeDialogState
                   onPressed: () =>
                       setState(() => _caseDrafts.add(_ChallengeCaseDraft())),
                   icon: const Icon(Icons.add),
-                  label: const Text('Add Test Case'),
+                  label: Text(context.tr('Add Test Case')),
                 ),
               ),
             ],
@@ -871,7 +914,7 @@ class _LessonCodeChallengeDialogState
       actions: [
         TextButton(
           onPressed: _isSaving ? null : () => Navigator.pop(context),
-          child: const Text('Close'),
+          child: Text(context.tr('Close')),
         ),
         ElevatedButton.icon(
           onPressed: _isSaving ? null : _createChallenge,
@@ -882,7 +925,7 @@ class _LessonCodeChallengeDialogState
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.save),
-          label: const Text('Create Challenge'),
+          label: Text(context.tr('Create Challenge')),
         ),
       ],
     );
@@ -916,7 +959,7 @@ class _ChallengeCaseEditor extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Test Case ${index + 1}',
+                    '${context.tr('Test Case')} ${index + 1}',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -927,7 +970,7 @@ class _ChallengeCaseEditor extends StatelessWidget {
                     onChanged();
                   },
                 ),
-                const Text('Hidden'),
+                Text(context.tr('Hidden')),
                 IconButton(
                   onPressed: canRemove ? onRemove : null,
                   icon: const Icon(Icons.delete_outline),
@@ -936,17 +979,19 @@ class _ChallengeCaseEditor extends StatelessWidget {
             ),
             TextField(
               controller: draft.nameCtrl,
-              decoration: const InputDecoration(labelText: 'Case Name'),
+              decoration: InputDecoration(labelText: context.tr('Case Name')),
             ),
             TextField(
               controller: draft.stdinCtrl,
-              decoration: const InputDecoration(labelText: 'Input stdin'),
+              decoration: InputDecoration(labelText: context.tr('Input stdin')),
               minLines: 1,
               maxLines: 4,
             ),
             TextField(
               controller: draft.expectedCtrl,
-              decoration: const InputDecoration(labelText: 'Expected stdout'),
+              decoration: InputDecoration(
+                labelText: context.tr('Expected stdout'),
+              ),
               minLines: 1,
               maxLines: 4,
             ),
@@ -1023,9 +1068,9 @@ class _GroupPicker extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: DropdownButtonFormField<GroupEntity>(
         initialValue: selectedGroup,
-        decoration: const InputDecoration(
-          labelText: 'Assigned group',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: context.tr('Assigned group'),
+          border: const OutlineInputBorder(),
         ),
         items: groups
             .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))

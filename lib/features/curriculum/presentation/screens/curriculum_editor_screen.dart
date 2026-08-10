@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -111,7 +113,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     final selectedSubject = _selectedSubject;
     if (selectedSubject == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Create an active subject first.')),
+        SnackBar(content: Text(context.tr('Create an active subject first.'))),
       );
       return;
     }
@@ -121,20 +123,20 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Create Semester'),
+        title: Text(context.tr('Create Semester')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Semester Name (e.g. Fall 2026)',
+              decoration: InputDecoration(
+                labelText: context.tr('Semester Name (e.g. Fall 2026)'),
               ),
             ),
             TextField(
               controller: codeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Semester Code (e.g. FALL-2026)',
+              decoration: InputDecoration(
+                labelText: context.tr('Semester Code (e.g. FALL-2026)'),
               ),
             ),
           ],
@@ -142,7 +144,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -170,14 +172,16 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Failed to create semester: $e'),
+                      content: Text(
+                        '${context.tr('Failed to create semester')}: $e',
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: const Text('Create'),
+            child: Text(context.tr('Create')),
           ),
         ],
       ),
@@ -191,20 +195,20 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Create Unit in ${semester.name}'),
+        title: Text('${context.tr('Create Unit in')} ${semester.name}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Unit Name (e.g. Unit 1: Algorithms)',
+              decoration: InputDecoration(
+                labelText: context.tr('Unit Name (e.g. Unit 1: Algorithms)'),
               ),
             ),
             TextField(
               controller: codeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Unit Code (e.g. U1-ALG)',
+              decoration: InputDecoration(
+                labelText: context.tr('Unit Code (e.g. U1-ALG)'),
               ),
             ),
           ],
@@ -212,7 +216,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -238,14 +242,16 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Failed to create unit: $e'),
+                      content: Text(
+                        '${context.tr('Failed to create unit')}: $e',
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: const Text('Create Unit'),
+            child: Text(context.tr('Create Unit')),
           ),
         ],
       ),
@@ -261,26 +267,33 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text('Create Lesson in ${unit.name}'),
+            title: Text('${context.tr('Create Lesson in')} ${unit.name}'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: titleCtrl,
-                  decoration: const InputDecoration(labelText: 'Lesson Title'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Lesson Title'),
+                  ),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: lessonTypeStr,
-                  decoration: const InputDecoration(labelText: 'Lesson Type'),
-                  items: const [
-                    DropdownMenuItem(value: 'video', child: Text('Video')),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Lesson Type'),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'video',
+                      child: Text(context.tr('Video')),
+                    ),
                     DropdownMenuItem(
                       value: 'pdf',
-                      child: Text('PDF / Document'),
+                      child: Text(context.tr('PDF / Document')),
                     ),
                     DropdownMenuItem(
                       value: 'quiz',
-                      child: Text('Interactive Quiz'),
+                      child: Text(context.tr('Interactive Quiz')),
                     ),
                   ],
                   onChanged: (v) {
@@ -292,7 +305,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(context.tr('Cancel')),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -315,14 +328,16 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Failed to create lesson: $e'),
+                          content: Text(
+                            '${context.tr('Failed to create lesson')}: $e',
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Create Lesson'),
+                child: Text(context.tr('Create Lesson')),
               ),
             ],
           );
@@ -340,19 +355,21 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Attach PDF Resource (${lesson.title})'),
+        title: Text('${context.tr('Attach PDF Resource')} (${lesson.title})'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Resource Title'),
+              decoration: InputDecoration(
+                labelText: context.tr('Resource Title'),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: objectPathCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Storage object path',
+              decoration: InputDecoration(
+                labelText: context.tr('Storage object path'),
                 hintText: 'lessons/<lesson-id>/lecture.pdf',
               ),
             ),
@@ -361,11 +378,11 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.cloud_upload),
-            label: const Text('Attach Resource'),
+            label: Text(context.tr('Attach Resource')),
             onPressed: () async {
               if (titleCtrl.text.trim().isEmpty ||
                   objectPathCtrl.text.trim().isEmpty) {
@@ -391,8 +408,8 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 _loadCurriculum();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('PDF resource attached!'),
+                    SnackBar(
+                      content: Text(context.tr('PDF resource attached!')),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -401,7 +418,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Upload failed: $e'),
+                      content: Text('${context.tr('Upload failed')}: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -450,7 +467,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: DropdownButtonFormField<SubjectEntity>(
                   initialValue: _selectedSubject,
-                  decoration: const InputDecoration(labelText: 'Subject'),
+                  decoration: InputDecoration(labelText: context.tr('Subject')),
                   items: _subjects
                       .map(
                         (s) => DropdownMenuItem(
@@ -468,11 +485,13 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
               ),
             Expanded(
               child: _selectedSubject == null
-                  ? const Center(child: Text('No active subjects found.'))
+                  ? Center(child: Text(context.tr('No active subjects found.')))
                   : _semesters.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'No semesters found. Add a semester to start.',
+                        context.tr(
+                          'No semesters found. Add a semester to start.',
+                        ),
                       ),
                     )
                   : ListView.builder(
@@ -495,7 +514,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                               ),
                             ),
                             subtitle: Text(
-                              'Code: ${sem.code} | Units: ${sem.units.length}',
+                              '${context.tr('Code')}: ${sem.code} | ${context.tr('Units')}: ${sem.units.length}',
                             ),
                             trailing: IconButton(
                               icon: const Icon(
@@ -503,7 +522,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                 color: Colors.blue,
                               ),
                               onPressed: () => _showCreateUnitDialog(sem),
-                              tooltip: 'Add Unit',
+                              tooltip: context.tr('Add Unit'),
                             ),
                             children: sem.units.map((unit) {
                               return Padding(
@@ -520,7 +539,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                     ),
                                   ),
                                   subtitle: Text(
-                                    'Lessons: ${unit.lessons.length}',
+                                    '${context.tr('Lessons')}: ${unit.lessons.length}',
                                   ),
                                   trailing: IconButton(
                                     icon: const Icon(
@@ -529,7 +548,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                     ),
                                     onPressed: () =>
                                         _showCreateLessonDialog(unit),
-                                    tooltip: 'Add Lesson',
+                                    tooltip: context.tr('Add Lesson'),
                                   ),
                                   children: unit.lessons.map((lesson) {
                                     final isPublished =
@@ -542,7 +561,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                       ),
                                       title: Text(lesson.title),
                                       subtitle: Text(
-                                        'Type: ${lesson.lessonType.name.toUpperCase()} | Status: ${lesson.status.name.toUpperCase()} | Attachments: ${lesson.resources.length}',
+                                        '${context.tr('Type')}: ${context.tr(lesson.lessonType.name)} | ${context.tr('Status')}: ${context.tr(lesson.status.name)} | ${context.tr('Attachments')}: ${lesson.resources.length}',
                                       ),
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -556,8 +575,9 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                                 _showUploadResourceDialog(
                                                   lesson,
                                                 ),
-                                            tooltip:
-                                                'Upload Private PDF Resource',
+                                            tooltip: context.tr(
+                                              'Upload Private PDF Resource',
+                                            ),
                                           ),
                                           IconButton(
                                             icon: Icon(
@@ -574,7 +594,9 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                               );
                                               _loadCurriculum();
                                             },
-                                            tooltip: 'Toggle Publish',
+                                            tooltip: context.tr(
+                                              'Toggle Publish',
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -586,7 +608,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                           ),
                                           title: Text(res.title),
                                           subtitle: Text(
-                                            'Path: ${res.bucket}/${res.objectPath}',
+                                            '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
                                           ),
                                         );
                                       }).toList(),

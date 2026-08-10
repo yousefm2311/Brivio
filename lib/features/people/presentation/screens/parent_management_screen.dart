@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -72,18 +73,20 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Provision New Parent Account'),
+        title: Text(context.tr('Provision New Parent Account')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Full Name'),
+                decoration: InputDecoration(labelText: context.tr('Full Name')),
               ),
               TextField(
                 controller: emailCtrl,
-                decoration: const InputDecoration(labelText: 'Email Address'),
+                decoration: InputDecoration(
+                  labelText: context.tr('Email Address'),
+                ),
                 keyboardType: TextInputType.emailAddress,
               ),
             ],
@@ -92,7 +95,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -141,7 +144,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                 }
               }
             },
-            child: const Text('Provision Parent'),
+            child: Text(context.tr('Provision Parent')),
           ),
         ],
       ),
@@ -165,8 +168,8 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
               if (_students.isNotEmpty)
                 DropdownButtonFormField<String>(
                   initialValue: selectedStudentId,
-                  decoration: const InputDecoration(
-                    labelText: 'Select Child / Student',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Select Child / Student'),
                   ),
                   items: _students
                       .map(
@@ -180,13 +183,22 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                 ),
               DropdownButtonFormField<String>(
                 initialValue: relationshipType,
-                decoration: const InputDecoration(
-                  labelText: 'Relationship Type',
+                decoration: InputDecoration(
+                  labelText: context.tr('Relationship Type'),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'father', child: Text('Father')),
-                  DropdownMenuItem(value: 'mother', child: Text('Mother')),
-                  DropdownMenuItem(value: 'guardian', child: Text('Guardian')),
+                items: [
+                  DropdownMenuItem(
+                    value: 'father',
+                    child: Text(context.tr('Father')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'mother',
+                    child: Text(context.tr('Mother')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'guardian',
+                    child: Text(context.tr('Guardian')),
+                  ),
                 ],
                 onChanged: (v) {
                   if (v != null) setStateDialog(() => relationshipType = v);
@@ -197,7 +209,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -230,7 +242,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                   }
                 }
               },
-              child: const Text('Link Child'),
+              child: Text(context.tr('Link Child')),
             ),
           ],
         ),
@@ -302,17 +314,17 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                     icon: Icons.family_restroom,
                     accentColor: AppColors.parentRole,
                     title: p.fullName,
-                    subtitle: 'Email: ${p.email}',
+                    subtitle: '${context.tr('Email')}: ${p.email}',
                     trailing: [
                       IconButton(
-                        tooltip: 'Login QR',
+                        tooltip: context.tr('Login QR'),
                         onPressed: () => _showLoginQr(p),
                         icon: const Icon(Icons.qr_code_2),
                       ),
                       FilledButton.icon(
                         onPressed: () => _showLinkStudentDialog(p),
                         icon: const Icon(Icons.link),
-                        label: const Text('Link Child'),
+                        label: Text(context.tr('Link Child')),
                       ),
                     ],
                   );

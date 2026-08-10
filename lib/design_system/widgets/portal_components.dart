@@ -676,14 +676,14 @@ class PortalListCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      context.l10n.t(title),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      subtitle,
+                      context.l10n.t(subtitle),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -725,7 +725,7 @@ class PortalStatusChip extends StatelessWidget {
     };
 
     return Chip(
-      label: Text(status.toUpperCase()),
+      label: Text(context.l10n.t(status).toUpperCase()),
       side: BorderSide(color: color.withValues(alpha: .3)),
       backgroundColor: color.withValues(alpha: .1),
       labelStyle: TextStyle(color: color, fontWeight: FontWeight.w800),

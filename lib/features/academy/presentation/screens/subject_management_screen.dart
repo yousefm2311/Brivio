@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -68,26 +70,30 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Create New Subject'),
+        title: Text(context.tr('Create New Subject')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Subject Name (e.g. Programming Fundamentals)',
+                decoration: InputDecoration(
+                  labelText: context.tr(
+                    'Subject Name (e.g. Programming Fundamentals)',
+                  ),
                 ),
               ),
               TextField(
                 controller: codeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Subject Code (e.g. CS-101)',
+                decoration: InputDecoration(
+                  labelText: context.tr('Subject Code (e.g. CS-101)'),
                 ),
               ),
               TextField(
                 controller: descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
+                decoration: InputDecoration(
+                  labelText: context.tr('Description'),
+                ),
                 maxLines: 2,
               ),
             ],
@@ -96,7 +102,7 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -124,14 +130,16 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Failed to create subject: $e'),
+                      content: Text(
+                        '${context.tr('Failed to create subject')}: $e',
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: const Text('Create Subject'),
+            child: Text(context.tr('Create Subject')),
           ),
         ],
       ),
@@ -148,32 +156,41 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text('Edit Subject (${subject.code})'),
+          title: Text('${context.tr('Edit Subject')} (${subject.code})'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Subject Name'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Subject Name'),
+                  ),
                 ),
                 TextField(
                   controller: codeCtrl,
-                  decoration: const InputDecoration(labelText: 'Subject Code'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Subject Code'),
+                  ),
                 ),
                 TextField(
                   controller: descCtrl,
-                  decoration: const InputDecoration(labelText: 'Description'),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Description'),
+                  ),
                   maxLines: 2,
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: status,
-                  decoration: const InputDecoration(labelText: 'Status'),
-                  items: const [
-                    DropdownMenuItem(value: 'active', child: Text('Active')),
+                  decoration: InputDecoration(labelText: context.tr('Status')),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'active',
+                      child: Text(context.tr('active')),
+                    ),
                     DropdownMenuItem(
                       value: 'archived',
-                      child: Text('Archived'),
+                      child: Text(context.tr('archived')),
                     ),
                   ],
                   onChanged: (v) {
@@ -186,7 +203,7 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -212,8 +229,10 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                   _loadSubjects();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Subject updated successfully!'),
+                      SnackBar(
+                        content: Text(
+                          context.tr('Subject updated successfully!'),
+                        ),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -222,14 +241,16 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Failed to update subject: $e'),
+                        content: Text(
+                          '${context.tr('Failed to update subject')}: $e',
+                        ),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: const Text('Save Changes'),
+              child: Text(context.tr('Save Changes')),
             ),
           ],
         ),

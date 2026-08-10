@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:xml/xml.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 
@@ -140,7 +141,7 @@ class _DataImportScreenState extends State<DataImportScreen> {
     Clipboard.setData(ClipboardData(text: template));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Template copied:\n$template'),
+        content: Text('${context.tr('Template copied')}:\n$template'),
         duration: const Duration(seconds: 5),
       ),
     );
@@ -191,15 +192,15 @@ class _DataImportScreenState extends State<DataImportScreen> {
                 width: 260,
                 child: DropdownButtonFormField<_ImportEntity>(
                   initialValue: _entity,
-                  decoration: const InputDecoration(
-                    labelText: 'Import type',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Import type'),
+                    border: const OutlineInputBorder(),
                   ),
                   items: _ImportEntity.values
                       .map(
                         (entity) => DropdownMenuItem(
                           value: entity,
-                          child: Text(entity.label),
+                          child: Text(context.tr(entity.label)),
                         ),
                       )
                       .toList(),
@@ -218,13 +219,19 @@ class _DataImportScreenState extends State<DataImportScreen> {
               ),
               _ImportPill(
                 icon: Icons.insert_drive_file,
-                text: _fileName ?? 'No file selected',
+                text: _fileName ?? context.tr('No file selected'),
               ),
-              _ImportPill(icon: Icons.check_circle, text: '$validCount valid'),
-              _ImportPill(icon: Icons.done_all, text: '$successCount done'),
+              _ImportPill(
+                icon: Icons.check_circle,
+                text: '$validCount ${context.tr('valid')}',
+              ),
+              _ImportPill(
+                icon: Icons.done_all,
+                text: '$successCount ${context.tr('done')}',
+              ),
               _ImportPill(
                 icon: Icons.error_outline,
-                text: '$failedCount issues',
+                text: '$failedCount ${context.tr('issues')}',
               ),
               FilledButton.icon(
                 onPressed: _isImporting || validCount == 0 ? null : _runImport,
@@ -235,7 +242,9 @@ class _DataImportScreenState extends State<DataImportScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.cloud_upload),
-                label: Text(_isImporting ? 'Importing' : 'Import valid rows'),
+                label: Text(
+                  context.tr(_isImporting ? 'Importing' : 'Import valid rows'),
+                ),
               ),
             ],
           ),
@@ -293,15 +302,19 @@ class _ImportEmptyState extends StatelessWidget {
                 const Icon(Icons.upload_file, size: 48),
                 const SizedBox(height: 12),
                 Text(
-                  'Choose a CSV or Excel file to preview before importing.',
+                  context.tr(
+                    'Choose a CSV or Excel file to preview before importing.',
+                  ),
                   style: Theme.of(context).textTheme.titleMedium,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 SelectableText(entity.template, textAlign: TextAlign.center),
                 const SizedBox(height: 8),
-                const Text(
-                  'The first worksheet is imported. Keep the first row as headers matching the template.',
+                Text(
+                  context.tr(
+                    'The first worksheet is imported. Keep the first row as headers matching the template.',
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -325,13 +338,13 @@ class _ImportPreviewTable extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: SingleChildScrollView(
           child: DataTable(
-            columns: const [
-              DataColumn(label: Text('Row')),
-              DataColumn(label: Text('Name')),
-              DataColumn(label: Text('Email')),
-              DataColumn(label: Text('Branch ID')),
-              DataColumn(label: Text('Status')),
-              DataColumn(label: Text('Message')),
+            columns: [
+              DataColumn(label: Text(context.tr('Row'))),
+              DataColumn(label: Text(context.tr('Name'))),
+              DataColumn(label: Text(context.tr('Email'))),
+              DataColumn(label: Text(context.tr('Branch ID'))),
+              DataColumn(label: Text(context.tr('Status'))),
+              DataColumn(label: Text(context.tr('Message'))),
             ],
             rows: rows
                 .map(
@@ -352,7 +365,7 @@ class _ImportPreviewTable extends StatelessWidget {
                               color: row.status.color,
                             ),
                             const SizedBox(width: 6),
-                            Text(row.status.label),
+                            Text(context.tr(row.status.label)),
                           ],
                         ),
                       ),
@@ -360,7 +373,7 @@ class _ImportPreviewTable extends StatelessWidget {
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 360),
                           child: Text(
-                            row.resultMessage,
+                            context.tr(row.resultMessage),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

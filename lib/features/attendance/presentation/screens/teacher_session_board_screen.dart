@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../attendance/domain/models/attendance_models.dart';
 
 class TeacherSessionBoardScreen extends StatefulWidget {
@@ -90,7 +91,7 @@ class _TeacherSessionBoardScreenState extends State<TeacherSessionBoardScreen> {
       });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Board saved.')));
+      ).showSnackBar(SnackBar(content: Text(context.tr('Board saved.'))));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -131,7 +132,7 @@ class _TeacherSessionBoardScreenState extends State<TeacherSessionBoardScreen> {
         : [..._strokes, _activeStroke!];
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Session Board'),
+        title: Text(context.tr('Session Board')),
         actions: [
           if (_isSaving)
             const Padding(
@@ -143,14 +144,14 @@ class _TeacherSessionBoardScreenState extends State<TeacherSessionBoardScreen> {
               ),
             ),
           IconButton(
-            tooltip: 'Save',
+            tooltip: context.tr('Save'),
             onPressed: _isSaving ? null : _saveBoard,
             icon: const Icon(Icons.save),
           ),
           FilledButton.icon(
             onPressed: _isSaving ? null : () => _saveBoard(publish: true),
             icon: const Icon(Icons.publish),
-            label: Text(_isPublished ? 'Published' : 'Publish'),
+            label: Text(context.tr(_isPublished ? 'Published' : 'Publish')),
           ),
           const SizedBox(width: 8),
         ],
@@ -167,11 +168,14 @@ class _TeacherSessionBoardScreenState extends State<TeacherSessionBoardScreen> {
                         isSelected: [_eraser == false, _eraser == true],
                         onPressed: (index) =>
                             setState(() => _eraser = index == 1),
-                        children: const [
-                          Tooltip(message: 'Pen', child: Icon(Icons.edit)),
+                        children: [
                           Tooltip(
-                            message: 'Eraser',
-                            child: Icon(Icons.cleaning_services),
+                            message: context.tr('Pen'),
+                            child: const Icon(Icons.edit),
+                          ),
+                          Tooltip(
+                            message: context.tr('Eraser'),
+                            child: const Icon(Icons.cleaning_services),
                           ),
                         ],
                       ),
@@ -193,7 +197,7 @@ class _TeacherSessionBoardScreenState extends State<TeacherSessionBoardScreen> {
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Clear',
+                        tooltip: context.tr('Clear'),
                         onPressed: () => setState(_strokes.clear),
                         icon: const Icon(Icons.delete_outline),
                       ),

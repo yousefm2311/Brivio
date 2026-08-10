@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../../domain/models/attendance_models.dart';
 
 class TodaySessionsWidget extends StatelessWidget {
@@ -20,10 +22,10 @@ class TodaySessionsWidget extends StatelessWidget {
     }
 
     if (sessions.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('No class sessions scheduled today.'),
+          padding: const EdgeInsets.all(32),
+          child: Text(context.tr('No class sessions scheduled today.')),
         ),
       );
     }
@@ -41,17 +43,17 @@ class TodaySessionsWidget extends StatelessWidget {
               size: 36,
             ),
             title: Text(
-              'Session: ${sess.sessionDate.toString().split(' ')[0]}',
+              '${context.tr('Session')}: ${sess.sessionDate.toString().split(' ')[0]}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              'Location: ${sess.location ?? "Main Hall"} | Status: ${sess.status.name.toUpperCase()}',
+              '${context.tr('Location')}: ${sess.location ?? context.tr('Main Hall')} | ${context.tr('Status')}: ${context.tr(sess.status.name)}',
             ),
             trailing: ElevatedButton(
               onPressed: onSessionSelected != null
                   ? () => onSessionSelected!(sess)
                   : null,
-              child: const Text('Roll Call'),
+              child: Text(context.tr('Roll Call')),
             ),
           ),
         );
@@ -96,12 +98,12 @@ class _AttendanceRosterScreenState extends State<AttendanceRosterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Roll Call - ${session.sessionDate.toString().split(' ')[0]}',
+          '${context.tr('Roll Call')} - ${session.sessionDate.toString().split(' ')[0]}',
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.done_all),
-            tooltip: 'Mark All Present',
+            tooltip: context.tr('Mark All Present'),
             onPressed: () {
               setState(() {
                 for (final r in widget.initialRecords) {
@@ -120,9 +122,9 @@ class _AttendanceRosterScreenState extends State<AttendanceRosterScreen> {
               color: Colors.deepPurple.shade50,
               child: ListTile(
                 leading: const Icon(Icons.class_, color: Colors.deepPurple),
-                title: Text('Group Session: ${session.id}'),
+                title: Text('${context.tr('Group Session')}: ${session.id}'),
                 subtitle: Text(
-                  'Status: ${session.status.name.toUpperCase()} | Location: ${session.location ?? "N/A"}',
+                  '${context.tr('Status')}: ${context.tr(session.status.name)} | ${context.tr('Location')}: ${session.location ?? context.tr("N/A")}',
                 ),
               ),
             ),
@@ -138,10 +140,10 @@ class _AttendanceRosterScreenState extends State<AttendanceRosterScreen> {
                   return Card(
                     child: ListTile(
                       title: Text(
-                        'Student ID: ${rec.studentId.substring(0, 8)}...',
+                        '${context.tr('Student ID')}: ${rec.studentId.substring(0, 8)}...',
                       ),
                       subtitle: Text(
-                        'Current: ${currentStatus.name.toUpperCase()}',
+                        '${context.tr('Current')}: ${context.tr(currentStatus.name)}',
                       ),
                       trailing: SegmentedButton<AttendanceStatus>(
                         segments: const [
@@ -179,7 +181,7 @@ class _AttendanceRosterScreenState extends State<AttendanceRosterScreen> {
               children: [
                 ElevatedButton.icon(
                   icon: const Icon(Icons.save),
-                  label: const Text('Save Roll Call'),
+                  label: Text(context.tr('Save Roll Call')),
                   onPressed: () {
                     if (widget.onSave != null) {
                       final items = _statuses.entries
@@ -196,7 +198,7 @@ class _AttendanceRosterScreenState extends State<AttendanceRosterScreen> {
                 ),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.check_circle),
-                  label: const Text('Finalize Roll Call'),
+                  label: Text(context.tr('Finalize Roll Call')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
@@ -225,8 +227,8 @@ class AttendanceSummaryWidget extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Attendance Summary',
+            Text(
+              context.tr('Attendance Summary'),
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
@@ -238,17 +240,37 @@ class AttendanceSummaryWidget extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Rate: ${summary.attendancePercentage.toStringAsFixed(1)}%',
+              '${context.tr('Rate')}: ${summary.attendancePercentage.toStringAsFixed(1)}%',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildStatBadge('Present', summary.presentCount, Colors.green),
-                _buildStatBadge('Late', summary.lateCount, Colors.orange),
-                _buildStatBadge('Absent', summary.absentCount, Colors.red),
-                _buildStatBadge('Excused', summary.excusedCount, Colors.blue),
+                _buildStatBadge(
+                  context,
+                  'Present',
+                  summary.presentCount,
+                  Colors.green,
+                ),
+                _buildStatBadge(
+                  context,
+                  'Late',
+                  summary.lateCount,
+                  Colors.orange,
+                ),
+                _buildStatBadge(
+                  context,
+                  'Absent',
+                  summary.absentCount,
+                  Colors.red,
+                ),
+                _buildStatBadge(
+                  context,
+                  'Excused',
+                  summary.excusedCount,
+                  Colors.blue,
+                ),
               ],
             ),
           ],
@@ -257,7 +279,12 @@ class AttendanceSummaryWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildStatBadge(String label, int count, Color color) {
+  Widget _buildStatBadge(
+    BuildContext context,
+    String label,
+    int count,
+    Color color,
+  ) {
     return Column(
       children: [
         Text(
@@ -268,7 +295,10 @@ class AttendanceSummaryWidget extends StatelessWidget {
             color: color,
           ),
         ),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          context.tr(label),
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
       ],
     );
   }

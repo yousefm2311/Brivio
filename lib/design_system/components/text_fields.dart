@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/localization/app_localizations.dart';
 import '../tokens/colors.dart';
 import '../tokens/typography.dart';
 
@@ -44,7 +45,10 @@ class CustomTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTypography.titleMedium(textPrimary)),
+        Text(
+          context.l10n.t(label),
+          style: AppTypography.titleMedium(textPrimary),
+        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
@@ -54,7 +58,7 @@ class CustomTextField extends StatelessWidget {
           onChanged: onChanged,
           style: AppTypography.bodyLarge(textPrimary),
           decoration: InputDecoration(
-            hintText: hint,
+            hintText: hint == null ? null : context.l10n.t(hint!),
             hintStyle: AppTypography.bodyLarge(textSecondary),
             filled: true,
             fillColor: surfaceColor,

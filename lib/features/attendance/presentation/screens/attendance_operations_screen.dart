@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -89,7 +91,7 @@ class _AttendanceOperationsScreenState
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
           title: Text(
-            'Session Roster (${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day})',
+            '${context.tr('Session Roster')} (${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day})',
           ),
           content: SizedBox(
             width: 420,
@@ -103,11 +105,15 @@ class _AttendanceOperationsScreenState
                   );
                 }
                 if (snapshot.hasError) {
-                  return Text('Failed to load roster: ${snapshot.error}');
+                  return Text(
+                    '${context.tr('Failed to load roster')}: ${snapshot.error}',
+                  );
                 }
                 final students = snapshot.data ?? [];
                 if (students.isEmpty) {
-                  return const Text('No enrolled students in this group.');
+                  return Text(
+                    context.tr('No enrolled students in this group.'),
+                  );
                 }
                 for (final student in students) {
                   statuses.putIfAbsent(student.id, () => 'present');
@@ -123,22 +129,22 @@ class _AttendanceOperationsScreenState
                                 ? student.studentCode
                                 : student.fullName,
                           ),
-                          items: const [
+                          items: [
                             DropdownMenuItem(
                               value: 'present',
-                              child: Text('Present'),
+                              child: Text(context.tr('present')),
                             ),
                             DropdownMenuItem(
                               value: 'late',
-                              child: Text('Late'),
+                              child: Text(context.tr('late')),
                             ),
                             DropdownMenuItem(
                               value: 'absent',
-                              child: Text('Absent'),
+                              child: Text(context.tr('absent')),
                             ),
                             DropdownMenuItem(
                               value: 'excused',
-                              child: Text('Excused'),
+                              child: Text(context.tr('excused')),
                             ),
                           ],
                           onChanged: (value) {
@@ -155,7 +161,7 @@ class _AttendanceOperationsScreenState
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
+              child: Text(context.tr('Close')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -176,8 +182,10 @@ class _AttendanceOperationsScreenState
                   nav.pop();
                   if (mounted) {
                     messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text('Attendance recorded & finalized!'),
+                      SnackBar(
+                        content: Text(
+                          context.tr('Attendance recorded & finalized!'),
+                        ),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -186,14 +194,14 @@ class _AttendanceOperationsScreenState
                   if (mounted) {
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text('Recording failed: $e'),
+                        content: Text('${context.tr('Recording failed')}: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: const Text('Save Attendance'),
+              child: Text(context.tr('Save Attendance')),
             ),
           ],
         ),
@@ -208,15 +216,17 @@ class _AttendanceOperationsScreenState
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Review Leave Request'),
+        title: Text(context.tr('Review Leave Request')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Reason: ${leave.reason}'),
+            Text('${context.tr('Reason')}: ${leave.reason}'),
             const SizedBox(height: 12),
             TextField(
               controller: noteCtrl,
-              decoration: const InputDecoration(labelText: 'Reviewer Note'),
+              decoration: InputDecoration(
+                labelText: context.tr('Reviewer Note'),
+              ),
             ),
           ],
         ),
@@ -234,8 +244,8 @@ class _AttendanceOperationsScreenState
                 await _loadData();
                 if (mounted) {
                   messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Leave request rejected.'),
+                    SnackBar(
+                      content: Text(context.tr('Leave request rejected.')),
                       backgroundColor: Colors.orange,
                     ),
                   );
@@ -244,14 +254,17 @@ class _AttendanceOperationsScreenState
                 if (mounted) {
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text('Review failed: $e'),
+                      content: Text('${context.tr('Review failed')}: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: const Text('Reject', style: TextStyle(color: Colors.red)),
+            child: Text(
+              context.tr('Reject'),
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -266,8 +279,8 @@ class _AttendanceOperationsScreenState
                 await _loadData();
                 if (mounted) {
                   messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Leave request approved!'),
+                    SnackBar(
+                      content: Text(context.tr('Leave request approved!')),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -276,14 +289,14 @@ class _AttendanceOperationsScreenState
                 if (mounted) {
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text('Review failed: $e'),
+                      content: Text('${context.tr('Review failed')}: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: const Text('Approve'),
+            child: Text(context.tr('Approve')),
           ),
         ],
       ),
@@ -308,10 +321,16 @@ class _AttendanceOperationsScreenState
         ],
         child: Column(
           children: [
-            const TabBar(
+            TabBar(
               tabs: [
-                Tab(icon: Icon(Icons.event_note), text: 'Sessions & Rosters'),
-                Tab(icon: Icon(Icons.event_busy), text: 'Leave Requests'),
+                Tab(
+                  icon: const Icon(Icons.event_note),
+                  text: context.tr('Sessions & Rosters'),
+                ),
+                Tab(
+                  icon: const Icon(Icons.event_busy),
+                  text: context.tr('Leave Requests'),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -333,8 +352,8 @@ class _AttendanceOperationsScreenState
                             padding: const EdgeInsets.only(bottom: 12),
                             child: DropdownButtonFormField<GroupEntity>(
                               initialValue: _selectedGroup,
-                              decoration: const InputDecoration(
-                                labelText: 'Group',
+                              decoration: InputDecoration(
+                                labelText: context.tr('Group'),
                               ),
                               items: _groups
                                   .map(
@@ -353,13 +372,17 @@ class _AttendanceOperationsScreenState
                           ),
                         Expanded(
                           child: _selectedGroup == null
-                              ? const Center(
-                                  child: Text('No active groups found.'),
+                              ? Center(
+                                  child: Text(
+                                    context.tr('No active groups found.'),
+                                  ),
                                 )
                               : _sessions.isEmpty
-                              ? const Center(
+                              ? Center(
                                   child: Text(
-                                    'No class sessions found for this group.',
+                                    context.tr(
+                                      'No class sessions found for this group.',
+                                    ),
                                   ),
                                 )
                               : ListView.separated(
@@ -373,14 +396,16 @@ class _AttendanceOperationsScreenState
                                       icon: Icons.event_note,
                                       accentColor: AppColors.adminRole,
                                       title:
-                                          'Session: ${s.location ?? "No location assigned"}',
+                                          '${context.tr('Session')}: ${s.location ?? context.tr("No location assigned")}',
                                       subtitle:
-                                          'Date: ${s.sessionDate.year}-${s.sessionDate.month}-${s.sessionDate.day} | Status: ${s.status.name.toUpperCase()}',
+                                          '${context.tr('Date')}: ${s.sessionDate.year}-${s.sessionDate.month}-${s.sessionDate.day} | ${context.tr('Status')}: ${context.tr(s.status.name)}',
                                       trailing: [
                                         FilledButton(
                                           onPressed: () =>
                                               _openAttendanceRoster(s),
-                                          child: const Text('Take Attendance'),
+                                          child: Text(
+                                            context.tr('Take Attendance'),
+                                          ),
                                         ),
                                       ],
                                     );
@@ -390,8 +415,10 @@ class _AttendanceOperationsScreenState
                       ],
                     ),
                     _leaveRequests.isEmpty
-                        ? const Center(
-                            child: Text('No pending leave requests.'),
+                        ? Center(
+                            child: Text(
+                              context.tr('No pending leave requests.'),
+                            ),
                           )
                         : ListView.separated(
                             padding: EdgeInsets.zero,
@@ -406,14 +433,15 @@ class _AttendanceOperationsScreenState
                                     ? AppColors.warning
                                     : AppColors.info,
                                 title:
-                                    'Leave Request (${l.status.toUpperCase()})',
-                                subtitle: 'Reason: ${l.reason}',
+                                    '${context.tr('Leave Request')} (${context.tr(l.status)})',
+                                subtitle:
+                                    '${context.tr('Reason')}: ${l.reason}',
                                 trailing: [
                                   if (l.status == 'pending')
                                     FilledButton(
                                       onPressed: () =>
                                           _showReviewLeaveDialog(l),
-                                      child: const Text('Review'),
+                                      child: Text(context.tr('Review')),
                                     )
                                   else
                                     PortalStatusChip(status: l.status),
