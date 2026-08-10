@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../design_system/components/glass_card.dart';
@@ -323,6 +324,113 @@ class _HomeworkTile extends StatelessWidget {
 
   const _HomeworkTile({required this.item, required this.onSubmit});
 
+  void _showGradedDetailsDialog(BuildContext context, StudentHomeworkItem item) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    List<Map<String, dynamic>> answers = [];
+    try {
+      final subRes = await Supabase.instance.client
+          .from('homework_submissions')
+          .select('id')
+          .eq('homework_id', item.homework.id)
+          .eq('student_id', Supabase.instance.client.auth.currentUser!.id)
+          .maybeSingle();
+
+      if (subRes != null) {
+        final res = await Supabase.instance.client
+            .from('homework_answers')
+            .select('*, questions(*), question_options(*)')
+            .eq('submission_id', subRes['id']);
+        answers = List<Map<String, dynamic>>.from(res);
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch answers: $e');
+    }
+
+    if (!context.mounted) return;
+    Navigator.pop(context); // Dismiss loading indicator
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: GlassCard(
+          padding: const EdgeInsets.all(24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Text(
+                    context.tr('Grading Details'),
+                    style: AppTypography.displaySmall(textPrimary),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('${context.tr("Your Score")}: ${item.submissionScore} / ${item.homework.maxScore}', style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                if (item.teacherFeedback != null && item.teacherFeedback!.isNotEmpty) ...[
+                  Text('${context.tr("Teacher Feedback")}:', style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(item.teacherFeedback!, style: TextStyle(color: textPrimary)),
+                  const SizedBox(height: 16),
+                ],
+                if (answers.isNotEmpty) ...[
+                  Text(context.tr('Your Answers:'), style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Container(
+                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: answers.length,
+                      itemBuilder: (ctx, idx) {
+                        final ans = answers[idx];
+                        final q = ans['questions'] ?? {};
+                        final opt = ans['question_options'];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Q: ${q['prompt'] ?? 'Unknown'}', style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 4),
+                              Text('A: ${opt != null ? opt['text'] : (ans['text_answer'] ?? 'No Answer')}', style: TextStyle(color: textPrimary)),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Center(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(context.tr('Close')),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -333,7 +441,7 @@ class _HomeworkTile extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: item.isGraded ? null : onSubmit,
+        onTap: item.isGraded ? () => _showGradedDetailsDialog(context, item) : onSubmit,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(

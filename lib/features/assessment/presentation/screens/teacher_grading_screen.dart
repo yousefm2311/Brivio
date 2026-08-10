@@ -57,9 +57,30 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
     }
   }
 
-  void _showGradeSubmissionDialog(Map<String, dynamic> submission) {
-    final scoreCtrl = TextEditingController(text: '95');
+  void _showGradeSubmissionDialog(Map<String, dynamic> submission) async {
+    final scoreCtrl = TextEditingController(text: submission['score']?.toString() ?? '95');
     final feedbackCtrl = TextEditingController(text: 'Excellent solution!');
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    List<Map<String, dynamic>> answers = [];
+    try {
+      final res = await Supabase.instance.client
+          .from('homework_answers')
+          .select('*, questions(*), question_options(*)')
+          .eq('submission_id', submission['id']);
+      answers = List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('Failed to fetch answers: $e');
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context); // Dismiss loading indicator
 
     showDialog(
       context: context,
@@ -75,13 +96,49 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    context.tr('Manual Grading & Feedback'),
-                    style: AppTypography.displaySmall(textColor),
-                    textAlign: TextAlign.center,
+                  Center(
+                    child: Text(
+                      context.tr('Manual Grading & Feedback'),
+                      style: AppTypography.displaySmall(textColor),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                   const SizedBox(height: 16),
+                  if (answers.isNotEmpty) ...[
+                    Text(context.tr('Student Answers:'), style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Container(
+                      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: answers.length,
+                        itemBuilder: (ctx, idx) {
+                          final ans = answers[idx];
+                          final q = ans['questions'] ?? {};
+                          final opt = ans['question_options'];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Q: ${q['prompt'] ?? 'Unknown'}', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                Text('A: ${opt != null ? opt['text'] : (ans['text_answer'] ?? 'No Answer')}', style: TextStyle(color: textColor)),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   TextField(
                     controller: scoreCtrl,
                     style: TextStyle(color: textColor),

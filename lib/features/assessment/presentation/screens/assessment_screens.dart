@@ -220,7 +220,36 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
 
     final currentQuestion = questions[_currentQuestionIndex];
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        
+        final shouldExit = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(context.tr('Exit Exam?')),
+            content: Text(context.tr('Are you sure you want to exit? You will not be able to re-enter this exam, and your current answers will be submitted to the teacher.')),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('Cancel'))),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                onPressed: () => Navigator.pop(ctx, true), 
+                child: Text(context.tr('Exit & Submit'))
+              ),
+            ],
+          ),
+        );
+        
+        if (shouldExit == true) {
+          if (widget.onSubmit != null) {
+            widget.onSubmit!();
+          } else if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: surfaceColor,
@@ -374,6 +403,6 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }

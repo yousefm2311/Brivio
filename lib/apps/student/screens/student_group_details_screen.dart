@@ -11,6 +11,8 @@ import '../../../features/assessment/data/repositories/supabase_assessment_repos
 import '../../../features/assessment/domain/models/assessment_models.dart';
 import '../../../features/attendance/data/repositories/supabase_attendance_repositories.dart';
 import '../../../features/attendance/domain/models/attendance_models.dart';
+import '../../../features/curriculum/data/repositories/supabase_curriculum_repositories.dart';
+import '../../../features/curriculum/domain/models/curriculum_models.dart';
 
 class StudentGroupDetailsScreen extends StatefulWidget {
   final GroupEntity group;
@@ -25,10 +27,14 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   late final SupabaseHomeworkRepository _homeworkRepo;
   late final SupabaseExamRepository _examRepo;
   late final SupabaseClassSessionRepository _sessionRepo;
+  late final SupabaseSemesterRepository _semesterRepo;
+  late final SupabaseUnitRepository _unitRepo;
+  late final SupabaseLessonRepository _lessonRepo;
 
   List<Homework> _homeworkList = [];
   List<Exam> _examList = [];
   List<ClassSession> _sessionList = [];
+  List<Lesson> _lessonList = [];
   bool _isLoading = false;
 
   @override
@@ -38,6 +44,9 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     _homeworkRepo = SupabaseHomeworkRepository(wrapper);
     _examRepo = SupabaseExamRepository(wrapper);
     _sessionRepo = SupabaseClassSessionRepository(wrapper);
+    _semesterRepo = SupabaseSemesterRepository(wrapper);
+    _unitRepo = SupabaseUnitRepository(wrapper);
+    _lessonRepo = SupabaseLessonRepository(wrapper);
     _loadData();
   }
 
@@ -48,11 +57,25 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       final examRes = await _examRepo.fetchExamsForGroup(widget.group.id);
       final sessionRes = await _sessionRepo.fetchSessionsForGroup(widget.group.id);
       
+      List<Lesson> lessonRes = [];
+      try {
+        final sems = await _semesterRepo.fetchSemestersForSubject(widget.group.subjectId);
+        if (sems.isNotEmpty) {
+          final units = await _unitRepo.fetchUnitsForSemester(sems.first.id);
+          if (units.isNotEmpty) {
+            lessonRes = await _lessonRepo.fetchLessonsForUnit(units.first.id);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching curriculum: $e');
+      }
+      
       if (mounted) {
         setState(() {
           _homeworkList = hwRes;
           _examList = examRes;
           _sessionList = sessionRes;
+          _lessonList = lessonRes;
           _isLoading = false;
         });
       }
@@ -151,9 +174,12 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   ],
                 ),
               ),
-              PrimaryButton(
-                text: context.tr('Start'),
-                onPressed: () {},
+              SizedBox(
+                width: 120,
+                child: PrimaryButton(
+                  text: context.tr('Start'),
+                  onPressed: () {},
+                ),
               ),
             ],
           ),
@@ -163,17 +189,58 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   }
 
   Widget _buildFilesTab(bool isDark, Color textPrimary, Color textSecondary) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.folder_open_rounded, size: 64, color: AppColors.info.withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
-          Text(context.tr('Group Files'), style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text(context.tr('Lectures and materials will appear here.'), style: AppTypography.bodyMedium(textSecondary)),
-        ],
-      ),
+    if (_lessonList.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.folder_open_rounded, size: 64, color: AppColors.info.withValues(alpha: 0.5)),
+            const SizedBox(height: 16),
+            Text(context.tr('No Group Files'), style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text(context.tr('Lectures and materials will appear here.'), style: AppTypography.bodyMedium(textSecondary)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
+      itemCount: _lessonList.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final lesson = _lessonList[index];
+        return GlassCard(
+          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.play_lesson_rounded, color: AppColors.info, size: 22),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(lesson.title, style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+                    if (lesson.estimatedDurationMinutes != null) ...[
+                      const SizedBox(height: 4),
+                      Text('${lesson.estimatedDurationMinutes} mins', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
+                    ]
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -224,10 +291,13 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   ],
                 ),
               ),
-              PrimaryButton(
-                text: context.tr('Start'),
-                onPressed: () {},
-                color: AppColors.error,
+              SizedBox(
+                width: 120,
+                child: PrimaryButton(
+                  text: context.tr('Start'),
+                  onPressed: () {},
+                  color: AppColors.error,
+                ),
               ),
             ],
           ),
