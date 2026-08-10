@@ -172,8 +172,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Future<List<StudyLessonSummary>> _fetchSessionBoards() async {
-    final rows = await Supabase.instance.client.rpc('get_student_teacher_study_boards');
-    return (rows as List).whereType<Map>().map((r) => StudyLessonSummary.fromJson(r)).toList();
+    try {
+      final rows = await Supabase.instance.client.rpc('get_student_teacher_study_boards');
+      print('=== DEBUG: get_student_teacher_study_boards returned: $rows ===');
+      return (rows as List).whereType<Map>().map((r) => StudyLessonSummary.fromJson(r)).toList();
+    } catch (e, st) {
+      print('=== DEBUG ERROR in _fetchSessionBoards: $e\n$st ===');
+      rethrow;
+    }
   }
 
   // ── actions ──

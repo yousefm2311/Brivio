@@ -330,34 +330,10 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
       'study_workspace_pdf_annotations_${widget.lesson.id}_${widget.teacherId ?? widget.studentId ?? 'guest'}';
 
   Future<void> _addStickyNote() async {
-    final controller = TextEditingController();
     final text = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Note on page ${_viewModel.currentPage}'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 4,
-          decoration: const InputDecoration(
-            labelText: 'Note',
-            alignLabelWithHint: true,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            icon: const Icon(Icons.add),
-            label: const Text('Add'),
-          ),
-        ],
-      ),
+      builder: (context) => const _StickyNoteDialog(),
     );
-    controller.dispose();
     if (text == null || text.isEmpty) return;
     await _savePdfAnnotations([
       ..._pdfAnnotations,
@@ -611,7 +587,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                                 onTap: () => setState(() => _showBoard = false),
                               ),
                               _ToggleButton(
-                                title: 'Whiteboard',
+                                title: 'Board',
                                 isSelected: _showBoard,
                                 onTap: () => setState(() => _showBoard = true),
                               ),
@@ -671,7 +647,7 @@ class _ToggleButton extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected 
               ? (isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08))
@@ -2580,4 +2556,54 @@ class _ChallengeCaseResult {
     required this.expected,
     required this.actual,
   });
+}
+
+class _StickyNoteDialog extends StatefulWidget {
+  const _StickyNoteDialog();
+
+  @override
+  State<_StickyNoteDialog> createState() => _StickyNoteDialogState();
+}
+
+class _StickyNoteDialogState extends State<_StickyNoteDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Note'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLines: 4,
+        decoration: const InputDecoration(
+          labelText: 'Note',
+          alignLabelWithHint: true,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: () => Navigator.pop(context, _controller.text.trim()),
+          icon: const Icon(Icons.add),
+          label: const Text('Add'),
+        ),
+      ],
+    );
+  }
 }
