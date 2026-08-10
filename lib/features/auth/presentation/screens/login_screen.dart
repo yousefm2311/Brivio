@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:ui';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -6,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../design_system/components/buttons.dart';
 import '../../../../design_system/components/text_fields.dart';
+import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../domain/models/user_role.dart';
@@ -27,7 +30,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -35,8 +38,20 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _qrMessage;
   String? _pendingQrToken;
 
+  late final AnimationController _ambientCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ambientCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 20),
+    )..repeat();
+  }
+
   @override
   void dispose() {
+    _ambientCtrl.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -52,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
       case UserRole.parent:
         return AppColors.parentRole;
       case UserRole.staff:
-        return AppColors.accent;
+        return AppColors.staffRole;
       case UserRole.admin:
       case UserRole.superAdmin:
         return AppColors.adminRole;
@@ -85,8 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       _pendingQrToken = null;
     } catch (_) {
-      // The account is already authenticated; token cleanup failures should not
-      // block entering the app.
+      // Session established; token cleanup failure can be safely ignored.
     }
   }
 
@@ -94,6 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final result = await showModalBottomSheet<_QrLoginResult>(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (_) => const _QrLoginScannerSheet(),
     );
     if (result == null || !mounted) return;
@@ -102,19 +117,15 @@ class _LoginScreenState extends State<LoginScreen> {
       _emailController.text = result.email;
       _pendingQrToken = result.token;
       _qrMessage =
-          'QR matched ${result.fullName}. Enter the account password from the invite to continue.';
+          'QR code verified for ${result.fullName}. Enter your account password to sign in.';
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.lightTextPrimary;
-    final textSecondary = isDark
-        ? AppColors.darkTextSecondary
-        : AppColors.lightTextSecondary;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return ListenableBuilder(
       listenable: widget.viewModel,
@@ -122,160 +133,175 @@ class _LoginScreenState extends State<LoginScreen> {
         final state = widget.viewModel.state;
 
         return Scaffold(
-          body: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 860;
-                return Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 980),
-                      child: Flex(
-                        direction: isWide ? Axis.horizontal : Axis.vertical,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Flexible(
-                            flex: isWide ? 5 : 0,
-                            fit: isWide ? FlexFit.tight : FlexFit.loose,
-                            child: _LoginBrandPanel(
-                              roleColor: _roleColor,
-                              textPrimary: textPrimary,
-                              textSecondary: textSecondary,
+          backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+          body: Stack(
+            children: [
+              // Animated ambient background
+              if (isDark)
+                AnimatedBuilder(
+                  animation: _ambientCtrl,
+                  builder: (context, _) {
+                    return Stack(
+                      children: [
+                        Positioned(
+                          top: -150 + math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
+                          left: -100 + math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
+                          child: Container(
+                            width: 400,
+                            height: 400,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _roleColor.withValues(alpha: 0.15),
                             ),
                           ),
-                          SizedBox(
-                            width: isWide ? 24 : 0,
-                            height: isWide ? 0 : 18,
+                        ),
+                        Positioned(
+                          bottom: -200 + math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
+                          right: -100 + math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
+                          child: Container(
+                            width: 500,
+                            height: 500,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.purple.withValues(alpha: 0.12),
+                            ),
                           ),
-                          Flexible(
-                            flex: isWide ? 4 : 0,
-                            fit: isWide ? FlexFit.tight : FlexFit.loose,
-                            child: Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(22),
-                                child: Form(
-                                  key: _formKey,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      _RoleBadge(
-                                        role: widget.targetRole,
-                                        color: _roleColor,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              // Extreme blur for ambient effect
+              if (isDark)
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
+                    child: const SizedBox(),
+                  ),
+                ),
+
+              SafeArea(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FadeInSlide(
+                            duration: const Duration(milliseconds: 600),
+                            child: _AppleHeroPanel(
+                              roleColor: _roleColor,
+                              role: widget.targetRole,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          FadeInSlide(
+                            duration: const Duration(milliseconds: 600),
+                            delay: const Duration(milliseconds: 150),
+                            child: GlassCard(
+                              padding: const EdgeInsets.all(28),
+                              color: isDark ? AppColors.darkSurface.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.8),
+                              borderColor: isDark ? AppColors.glassBorder : AppColors.lightGlassBorder,
+                              blur: 30,
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Sign In',
+                                      style: AppTypography.displayMedium(textPrimary).copyWith(letterSpacing: -0.5),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      widget.targetRole == null
+                                          ? 'Enter your credentials to access the platform.'
+                                          : 'Sign in to your ${widget.targetRole!.displayName.toLowerCase()} workspace.',
+                                      style: AppTypography.bodyMedium(textSecondary),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    
+                                    if (state.status == AuthStatus.error && state.failure != null) ...[
+                                      _AppleAlertBanner(
+                                        message: state.failure!.message,
+                                        isError: true,
                                       ),
-                                      const SizedBox(height: 22),
-                                      Text(
-                                        'Welcome Back',
-                                        style: AppTypography.displayMedium(
-                                          textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        widget.targetRole == null
-                                            ? 'Sign in to access your academy workspace.'
-                                            : 'Sign in to access your ${widget.targetRole!.displayName.toLowerCase()} workspace.',
-                                        style: AppTypography.bodyLarge(
-                                          textSecondary,
-                                        ),
-                                      ),
-                                      if (state.status == AuthStatus.error &&
-                                          state.failure != null) ...[
-                                        const SizedBox(height: 18),
-                                        _ErrorBanner(
-                                          message: state.failure!.message,
-                                        ),
-                                      ],
-                                      if (_qrMessage != null) ...[
-                                        const SizedBox(height: 18),
-                                        _InfoBanner(message: _qrMessage!),
-                                      ],
-                                      const SizedBox(height: 22),
-                                      CustomTextField(
-                                        label: 'Email Address',
-                                        hint: 'name@academy.com',
-                                        controller: _emailController,
-                                        keyboardType:
-                                            TextInputType.emailAddress,
-                                        prefixIcon: Icons.email_outlined,
-                                        validator: (value) {
-                                          if (value == null ||
-                                              value.trim().isEmpty) {
-                                            return 'Please enter your email';
-                                          }
-                                          if (!value.contains('@')) {
-                                            return 'Please enter a valid email address';
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                      const SizedBox(height: 18),
-                                      CustomTextField(
-                                        label: 'Password',
-                                        hint: 'Password',
-                                        controller: _passwordController,
-                                        obscureText: _obscurePassword,
-                                        prefixIcon: Icons.lock_outline,
-                                        suffixIcon: IconButton(
-                                          icon: Icon(
-                                            _obscurePassword
-                                                ? Icons.visibility_outlined
-                                                : Icons.visibility_off_outlined,
-                                            color: textSecondary,
-                                          ),
-                                          onPressed: () => setState(
-                                            () => _obscurePassword =
-                                                !_obscurePassword,
-                                          ),
-                                        ),
-                                        validator: (value) {
-                                          if (value == null ||
-                                              value.trim().isEmpty) {
-                                            return 'Please enter your password';
-                                          }
-                                          if (value.length < 6) {
-                                            return 'Password must be at least 6 characters';
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                      const SizedBox(height: 26),
-                                      PrimaryButton(
-                                        text: 'Sign In',
-                                        isLoading:
-                                            state.status == AuthStatus.loading,
-                                        onPressed: _handleLogin,
-                                        icon: Icons.login_rounded,
-                                      ),
-                                      if (widget.targetRole ==
-                                              UserRole.student ||
-                                          widget.targetRole ==
-                                              UserRole.parent ||
-                                          widget.targetRole ==
-                                              UserRole.teacher ||
-                                          widget.targetRole == null) ...[
-                                        const SizedBox(height: 12),
-                                        SizedBox(
-                                          width: double.infinity,
-                                          child: OutlinedButton.icon(
-                                            onPressed:
-                                                state.status ==
-                                                    AuthStatus.loading
-                                                ? null
-                                                : _openQrLoginScanner,
-                                            icon: const Icon(
-                                              Icons.qr_code_scanner,
-                                            ),
-                                            label: const Text(
-                                              'Sign in using QR Code',
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                      const SizedBox(height: 16),
                                     ],
-                                  ),
+                                    if (_qrMessage != null) ...[
+                                      _AppleAlertBanner(
+                                        message: _qrMessage!,
+                                        isError: false,
+                                      ),
+                                      const SizedBox(height: 16),
+                                    ],
+                                    
+                                    CustomTextField(
+                                      label: 'Email',
+                                      hint: 'name@domain.com',
+                                      controller: _emailController,
+                                      keyboardType: TextInputType.emailAddress,
+                                      prefixIcon: Icons.alternate_email_rounded,
+                                      validator: (value) {
+                                        if (value == null || value.trim().isEmpty) return 'Please enter your email';
+                                        if (!value.contains('@')) return 'Please enter a valid email address';
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                    CustomTextField(
+                                      label: 'Password',
+                                      hint: '••••••••',
+                                      controller: _passwordController,
+                                      obscureText: _obscurePassword,
+                                      prefixIcon: Icons.lock_outline_rounded,
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                          color: textSecondary,
+                                          size: 18,
+                                        ),
+                                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                      ),
+                                      validator: (value) {
+                                        if (value == null || value.trim().isEmpty) return 'Please enter your password';
+                                        if (value.length < 6) return 'Password must be at least 6 characters';
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 28),
+                                    PrimaryButton(
+                                      text: 'Sign In',
+                                      isLoading: state.status == AuthStatus.loading,
+                                      onPressed: _handleLogin,
+                                      icon: Icons.arrow_forward_rounded,
+                                      color: _roleColor,
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          _roleColor,
+                                          HSLColor.fromColor(_roleColor).withLightness(math.max(0.0, HSLColor.fromColor(_roleColor).lightness - 0.1)).toColor(),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                    ),
+                                    
+                                    if (widget.targetRole == UserRole.student ||
+                                        widget.targetRole == UserRole.parent ||
+                                        widget.targetRole == UserRole.teacher ||
+                                        widget.targetRole == null) ...[
+                                      const SizedBox(height: 16),
+                                      GhostButton(
+                                        text: 'Sign in with QR Code',
+                                        icon: Icons.qr_code_scanner_rounded,
+                                        onPressed: state.status == AuthStatus.loading ? null : _openQrLoginScanner,
+                                        color: textPrimary,
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ),
@@ -284,9 +310,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -294,112 +320,94 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class _LoginBrandPanel extends StatelessWidget {
+class _AppleHeroPanel extends StatelessWidget {
   final Color roleColor;
-  final Color textPrimary;
-  final Color textSecondary;
+  final UserRole? role;
 
-  const _LoginBrandPanel({
+  const _AppleHeroPanel({
     required this.roleColor,
-    required this.textPrimary,
-    required this.textSecondary,
+    required this.role,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 320),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: roleColor.withValues(alpha: .10),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: roleColor.withValues(alpha: .22)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: roleColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.code, color: Colors.white, size: 30),
+    return Column(
+      children: [
+        GlowContainer(
+          glowColor: roleColor,
+          glowOpacity: 0.25,
+          padding: const EdgeInsets.all(18),
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            colors: [roleColor, HSLColor.fromColor(roleColor).withLightness(math.max(0.0, HSLColor.fromColor(roleColor).lightness - 0.1)).toColor()],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(height: 22),
-          Text(
-            'CodeStart Academy',
-            style: AppTypography.displayLarge(textPrimary),
+          child: const Icon(
+            Icons.school_rounded,
+            color: Colors.white,
+            size: 42,
           ),
-          const SizedBox(height: 10),
-          Text(
-            'A focused workspace for programming lessons, progress tracking, attendance, content, and operations.',
-            style: AppTypography.bodyLarge(textSecondary),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Academy Platform',
+          style: AppTypography.hero(Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary).copyWith(fontSize: 32),
+          textAlign: TextAlign.center,
+        ),
+        if (role != null) ...[
+          const SizedBox(height: 8),
+          StatusChip(
+            label: '${role!.displayName} Workspace',
+            status: ChipStatus.info,
           ),
-          const SizedBox(height: 22),
-          const Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _BrandPill(icon: Icons.school, label: 'Students'),
-              _BrandPill(icon: Icons.person, label: 'Teachers'),
-              _BrandPill(icon: Icons.family_restroom, label: 'Parents'),
-              _BrandPill(icon: Icons.admin_panel_settings, label: 'Admin'),
-            ],
-          ),
-        ],
-      ),
+        ]
+      ],
     );
   }
 }
 
-class _RoleBadge extends StatelessWidget {
-  final UserRole? role;
-  final Color color;
+class _AppleAlertBanner extends StatelessWidget {
+  final String message;
+  final bool isError;
 
-  const _RoleBadge({required this.role, required this.color});
+  const _AppleAlertBanner({
+    required this.message,
+    required this.isError,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = isError ? AppColors.error : AppColors.info;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
+        color: accentColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.25),
+          width: 0.5,
+        ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.shield_outlined, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(
-            role == null
-                ? 'Academy Platform Portal'
-                : '${role!.displayName} Portal',
-            style: AppTypography.caption(
-              color,
-            ).copyWith(fontWeight: FontWeight.w800),
+          Icon(
+            isError ? Icons.error_outline_rounded : Icons.info_outline_rounded,
+            color: accentColor,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTypography.bodyMedium(accentColor).copyWith(
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _BrandPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _BrandPill({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      avatar: Icon(icon, size: 16),
-      label: Text(label),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 }
@@ -495,124 +503,86 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * .74,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Scan Account Login QR',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        child: Container(
+          height: MediaQuery.of(context).size.height * .75,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.9),
+            border: Border(top: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, width: 0.5)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.black12,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Scan QR Code',
+                        style: AppTypography.displaySmall(textPrimary),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  MobileScanner(
-                    controller: _controller,
-                    onDetect: _handleCapture,
-                  ),
-                  if (_isResolving)
-                    const ColoredBox(
-                      color: Colors.black45,
-                      child: Center(child: CircularProgressIndicator()),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: IconButton.styleFrom(
+                        backgroundColor: isDark ? Colors.white12 : Colors.black12,
+                      ),
+                      icon: const Icon(Icons.close_rounded, size: 20),
                     ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            if (_errorMessage != null)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Stack(
+                      children: [
+                        MobileScanner(
+                          controller: _controller,
+                          onDetect: _handleCapture,
+                        ),
+                        if (_isResolving)
+                          Container(
+                            color: Colors.black54,
+                            alignment: Alignment.center,
+                            child: const CircularProgressIndicator(color: Colors.white),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(24),
                 child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: AppColors.error),
-                ),
-              )
-            else
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Scan the QR generated by Admin or Staff. The QR contains a temporary token, not a password.',
+                  _errorMessage ?? 'Position the QR code within the frame to sign in.',
                   textAlign: TextAlign.center,
+                  style: AppTypography.bodyMedium(
+                    _errorMessage != null ? AppColors.error : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                  ),
                 ),
               ),
-          ],
+              const SizedBox(height: 20), // Bottom safe area spacing
+            ],
+          ),
         ),
-      ),
-    );
-  }
-}
-
-class _InfoBanner extends StatelessWidget {
-  final String message;
-
-  const _InfoBanner({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.info.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.qr_code_2, color: AppColors.info, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: AppTypography.bodyMedium(AppColors.info),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  final String message;
-
-  const _ErrorBanner({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: AppTypography.bodyMedium(AppColors.error),
-            ),
-          ),
-        ],
       ),
     );
   }

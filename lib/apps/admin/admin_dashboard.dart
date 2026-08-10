@@ -520,7 +520,7 @@ class _AdminOverview extends StatelessWidget {
                 label: 'Grading queue',
                 value: opsMetrics.gradingQueue.toString(),
                 icon: Icons.grading,
-                accentColor: AppColors.accent,
+                accentColor: AppColors.primary,
                 onTap: () => onNavigate(11),
               ),
               PortalMetricCard(

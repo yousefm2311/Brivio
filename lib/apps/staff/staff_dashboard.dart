@@ -440,7 +440,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       title: user?.fullName ?? 'Staff Member',
       subtitle: 'Operations workspace',
       icon: Icons.badge,
-      accentColor: AppColors.accent,
+      accentColor: AppColors.primary,
       selectedIndex: _selectedIndex,
       destinations: _destinations,
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
@@ -464,7 +464,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 title: user?.fullName ?? 'Staff Member',
                 subtitle: 'Students, groups, attendance, leave, and payments',
                 icon: Icons.badge,
-                accentColor: AppColors.accent,
+                accentColor: AppColors.primary,
               ),
               const SizedBox(height: 16),
               _selectedPage(),
@@ -519,7 +519,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   ? _groups.length.toString()
                   : 'No access',
               icon: Icons.group_work,
-              accentColor: AppColors.accent,
+              accentColor: AppColors.primary,
               onTap: _has(Permission.groupsView)
                   ? () => setState(() => _selectedIndex = 3)
                   : null,

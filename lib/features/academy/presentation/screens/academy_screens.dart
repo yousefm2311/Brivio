@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localizations.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/widgets/portal_components.dart';
 import '../../domain/models/academy_models.dart';
 
 class StudentListWidget extends StatelessWidget {
@@ -271,50 +273,48 @@ class GroupListWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isLoading)
-            const Center(child: CircularProgressIndicator())
-          else if (groups.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(context.tr('No active groups found.')),
-              ),
-            )
-          else
-            Expanded(
-              child: ListView.builder(
-                itemCount: groups.length,
-                itemBuilder: (context, index) {
-                  final g = groups[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8.0),
-                    child: ListTile(
-                      onTap: onGroupSelected != null
-                          ? () => onGroupSelected!(g)
-                          : null,
-                      leading: const Icon(Icons.group_work, color: Colors.blue),
-                      title: Text('${g.name} (${g.code})'),
-                      subtitle: Text(
-                        '${context.tr('Max Capacity')}: ${g.maxCapacity ?? context.tr("Unlimited")}',
-                      ),
-                      trailing: Chip(
-                        label: Text(g.status),
-                        backgroundColor: g.status == 'active'
-                            ? Colors.green.shade100
-                            : Colors.grey.shade200,
-                      ),
-                    ),
-                  );
-                },
-              ),
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+        ),
+      );
+    }
+
+    if (groups.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            context.tr('No active groups found.'),
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
             ),
-        ],
-      ),
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: groups.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final g = groups[index];
+        return PortalListCard(
+          icon: Icons.group_work_rounded,
+          accentColor: AppColors.info,
+          title: '${g.name} (${g.code})',
+          subtitle:
+              '${context.tr("Max Capacity")}: ${g.maxCapacity ?? context.tr("Unlimited")}',
+          trailing: [
+            PortalStatusChip(status: g.status),
+          ],
+          onTap: onGroupSelected != null ? () => onGroupSelected!(g) : null,
+        );
+      },
     );
   }
 }
