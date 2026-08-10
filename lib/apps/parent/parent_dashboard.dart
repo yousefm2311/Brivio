@@ -166,10 +166,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     List<AppNotification> notifications,
     String childId,
   ) {
-    return notifications.where((notification) {
-      final studentId = notification.data['student_id']?.toString();
-      return studentId == null || studentId.isEmpty || studentId == childId;
-    }).toList();
+    return notifications.toList(); // Simplified since parent gets notifications directly or via referenceId.
   }
 
   Future<List<_ParentAttendanceItem>> _fetchAttendance(String studentId) async {
@@ -820,7 +817,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                       : AppColors.parentRole,
                   title: notification.title,
                   subtitle:
-                      '${notification.body} • ${_formatDate(notification.createdAt)}',
+                      '${notification.message} • ${_formatDate(notification.createdAt)}',
                   trailing: notification.isRead
                       ? const []
                       : [const PortalStatusChip(status: 'pending')],

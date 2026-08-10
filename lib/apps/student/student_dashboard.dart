@@ -332,7 +332,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       await SupabaseNotificationRepository(wrapper).markRead(notification.id);
       if (!mounted) return;
       setState(() {
-        _notifications = _notifications.map((n) => n.id == notification.id ? n.copyWith(readAt: DateTime.now()) : n).toList();
+        _notifications = _notifications.map((n) => n.id == notification.id ? n.copyWith(isRead: true) : n).toList();
         if (_unreadCount > 0) _unreadCount--;
       });
     } catch (e) {
@@ -347,7 +347,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       await SupabaseNotificationRepository(wrapper).markAllRead();
       if (!mounted) return;
       setState(() {
-        _notifications = _notifications.map((n) => n.copyWith(readAt: DateTime.now())).toList();
+        _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
         _unreadCount = 0;
       });
     } catch (e) {

@@ -1,44 +1,33 @@
 class AppNotification {
   final String id;
   final String userId;
-  final String notificationType;
+  final String type;
   final String title;
-  final String body;
-  final Map<String, dynamic> data;
-  final DateTime? readAt;
-  final DateTime? archivedAt;
+  final String message;
+  final String? referenceId;
+  final bool isRead;
   final DateTime createdAt;
 
   const AppNotification({
     required this.id,
     required this.userId,
-    required this.notificationType,
+    required this.type,
     required this.title,
-    required this.body,
-    this.data = const {},
-    this.readAt,
-    this.archivedAt,
+    required this.message,
+    this.referenceId,
+    this.isRead = false,
     required this.createdAt,
   });
-
-  bool get isRead => readAt != null;
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
     return AppNotification(
       id: json['id'] as String,
       userId: json['user_id'] as String,
-      notificationType: json['notification_type'] as String,
+      type: json['type'] as String,
       title: json['title'] as String,
-      body: json['body'] as String,
-      data: json['data'] is Map<String, dynamic>
-          ? json['data'] as Map<String, dynamic>
-          : {},
-      readAt: json['read_at'] != null
-          ? DateTime.parse(json['read_at'] as String)
-          : null,
-      archivedAt: json['archived_at'] != null
-          ? DateTime.parse(json['archived_at'] as String)
-          : null,
+      message: json['message'] as String,
+      referenceId: json['reference_id'] as String?,
+      isRead: json['is_read'] == true,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -47,26 +36,24 @@ class AppNotification {
     return {
       'id': id,
       'user_id': userId,
-      'notification_type': notificationType,
+      'type': type,
       'title': title,
-      'body': body,
-      'data': data,
-      'read_at': readAt?.toIso8601String(),
-      'archived_at': archivedAt?.toIso8601String(),
+      'message': message,
+      'reference_id': referenceId,
+      'is_read': isRead,
       'created_at': createdAt.toIso8601String(),
     };
   }
 
-  AppNotification copyWith({DateTime? readAt, DateTime? archivedAt}) {
+  AppNotification copyWith({bool? isRead}) {
     return AppNotification(
       id: id,
       userId: userId,
-      notificationType: notificationType,
+      type: type,
       title: title,
-      body: body,
-      data: data,
-      readAt: readAt ?? this.readAt,
-      archivedAt: archivedAt ?? this.archivedAt,
+      message: message,
+      referenceId: referenceId,
+      isRead: isRead ?? this.isRead,
       createdAt: createdAt,
     );
   }

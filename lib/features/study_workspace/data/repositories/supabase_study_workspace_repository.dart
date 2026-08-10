@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../domain/models/study_workspace_models.dart';
 import '../../domain/repositories/study_workspace_repository.dart';
@@ -60,9 +63,49 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
         code: '',
         boardData: board?['geometry']?['board_data'] as String? ?? '',
       );
-    } catch (_) {
-      return const StudyWorkspaceDraft(notebookContent: '', code: '', boardData: '');
+    } catch (e) {
+      return const StudyWorkspaceDraft(
+        notebookContent: '',
+        code: '',
+        boardData: '',
+      );
     }
+  }
+
+  @override
+  Stream<StudyWorkspaceDraft> listenToTeacherDraftForStudent({
+    required String studentId,
+    required String lessonId,
+  }) {
+    final controller = StreamController<StudyWorkspaceDraft>();
+    final channel = _wrapper.client.channel('public:teacher_study_annotations:lesson_$lessonId');
+    
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'teacher_study_annotations',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'lesson_id',
+        value: lessonId,
+      ),
+      callback: (payload) async {
+        final draft = await fetchTeacherDraftForStudent(
+          studentId: studentId,
+          lessonId: lessonId,
+        );
+        if (!controller.isClosed) {
+          controller.add(draft);
+        }
+      },
+    ).subscribe();
+
+    controller.onCancel = () {
+      channel.unsubscribe();
+      controller.close();
+    };
+
+    return controller.stream;
   }
 
   @override

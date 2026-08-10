@@ -327,7 +327,7 @@ class _NotificationsGroup extends StatelessWidget {
                     children: [
                       Text(n.title, style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: n.isRead ? FontWeight.w600 : FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
-                      Text('${n.body}  ·  ${_formatDate(n.createdAt)}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text('${n.message}  ·  ${_formatDate(n.createdAt)}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),

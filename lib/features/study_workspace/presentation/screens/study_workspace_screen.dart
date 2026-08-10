@@ -59,6 +59,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   bool _eraser = false;
   _BoardStroke? _activeStroke;
   bool _isFabMenuOpen = false;
+  bool _showBoard = false;
 
   void _startStroke(DragStartDetails details) {
     setState(() {
@@ -492,12 +493,13 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
         }
         
         final hasPdf = widget.lesson.pdfUrl != null;
+        final showPdf = hasPdf && !_showBoard;
 
         return Scaffold(
           backgroundColor: bgColor,
           body: Stack(
             children: [
-              if (hasPdf)
+              if (showPdf)
                 Positioned.fill(
                   child: _PdfPane(
                     viewModel: _viewModel,
@@ -513,20 +515,50 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                   ),
                 ),
 
-              Positioned.fill(
-                child: _DrawingBoard(
-                  strokes: _activeStroke == null ? _boardStrokes : [..._boardStrokes, _activeStroke!],
-                  onPanStart: _startStroke,
-                  onPanUpdate: _appendStroke,
-                  onPanEnd: _endStroke,
-                  isTransparent: hasPdf,
+              if (!showPdf)
+                Positioned.fill(
+                  child: _DrawingBoard(
+                    strokes: _activeStroke == null ? _boardStrokes : [..._boardStrokes, _activeStroke!],
+                    onPanStart: _startStroke,
+                    onPanUpdate: _appendStroke,
+                    onPanEnd: _endStroke,
+                    isTransparent: false,
+                  ),
                 ),
-              ),
 
               Positioned(
                 top: MediaQuery.of(context).padding.top + 16,
                 left: 16,
-                child: _FloatingHeaderPill(lesson: widget.lesson, isSaving: _viewModel.isSaving),
+                right: 16,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: _FloatingHeaderPill(lesson: widget.lesson, isSaving: _viewModel.isSaving),
+                    ),
+                    if (hasPdf)
+                      GlassCard(
+                        padding: const EdgeInsets.all(4),
+                        borderRadius: BorderRadius.circular(30),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _ToggleButton(
+                              title: 'PDF',
+                              isSelected: !_showBoard,
+                              onTap: () => setState(() => _showBoard = false),
+                            ),
+                            _ToggleButton(
+                              title: 'Whiteboard',
+                              isSelected: _showBoard,
+                              onTap: () => setState(() => _showBoard = true),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
 
               Positioned(
@@ -540,7 +572,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                   onColorSelected: (c) => setState(() { _selectedColor = c; _eraser = false; }),
                   onToggleEraser: () => setState(() => _eraser = !_eraser),
                   onClear: _clearBoard,
-                  hasPdf: hasPdf,
+                  hasPdf: showPdf,
                   onPrevPage: () => _goToPage(-1),
                   onNextPage: () => _goToPage(1),
                   currentPage: _viewModel.currentPage,
@@ -565,15 +597,17 @@ class _FloatingHeaderPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       borderRadius: BorderRadius.circular(30),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const BackButton(),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
@@ -582,7 +616,7 @@ class _FloatingHeaderPill extends StatelessWidget {
                   isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                 ).copyWith(fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Row(
                 children: [
                   const Icon(Icons.timer_outlined, size: 12, color: AppColors.info),
@@ -619,6 +653,47 @@ class _FloatingHeaderPill extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ToggleButton extends StatelessWidget {
+  final String title;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ToggleButton({
+    required this.title,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? (isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected 
+                ? (isDark ? Colors.white : Colors.black)
+                : (isDark ? Colors.white70 : Colors.black54),
+          ),
+        ),
       ),
     );
   }
@@ -919,27 +994,33 @@ class _PdfPaneState extends State<_PdfPane> {
       children: [
         Padding(
           padding: const EdgeInsets.all(12),
-          child: Stack(
-            children: [
-              _SignedPdfViewer(
-                url: lesson.pdfUrl!,
-                pageNumber: viewModel.currentPage,
-              ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  ignoring: !_drawMode,
+          child: _SignedPdfViewer(
+            url: lesson.pdfUrl!,
+            pageNumber: viewModel.currentPage,
+            pageOverlaysBuilder: (context, pageRect, page) {
+              final pageNum = page.pageNumber;
+              final pStrokes = _pageStrokes(widget.annotations, pageNum);
+              final isActive = pageNum == viewModel.currentPage;
+              
+              final pageVisibleStrokes = (isActive && _activeStroke != null)
+                  ? [...pStrokes, _activeStroke!]
+                  : pStrokes;
+
+              return [
+                IgnorePointer(
+                  ignoring: !(_drawMode && isActive),
                   child: Padding(
                     padding: const EdgeInsets.all(2),
                     child: _PdfFreehandLayer(
-                      strokes: visibleStrokes,
+                      strokes: pageVisibleStrokes,
                       onPanStart: _startStroke,
                       onPanUpdate: _appendStroke,
                       onPanEnd: _endStroke,
                     ),
                   ),
                 ),
-              ),
-            ],
+              ];
+            },
           ),
         ),
         for (var i = 0; i < highlights.length.clamp(0, 4); i++)
@@ -1354,8 +1435,13 @@ List<_PdfAnnotation> _decodePdfAnnotations(String raw) {
 class _SignedPdfViewer extends StatefulWidget {
   final String url;
   final int pageNumber;
+  final PdfPageOverlaysBuilder? pageOverlaysBuilder;
 
-  const _SignedPdfViewer({required this.url, required this.pageNumber});
+  const _SignedPdfViewer({
+    required this.url,
+    required this.pageNumber,
+    this.pageOverlaysBuilder,
+  });
 
   @override
   State<_SignedPdfViewer> createState() => _SignedPdfViewerState();
@@ -1396,6 +1482,7 @@ class _SignedPdfViewerState extends State<_SignedPdfViewer> {
           controller: _controller,
           initialPageNumber: widget.pageNumber,
           params: PdfViewerParams(
+            pageOverlaysBuilder: widget.pageOverlaysBuilder,
             onViewerReady: (document, controller) {
               controller.goToPage(
                 pageNumber: widget.pageNumber,

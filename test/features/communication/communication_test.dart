@@ -71,9 +71,9 @@ class MockNotificationRepository implements INotificationRepository {
     AppNotification(
       id: 'e5000000-0000-0000-0000-000000000001',
       userId: '00000000-0000-0000-0000-000000000106',
-      notificationType: 'chat_message',
+      type: 'chat_message',
       title: 'New Message from Teacher',
-      body: 'Welcome to CS 101!',
+      message: 'Welcome to CS 101!',
       createdAt: DateTime.now(),
     ),
   ];

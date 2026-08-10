@@ -53,7 +53,7 @@ class NotificationCenterViewModel extends ChangeNotifier {
       final idx = _notifications.indexWhere((n) => n.id == notificationId);
       if (idx >= 0 && !_notifications[idx].isRead) {
         _notifications[idx] = _notifications[idx].copyWith(
-          readAt: DateTime.now(),
+          isRead: true,
         );
         if (_unreadCount > 0) _unreadCount--;
         notifyListeners();
@@ -68,7 +68,7 @@ class NotificationCenterViewModel extends ChangeNotifier {
     try {
       await _notificationRepository.markAllRead();
       _notifications = _notifications
-          .map((n) => n.isRead ? n : n.copyWith(readAt: DateTime.now()))
+          .map((n) => n.isRead ? n : n.copyWith(isRead: true))
           .toList();
       _unreadCount = 0;
       notifyListeners();

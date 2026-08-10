@@ -87,7 +87,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                 : FontWeight.bold,
                           ),
                         ),
-                        subtitle: Text(notif.body),
+                        subtitle: Text(notif.message),
                         trailing: Text(
                           '${notif.createdAt.hour}:${notif.createdAt.minute.toString().padLeft(2, '0')}',
                           style: const TextStyle(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -27,6 +28,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   int _currentPage;
   bool _isRunningCode = false;
   CodeRunResult? _lastRunResult;
+  StreamSubscription? _teacherDraftSubscription;
 
   StudyWorkspaceViewModel({
     required this.lesson,
@@ -60,29 +62,17 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       _boardData = draft.boardData;
       
       if (studentId != null && repository != null) {
-        final teacherDraft = await repository!.fetchTeacherDraftForStudent(
+        // Fetch initial state
+        await _mergeTeacherDraft();
+
+        // Subscribe to real-time updates
+        _teacherDraftSubscription = repository!.listenToTeacherDraftForStudent(
           studentId: studentId!,
           lessonId: lesson.id,
-        );
-        if (teacherDraft.boardData.isNotEmpty) {
-           try {
-             final decoded = jsonDecode(teacherDraft.boardData);
-             if (decoded is Map && decoded['strokes'] is List) {
-               final strokes = (decoded['strokes'] as List).whereType<Map>().map((s) {
-                 final st = Map<String, dynamic>.from(s);
-                 st['is_teacher'] = true;
-                 return st;
-               }).toList();
-               
-               List<dynamic> studentStrokes = [];
-               if (_boardData.isNotEmpty) {
-                 final std = jsonDecode(_boardData);
-                 if (std is Map && std['strokes'] is List) studentStrokes = std['strokes'];
-               }
-               _boardData = jsonEncode({'strokes': [...strokes, ...studentStrokes]});
-             }
-           } catch (_) {}
-        }
+        ).listen((draft) async {
+          await _mergeTeacherDraft();
+          notifyListeners();
+        });
       }
 
       final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
@@ -96,6 +86,33 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
 
     _isLoaded = true;
     notifyListeners();
+  }
+
+  Future<void> _mergeTeacherDraft() async {
+    if (studentId == null || repository == null) return;
+    try {
+      final teacherDraft = await repository!.fetchTeacherDraftForStudent(
+        studentId: studentId!,
+        lessonId: lesson.id,
+      );
+      if (teacherDraft.boardData.isNotEmpty) {
+        final decoded = jsonDecode(teacherDraft.boardData);
+        if (decoded is Map && decoded['strokes'] is List) {
+          final strokes = (decoded['strokes'] as List).whereType<Map>().map((s) {
+            final st = Map<String, dynamic>.from(s);
+            st['is_teacher'] = true;
+            return st;
+          }).toList();
+          
+          List<dynamic> studentStrokes = [];
+          if (_boardData.isNotEmpty) {
+            final std = jsonDecode(_boardData);
+            if (std is Map && std['strokes'] is List) studentStrokes = std['strokes'].where((s) => s is Map && s['is_teacher'] != true).toList();
+          }
+          _boardData = jsonEncode({'strokes': [...strokes, ...studentStrokes]});
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> saveNotebook(String value) async {
@@ -252,6 +269,12 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       _isRunningCode = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _teacherDraftSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _save(Future<void> Function() action) async {

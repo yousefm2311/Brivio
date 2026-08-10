@@ -16,7 +16,7 @@ class SupabaseNotificationRepository implements INotificationRepository {
     if (currUser == null) return [];
 
     final response = await _clientWrapper.client
-        .from('notifications')
+        .from('app_notifications')
         .select()
         .eq('user_id', currUser.id)
         .order('created_at', ascending: false);
@@ -32,25 +32,36 @@ class SupabaseNotificationRepository implements INotificationRepository {
     if (currUser == null) return 0;
 
     final response = await _clientWrapper.client
-        .from('notifications')
+        .from('app_notifications')
         .select('id')
         .eq('user_id', currUser.id)
-        .filter('read_at', 'is', null);
+        .eq('is_read', false);
 
     return (response as List<dynamic>).length;
   }
 
   @override
   Future<void> markRead(String notificationId) async {
-    await _clientWrapper.client.rpc(
-      'mark_notification_read',
-      params: {'p_notification_id': notificationId},
-    );
+    final currUser = _clientWrapper.client.auth.currentUser;
+    if (currUser == null) return;
+    
+    await _clientWrapper.client
+        .from('app_notifications')
+        .update({'is_read': true})
+        .eq('id', notificationId)
+        .eq('user_id', currUser.id);
   }
 
   @override
   Future<void> markAllRead() async {
-    await _clientWrapper.client.rpc('mark_all_notifications_read');
+    final currUser = _clientWrapper.client.auth.currentUser;
+    if (currUser == null) return;
+
+    await _clientWrapper.client
+        .from('app_notifications')
+        .update({'is_read': true})
+        .eq('user_id', currUser.id)
+        .eq('is_read', false);
   }
 
   @override
@@ -98,7 +109,7 @@ class SupabaseNotificationRepository implements INotificationRepository {
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
-          table: 'notifications',
+          table: 'app_notifications',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'user_id',

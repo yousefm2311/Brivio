@@ -11,6 +11,11 @@ abstract class IStudyWorkspaceRepository {
     required String lessonId,
   });
 
+  Stream<StudyWorkspaceDraft> listenToTeacherDraftForStudent({
+    required String studentId,
+    required String lessonId,
+  });
+
   Future<StudyWorkspaceDraft> fetchTeacherDraft({
     required String teacherId,
     required String lessonId,
