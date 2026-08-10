@@ -33,10 +33,21 @@ class StudentExamItem {
   final int attemptCount;
   final String? lastAttemptStatus;
   final double? lastScore;
+  final String? resetRequestStatus;
 
-  const StudentExamItem({required this.exam, required this.groupName, required this.attemptCount, this.lastAttemptStatus, this.lastScore});
+  const StudentExamItem({
+    required this.exam, 
+    required this.groupName, 
+    required this.attemptCount, 
+    this.lastAttemptStatus, 
+    this.lastScore,
+    this.resetRequestStatus,
+  });
 
-  bool get canStart => attemptCount < exam.maxAttempts;
+  bool get canStart {
+    if (resetRequestStatus == 'approved') return true;
+    return attemptCount < exam.maxAttempts;
+  }
 
   factory StudentExamItem.fromJson(Map<dynamic, dynamic> raw) {
     final json = Map<String, dynamic>.from(raw);
@@ -46,6 +57,7 @@ class StudentExamItem {
       attemptCount: json['attempt_count'] as int? ?? 0,
       lastAttemptStatus: json['last_attempt_status'] as String?,
       lastScore: (json['last_score'] as num?)?.toDouble(),
+      resetRequestStatus: json['reset_request_status'] as String?,
     );
   }
 }

@@ -97,216 +97,13 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
     }
   }
 
-  void _showGradeSubmissionDialog(Map<String, dynamic> submission) async {
-    final scoreCtrl = TextEditingController(text: submission['score']?.toString() ?? '95');
-    final feedbackCtrl = TextEditingController(text: 'Excellent solution!');
-
-    // Show loading indicator
+  void _showGradeSubmissionDialog(Map<String, dynamic> submission) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
-    );
-
-    List<Map<String, dynamic>> answers = [];
-    try {
-      final isExam = submission['assessment_type'] == 'exam';
-      final table = isExam ? 'exam_answers' : 'homework_answers';
-      final foreignKey = isExam ? 'attempt_id' : 'submission_id';
-      
-      final res = await Supabase.instance.client
-          .from(table)
-          .select('*, questions(*), question_options(*)')
-          .eq(foreignKey, submission['id']);
-      answers = List<Map<String, dynamic>>.from(res);
-    } catch (e) {
-      debugPrint('Failed to fetch answers: $e');
-    }
-
-    if (!mounted) return;
-    Navigator.pop(context); // Dismiss loading indicator
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-        final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(16),
-          child: GlassCard(
-            padding: const EdgeInsets.all(24),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Text(
-                      context.tr('Manual Grading & Feedback'),
-                      style: AppTypography.displaySmall(textColor),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (submission['submission_text'] != null || submission['attachment_url'] != null) ...[
-                    Text(context.tr('Student Submission:'), style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (submission['submission_text'] != null && submission['submission_text'].toString().isNotEmpty)
-                            Text(
-                              submission['submission_text'],
-                              style: TextStyle(color: textColor, height: 1.5),
-                            )
-                          else
-                            Text(context.tr('No text provided.'), style: TextStyle(color: subtitleColor, fontStyle: FontStyle.italic)),
-                          
-                          if (submission['attachment_url'] != null && submission['attachment_url'].toString().isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            InkWell(
-                              onTap: () {
-                                // Launch URL placeholder
-                              },
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.attachment, color: AppColors.primary, size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      submission['attachment_url'],
-                                      style: const TextStyle(color: AppColors.primary, decoration: TextDecoration.underline),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  if (answers.isNotEmpty) ...[
-                    Text(context.tr('Student Answers:'), style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Container(
-                      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: answers.length,
-                        itemBuilder: (ctx, idx) {
-                          final ans = answers[idx];
-                          final q = ans['questions'] ?? {};
-                          final opt = ans['question_options'];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.05),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Q: ${q['prompt'] ?? 'Unknown'}', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 4),
-                                Text('A: ${opt != null ? opt['text'] : (ans['text_answer'] ?? 'No Answer')}', style: TextStyle(color: textColor)),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  TextField(
-                    controller: scoreCtrl,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(labelText: context.tr('Final Score')),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: feedbackCtrl,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(labelText: context.tr('Teacher Feedback')),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text(context.tr('Cancel'), style: TextStyle(color: textColor)),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () async {
-                          final nav = Navigator.of(ctx);
-                          final score = double.tryParse(scoreCtrl.text) ?? 90.0;
-                          try {
-                            final isExam = submission['assessment_type'] == 'exam';
-                            final rpcName = isExam ? 'grade_exam_attempt_with_feedback' : 'grade_homework_submission';
-                            final paramIdName = isExam ? 'p_attempt_id' : 'p_submission_id';
-                            
-                            await Supabase.instance.client.rpc(
-                              rpcName,
-                              params: {
-                                paramIdName: submission['id'],
-                                'p_score': score,
-                                'p_feedback': feedbackCtrl.text.trim().isEmpty ? null : feedbackCtrl.text.trim(),
-                              },
-                            );
-
-                            nav.pop();
-                            _loadGradingQueue();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(context.tr('Grade & feedback submitted to student!')),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${context.tr('Grading failed')}: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        child: Text(context.tr('Submit Grade')),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+      builder: (ctx) => _SubmissionGradeDialog(
+        initialSubmission: submission,
+        onGraded: _loadGradingQueue,
+      ),
     );
   }
 
@@ -489,6 +286,286 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                         ),
                       ],
                     ),
+    );
+  }
+}
+
+class _SubmissionGradeDialog extends StatefulWidget {
+  final Map<String, dynamic> initialSubmission;
+  final VoidCallback onGraded;
+
+  const _SubmissionGradeDialog({
+    Key? key,
+    required this.initialSubmission,
+    required this.onGraded,
+  }) : super(key: key);
+
+  @override
+  State<_SubmissionGradeDialog> createState() => _SubmissionGradeDialogState();
+}
+
+class _SubmissionGradeDialogState extends State<_SubmissionGradeDialog> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _allAttempts = [];
+  Map<String, List<Map<String, dynamic>>> _answersByAttempt = {};
+  
+  late TextEditingController _scoreCtrl;
+  late TextEditingController _feedbackCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _scoreCtrl = TextEditingController(text: widget.initialSubmission['score']?.toString() ?? '95');
+    _feedbackCtrl = TextEditingController(text: 'Excellent solution!');
+    _fetchAllAttemptsAndAnswers();
+  }
+
+  @override
+  void dispose() {
+    _scoreCtrl.dispose();
+    _feedbackCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchAllAttemptsAndAnswers() async {
+    try {
+      final isExam = widget.initialSubmission['assessment_type'] == 'exam';
+      final table = isExam ? 'exam_attempts' : 'homework_submissions';
+      final foreignKeyAssess = isExam ? 'exam_id' : 'homework_id';
+      
+      final assessmentId = widget.initialSubmission['assessment_id'];
+      final studentId = widget.initialSubmission['student_id'];
+
+      // Fetch all attempts for this student and assessment
+      final attemptsRes = await Supabase.instance.client
+          .from(table)
+          .select('*')
+          .eq(foreignKeyAssess, assessmentId)
+          .eq('student_id', studentId)
+          .order('created_at', ascending: true);
+          
+      final attemptsList = List<Map<String, dynamic>>.from(attemptsRes);
+      
+      // Fetch answers for all these attempts
+      final ansTable = isExam ? 'exam_answers' : 'homework_answers';
+      final ansForeignKey = isExam ? 'attempt_id' : 'submission_id';
+      
+      final attemptIds = attemptsList.map((a) => a['id']).toList();
+      
+      final answersRes = await Supabase.instance.client
+          .from(ansTable)
+          .select('*, questions(*), question_options(*)')
+          .inFilter(ansForeignKey, attemptIds);
+          
+      final allAnswers = List<Map<String, dynamic>>.from(answersRes);
+      
+      final Map<String, List<Map<String, dynamic>>> groupedAnswers = {};
+      for (var ans in allAnswers) {
+        final aId = ans[ansForeignKey].toString();
+        groupedAnswers[aId] = groupedAnswers[aId] ?? [];
+        groupedAnswers[aId]!.add(ans);
+      }
+
+      if (mounted) {
+        setState(() {
+          _allAttempts = attemptsList;
+          _answersByAttempt = groupedAnswers;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch multiple attempts: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildAnswersList(List<Map<String, dynamic>> answers, Color textColor) {
+    if (answers.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text(context.tr('No answers provided.'), style: TextStyle(color: textColor, fontStyle: FontStyle.italic)),
+      );
+    }
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: answers.length,
+      itemBuilder: (ctx, idx) {
+        final ans = answers[idx];
+        final q = ans['questions'] ?? {};
+        final opt = ans['question_options'];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Q: ${q['prompt'] ?? 'Unknown'}', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('A: ${opt != null ? opt['text'] : (ans['text_answer'] ?? 'No Answer')}', style: TextStyle(color: textColor)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
+      child: GlassCard(
+        padding: const EdgeInsets.all(24),
+        child: _isLoading
+            ? const SizedBox(
+                height: 200,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Text(
+                        context.tr('Manual Grading & Feedback'),
+                        style: AppTypography.displaySmall(textColor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    if (_allAttempts.length > 1) ...[
+                      Text(context.tr('Student Attempts History'), style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      DefaultTabController(
+                        length: _allAttempts.length,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TabBar(
+                              isScrollable: true,
+                              labelColor: AppColors.primary,
+                              unselectedLabelColor: subtitleColor,
+                              tabs: List.generate(_allAttempts.length, (idx) {
+                                final attemptNum = _allAttempts[idx]['attempt_number'] ?? (idx + 1);
+                                return Tab(text: '${context.tr("Attempt")} $attemptNum');
+                              }),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.4,
+                              child: TabBarView(
+                                children: _allAttempts.map((attempt) {
+                                  final aId = attempt['id'].toString();
+                                  final answers = _answersByAttempt[aId] ?? [];
+                                  return SingleChildScrollView(
+                                    child: _buildAnswersList(answers, textColor),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else if (_allAttempts.isNotEmpty) ...[
+                      Text(context.tr('Student Answers:'), style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Container(
+                        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+                        child: SingleChildScrollView(
+                          child: _buildAnswersList(_answersByAttempt[_allAttempts.first['id'].toString()] ?? [], textColor),
+                        ),
+                      ),
+                    ],
+                    
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _scoreCtrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(labelText: context.tr('Final Score')),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _feedbackCtrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(labelText: context.tr('Teacher Feedback')),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(context.tr('Cancel'), style: TextStyle(color: textColor)),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () async {
+                            final nav = Navigator.of(context);
+                            final score = double.tryParse(_scoreCtrl.text) ?? 90.0;
+                            try {
+                              final isExam = widget.initialSubmission['assessment_type'] == 'exam';
+                              final rpcName = isExam ? 'grade_exam_attempt_with_feedback' : 'grade_homework_submission';
+                              final paramIdName = isExam ? 'p_attempt_id' : 'p_submission_id';
+                              
+                              await Supabase.instance.client.rpc(
+                                rpcName,
+                                params: {
+                                  paramIdName: widget.initialSubmission['id'],
+                                  'p_score': score,
+                                  'p_feedback': _feedbackCtrl.text.trim().isEmpty ? null : _feedbackCtrl.text.trim(),
+                                },
+                              );
+
+                              nav.pop();
+                              widget.onGraded();
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(context.tr('Grade & feedback submitted to student!')),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${context.tr('Grading failed')}: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          child: Text(context.tr('Submit Grade')),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }

@@ -409,6 +409,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Reset request submitted.')), backgroundColor: Colors.green));
+      _loadData();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${context.tr("Failed to submit request")}: $e'), backgroundColor: Colors.red));
@@ -463,12 +464,54 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                 ),
               ),
               SizedBox(
-                width: 130,
-                child: PrimaryButton(
-                  text: exam.canStart ? context.tr('Start') : context.tr('Request Reset'),
-                  onPressed: exam.canStart ? () => _startExam(exam) : () => _requestExamReset(exam),
-                  color: AppColors.error,
-                ),
+                width: 140,
+                child: Builder(builder: (context) {
+                  if (exam.canStart) {
+                    return PrimaryButton(
+                      text: context.tr('Start Exam'),
+                      onPressed: () => _startExam(exam),
+                      color: AppColors.primary,
+                    );
+                  } else if (exam.resetRequestStatus == 'pending') {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+                      ),
+                      child: Center(
+                        child: Text(
+                          context.tr('Waiting for Approval'),
+                          style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  } else if (exam.resetRequestStatus == 'rejected') {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
+                      ),
+                      child: Center(
+                        child: Text(
+                          context.tr('Reset Rejected'),
+                          style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  } else {
+                    return PrimaryButton(
+                      text: context.tr('Request Reset'),
+                      onPressed: () => _requestExamReset(exam),
+                      color: AppColors.error,
+                    );
+                  }
+                }),
               ),
             ],
           ),
