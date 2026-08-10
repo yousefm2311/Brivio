@@ -73,7 +73,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     }
   }
 
-  void _showCreateMcqDialog() {
+  void _showCreateQuestionDialog() {
     final selectedGroup = _selectedGroup;
     if (selectedGroup == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -83,13 +83,20 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
       );
       return;
     }
+    
+    QuestionType selectedType = QuestionType.multipleChoice;
     final promptCtrl = TextEditingController();
+    final ptsCtrl = TextEditingController(text: '5');
+    
+    // MCQ/TF specific
     final opt1Ctrl = TextEditingController();
     final opt2Ctrl = TextEditingController();
     final opt3Ctrl = TextEditingController();
     final opt4Ctrl = TextEditingController();
     int correctIdx = 0;
-    final ptsCtrl = TextEditingController(text: '5');
+    
+    // Short/Long answer specific
+    final explanationCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -108,59 +115,90 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      context.tr('Create MCQ Question with Answer Key'),
+                      context.tr('Create Question'),
                       style: AppTypography.displaySmall(textColor),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<QuestionType>(
+                      value: selectedType,
+                      dropdownColor: isDark ? AppColors.darkCard : AppColors.lightCard,
+                      decoration: InputDecoration(
+                        labelText: context.tr('Question Type'),
+                      ),
+                      items: [
+                        DropdownMenuItem(value: QuestionType.multipleChoice, child: Text(context.tr('Multiple Choice'), style: TextStyle(color: textColor))),
+                        DropdownMenuItem(value: QuestionType.trueFalse, child: Text(context.tr('True / False'), style: TextStyle(color: textColor))),
+                        DropdownMenuItem(value: QuestionType.shortAnswer, child: Text(context.tr('Short Answer'), style: TextStyle(color: textColor))),
+                        DropdownMenuItem(value: QuestionType.longAnswer, child: Text(context.tr('Long Answer'), style: TextStyle(color: textColor))),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setStateDialog(() {
+                            selectedType = v;
+                            if (v == QuestionType.trueFalse) {
+                              opt1Ctrl.text = 'True';
+                              opt2Ctrl.text = 'False';
+                              correctIdx = 0;
+                            } else {
+                              opt1Ctrl.clear();
+                              opt2Ctrl.clear();
+                            }
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: promptCtrl,
                       style: TextStyle(color: textColor),
                       decoration: InputDecoration(
-                        labelText: context.tr('Question Prompt (e.g. What is 2 + 2?)'),
+                        labelText: context.tr('Question Prompt'),
                       ),
                       maxLines: 2,
                     ),
                     const SizedBox(height: 8),
-                    TextField(
-                      controller: opt1Ctrl,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(labelText: context.tr('Option 1')),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: opt2Ctrl,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(labelText: context.tr('Option 2')),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: opt3Ctrl,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(labelText: context.tr('Option 3')),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: opt4Ctrl,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(labelText: context.tr('Option 4')),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<int>(
-                      initialValue: correctIdx,
-                      dropdownColor: isDark ? AppColors.darkCard : AppColors.lightCard,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Correct Option (Answer Key)'),
+                    
+                    if (selectedType == QuestionType.multipleChoice) ...[
+                      TextField(controller: opt1Ctrl, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: context.tr('Option 1'))),
+                      const SizedBox(height: 8),
+                      TextField(controller: opt2Ctrl, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: context.tr('Option 2'))),
+                      const SizedBox(height: 8),
+                      TextField(controller: opt3Ctrl, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: context.tr('Option 3'))),
+                      const SizedBox(height: 8),
+                      TextField(controller: opt4Ctrl, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: context.tr('Option 4'))),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<int>(
+                        value: correctIdx,
+                        dropdownColor: isDark ? AppColors.darkCard : AppColors.lightCard,
+                        decoration: InputDecoration(labelText: context.tr('Correct Option')),
+                        items: [
+                          DropdownMenuItem(value: 0, child: Text(context.tr('Option 1 is Correct'), style: TextStyle(color: textColor))),
+                          DropdownMenuItem(value: 1, child: Text(context.tr('Option 2 is Correct'), style: TextStyle(color: textColor))),
+                          DropdownMenuItem(value: 2, child: Text(context.tr('Option 3 is Correct'), style: TextStyle(color: textColor))),
+                          DropdownMenuItem(value: 3, child: Text(context.tr('Option 4 is Correct'), style: TextStyle(color: textColor))),
+                        ],
+                        onChanged: (v) { if (v != null) setStateDialog(() => correctIdx = v); },
                       ),
-                      items: [
-                        DropdownMenuItem(value: 0, child: Text(context.tr('Option 1 is Correct'), style: TextStyle(color: textColor))),
-                        DropdownMenuItem(value: 1, child: Text(context.tr('Option 2 is Correct'), style: TextStyle(color: textColor))),
-                        DropdownMenuItem(value: 2, child: Text(context.tr('Option 3 is Correct'), style: TextStyle(color: textColor))),
-                        DropdownMenuItem(value: 3, child: Text(context.tr('Option 4 is Correct'), style: TextStyle(color: textColor))),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setStateDialog(() => correctIdx = v);
-                      },
-                    ),
+                    ] else if (selectedType == QuestionType.trueFalse) ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<int>(
+                        value: correctIdx,
+                        dropdownColor: isDark ? AppColors.darkCard : AppColors.lightCard,
+                        decoration: InputDecoration(labelText: context.tr('Correct Option')),
+                        items: [
+                          DropdownMenuItem(value: 0, child: Text(context.tr('True is Correct'), style: TextStyle(color: textColor))),
+                          DropdownMenuItem(value: 1, child: Text(context.tr('False is Correct'), style: TextStyle(color: textColor))),
+                        ],
+                        onChanged: (v) { if (v != null) setStateDialog(() => correctIdx = v); },
+                      ),
+                    ] else ...[
+                      TextField(
+                        controller: explanationCtrl,
+                        style: TextStyle(color: textColor),
+                        decoration: InputDecoration(labelText: context.tr('Model Answer / Explanation')),
+                        maxLines: 3,
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     TextField(
                       controller: ptsCtrl,
@@ -186,18 +224,28 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                             if (promptCtrl.text.trim().isEmpty) return;
                             final nav = Navigator.of(ctx);
                             try {
-                              final opts = [
-                                QuestionOption(id: '', questionId: '', text: opt1Ctrl.text.trim(), isCorrect: correctIdx == 0, orderNumber: 1),
-                                QuestionOption(id: '', questionId: '', text: opt2Ctrl.text.trim(), isCorrect: correctIdx == 1, orderNumber: 2),
-                                QuestionOption(id: '', questionId: '', text: opt3Ctrl.text.trim(), isCorrect: correctIdx == 2, orderNumber: 3),
-                                QuestionOption(id: '', questionId: '', text: opt4Ctrl.text.trim(), isCorrect: correctIdx == 3, orderNumber: 4),
-                              ];
+                              List<QuestionOption> opts = [];
+                              
+                              if (selectedType == QuestionType.multipleChoice) {
+                                opts = [
+                                  QuestionOption(id: '', questionId: '', text: opt1Ctrl.text.trim(), isCorrect: correctIdx == 0, orderNumber: 1),
+                                  QuestionOption(id: '', questionId: '', text: opt2Ctrl.text.trim(), isCorrect: correctIdx == 1, orderNumber: 2),
+                                  QuestionOption(id: '', questionId: '', text: opt3Ctrl.text.trim(), isCorrect: correctIdx == 2, orderNumber: 3),
+                                  QuestionOption(id: '', questionId: '', text: opt4Ctrl.text.trim(), isCorrect: correctIdx == 3, orderNumber: 4),
+                                ];
+                              } else if (selectedType == QuestionType.trueFalse) {
+                                opts = [
+                                  QuestionOption(id: '', questionId: '', text: 'True', isCorrect: correctIdx == 0, orderNumber: 1),
+                                  QuestionOption(id: '', questionId: '', text: 'False', isCorrect: correctIdx == 1, orderNumber: 2),
+                                ];
+                              }
 
                               final q = Question(
                                 id: '',
                                 subjectId: selectedGroup.subjectId,
-                                questionType: QuestionType.multipleChoice,
+                                questionType: selectedType,
                                 prompt: promptCtrl.text.trim(),
+                                explanation: explanationCtrl.text.trim().isNotEmpty ? explanationCtrl.text.trim() : null,
                                 defaultPoints: double.tryParse(ptsCtrl.text) ?? 5.0,
                                 options: opts,
                               );
@@ -208,7 +256,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(context.tr('MCQ Question & Answer Key saved to Question Bank!')),
+                                    content: Text(context.tr('Question saved successfully!')),
                                     backgroundColor: Colors.green,
                                   ),
                                 );
@@ -216,15 +264,12 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('${context.tr('Creation failed')}: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
+                                  SnackBar(content: Text('${context.tr('Creation failed')}: $e'), backgroundColor: Colors.red),
                                 );
                               }
                             }
                           },
-                          child: Text(context.tr('Save MCQ Question')),
+                          child: Text(context.tr('Save Question')),
                         ),
                       ],
                     ),
@@ -369,11 +414,11 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
             bottom: 16,
             right: 16,
             child: FloatingActionButton.extended(
-              onPressed: _showCreateMcqDialog,
+              onPressed: _showCreateQuestionDialog,
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              icon: const Icon(Icons.help_outline),
-              label: Text(context.tr('Add MCQ Question')),
+              icon: const Icon(Icons.add),
+              label: Text(context.tr('Add Question')),
             ),
           ),
       ],

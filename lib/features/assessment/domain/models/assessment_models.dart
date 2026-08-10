@@ -114,6 +114,7 @@ class Homework {
   final DateTime dueAt;
   final double maxScore;
   final String status;
+  final List<Question> questions;
 
   Homework({
     required this.id,
@@ -124,9 +125,13 @@ class Homework {
     required this.dueAt,
     this.maxScore = 100.0,
     this.status = 'published',
+    this.questions = const [],
   });
 
-  factory Homework.fromJson(Map<String, dynamic> json) {
+  factory Homework.fromJson(
+    Map<String, dynamic> json, [
+    List<Question> questions = const [],
+  ]) {
     return Homework(
       id: json['id'] as String,
       title: json['title'] as String? ?? '',
@@ -137,6 +142,7 @@ class Homework {
           DateTime.tryParse(json['due_at'] as String? ?? '') ?? DateTime.now(),
       maxScore: (json['max_score'] as num? ?? 100.0).toDouble(),
       status: json['status'] as String? ?? 'published',
+      questions: questions,
     );
   }
 }

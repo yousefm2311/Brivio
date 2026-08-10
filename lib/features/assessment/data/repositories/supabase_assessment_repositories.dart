@@ -92,12 +92,27 @@ class SupabaseHomeworkRepository implements IHomeworkRepository {
     try {
       final response = await _wrapper.client
           .from('homework')
-          .select()
+          .select('*, homework_questions(*, questions(*, question_options(*)))')
           .eq('group_id', groupId)
           .order('due_at');
-      return (response as List)
-          .map((j) => Homework.fromJson(j as Map<String, dynamic>))
-          .toList();
+      return (response as List).map((j) {
+        final item = Map<String, dynamic>.from(j as Map);
+        final rawHqs = item['homework_questions'] as List<dynamic>? ?? [];
+        final qList = rawHqs.map((hq) {
+          final hqMap = Map<String, dynamic>.from(hq as Map);
+          final qMap = Map<String, dynamic>.from(hqMap['questions'] as Map);
+          final rawOpts = qMap['question_options'] as List<dynamic>? ?? [];
+          final opts = rawOpts
+              .map(
+                (o) => QuestionOption.fromJson(
+                  Map<String, dynamic>.from(o as Map),
+                ),
+              )
+              .toList();
+          return Question.fromJson(qMap, opts);
+        }).toList();
+        return Homework.fromJson(item, qList);
+      }).toList();
     } catch (e) {
       throw DatabaseFailure(
         message: 'Failed to fetch homework: ${e.toString()}',
@@ -129,6 +144,31 @@ class SupabaseHomeworkRepository implements IHomeworkRepository {
       );
     }
   }
+
+  @override
+  Future<void> linkQuestion(String homeworkId, String questionId, double points) async {
+    try {
+      await _wrapper.client.from('homework_questions').insert({
+        'homework_id': homeworkId,
+        'question_id': questionId,
+        'points': points,
+      });
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to link question: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> unlinkQuestion(String homeworkId, String questionId) async {
+    try {
+      await _wrapper.client.from('homework_questions')
+          .delete()
+          .eq('homework_id', homeworkId)
+          .eq('question_id', questionId);
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to unlink question: ${e.toString()}');
+    }
+  }
 }
 
 class SupabaseExamRepository implements IExamRepository {
@@ -141,7 +181,7 @@ class SupabaseExamRepository implements IExamRepository {
       final response = await _wrapper.client
           .from('exams')
           .select(
-            '*, exam_questions(*, questions(*, student_question_options(*)))',
+            '*, exam_questions(*, questions(*, question_options(*)))',
           )
           .eq('group_id', groupId)
           .order('created_at', ascending: false);
@@ -153,7 +193,7 @@ class SupabaseExamRepository implements IExamRepository {
           final eqMap = Map<String, dynamic>.from(eq as Map);
           final qMap = Map<String, dynamic>.from(eqMap['questions'] as Map);
           final rawOpts =
-              qMap['student_question_options'] as List<dynamic>? ?? [];
+              qMap['question_options'] as List<dynamic>? ?? [];
           final opts = rawOpts
               .map(
                 (o) => QuestionOption.fromJson(
@@ -252,6 +292,31 @@ class SupabaseExamRepository implements IExamRepository {
       throw DatabaseFailure(message: e.message);
     } catch (e) {
       throw DatabaseFailure(message: 'Submit attempt failed: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> linkQuestion(String examId, String questionId, double points) async {
+    try {
+      await _wrapper.client.from('exam_questions').insert({
+        'exam_id': examId,
+        'question_id': questionId,
+        'points': points,
+      });
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to link question: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> unlinkQuestion(String examId, String questionId) async {
+    try {
+      await _wrapper.client.from('exam_questions')
+          .delete()
+          .eq('exam_id', examId)
+          .eq('question_id', questionId);
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to unlink question: ${e.toString()}');
     }
   }
 }

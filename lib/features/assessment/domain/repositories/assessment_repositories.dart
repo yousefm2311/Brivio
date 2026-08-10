@@ -11,6 +11,8 @@ abstract class IQuestionBankRepository {
 abstract class IHomeworkRepository {
   Future<List<Homework>> fetchHomeworkForGroup(String groupId);
   Future<Homework> createHomework(Homework homework);
+  Future<void> linkQuestion(String homeworkId, String questionId, double points);
+  Future<void> unlinkQuestion(String homeworkId, String questionId);
 }
 
 abstract class IExamRepository {
@@ -23,4 +25,6 @@ abstract class IExamRepository {
     String? textAnswer,
   });
   Future<ExamAttempt> submitExamAttempt(String attemptId);
+  Future<void> linkQuestion(String examId, String questionId, double points);
+  Future<void> unlinkQuestion(String examId, String questionId);
 }

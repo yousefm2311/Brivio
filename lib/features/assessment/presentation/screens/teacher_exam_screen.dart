@@ -24,6 +24,7 @@ class TeacherExamScreen extends StatefulWidget {
 class _TeacherExamScreenState extends State<TeacherExamScreen> {
   late final SupabaseTeacherRepository _teacherRepo;
   late final SupabaseExamRepository _examRepo;
+  late final SupabaseQuestionBankRepository _questionRepo;
   List<GroupEntity> _groups = [];
   GroupEntity? _selectedGroup;
   List<Exam> _exams = [];
@@ -36,6 +37,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     final wrapper = SupabaseClientWrapper(Supabase.instance.client);
     _teacherRepo = SupabaseTeacherRepository(wrapper);
     _examRepo = SupabaseExamRepository(wrapper);
+    _questionRepo = SupabaseQuestionBankRepository(wrapper);
     _loadGroupsAndExams();
   }
 
@@ -186,6 +188,151 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     );
   }
 
+  void _showManageQuestionsBottomSheet(Exam exam) async {
+    final group = _selectedGroup;
+    if (group == null) return;
+    
+    final Set<String> initiallyLinkedIds = exam.questions.map((q) => q.id).toSet();
+    final Set<String> currentSelectedIds = Set<String>.from(initiallyLinkedIds);
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final bgColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+        final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: FutureBuilder<List<Question>>(
+                future: _questionRepo.fetchQuestionsForSubject(group.subjectId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error loading questions: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+                  }
+
+                  final allQuestions = snapshot.data ?? [];
+                  if (allQuestions.isEmpty) {
+                    return Center(child: Text(context.tr('No questions found in Question Bank.'), style: TextStyle(color: textColor)));
+                  }
+
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          '${context.tr('Manage Questions for')} ${exam.title}',
+                          style: AppTypography.displaySmall(textColor),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('${currentSelectedIds.length} ${context.tr('Selected')}', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                            TextButton(
+                              onPressed: () {
+                                setModalState(() {
+                                  if (currentSelectedIds.length == allQuestions.length) {
+                                    currentSelectedIds.clear();
+                                  } else {
+                                    currentSelectedIds.addAll(allQuestions.map((q) => q.id));
+                                  }
+                                });
+                              },
+                              child: Text(currentSelectedIds.length == allQuestions.length ? context.tr('Deselect All') : context.tr('Select All')),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: allQuestions.length,
+                          itemBuilder: (context, index) {
+                            final q = allQuestions[index];
+                            final isLinked = currentSelectedIds.contains(q.id);
+                            
+                            return ListTile(
+                              title: Text(q.prompt, style: TextStyle(color: textColor)),
+                              subtitle: Text('${context.tr(q.questionType.name)} | ${q.defaultPoints} ${context.tr('pts')}'),
+                              trailing: Checkbox(
+                                value: isLinked,
+                                activeColor: AppColors.primary,
+                                onChanged: (val) {
+                                  if (val == null) return;
+                                  setModalState(() {
+                                    if (val) {
+                                      currentSelectedIds.add(q.id);
+                                    } else {
+                                      currentSelectedIds.remove(q.id);
+                                    }
+                                  });
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 48),
+                          ),
+                          onPressed: isSaving ? null : () async {
+                            setModalState(() => isSaving = true);
+                            try {
+                              final additions = currentSelectedIds.difference(initiallyLinkedIds);
+                              final removals = initiallyLinkedIds.difference(currentSelectedIds);
+                              
+                              for (final id in additions) {
+                                final q = allQuestions.firstWhere((q) => q.id == id);
+                                await _examRepo.linkQuestion(exam.id, q.id, q.defaultPoints);
+                              }
+                              for (final id in removals) {
+                                await _examRepo.unlinkQuestion(exam.id, id);
+                              }
+                              
+                              await _loadGroupsAndExams();
+                              if (ctx.mounted) Navigator.pop(ctx);
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                              }
+                            } finally {
+                              if (ctx.mounted) setModalState(() => isSaving = false);
+                            }
+                          },
+                          child: isSaving ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(context.tr('Save & Close')),
+                        ),
+                      )
+                    ],
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -287,8 +434,18 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                                     '${context.tr('Duration')}: ${exam.durationMinutes} ${context.tr('min')} | ${context.tr('Pass Score')}: ${exam.passScore} | ${context.tr('Status')}: ${context.tr(exam.status)}',
                                                     style: AppTypography.caption(subtitleColor),
                                                   ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    '${exam.questions.length} ${context.tr('Questions')}',
+                                                    style: AppTypography.caption(AppColors.primary),
+                                                  ),
                                                 ],
                                               ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.edit_document, color: AppColors.primary),
+                                              tooltip: context.tr('Manage Questions'),
+                                              onPressed: () => _showManageQuestionsBottomSheet(exam),
                                             ),
                                           ],
                                         ),
