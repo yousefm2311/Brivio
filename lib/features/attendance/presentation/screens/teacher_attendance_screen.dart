@@ -260,24 +260,33 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           delay: Duration(milliseconds: 30 * i),
           child: GlassCard(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                backgroundColor: isFinalized ? AppColors.successSubtle : AppColors.warningSubtle,
-                child: Icon(
-                  Icons.event_available,
-                  color: isFinalized ? AppColors.success : AppColors.warning,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: isFinalized ? AppColors.successSubtle : AppColors.warningSubtle,
+                  child: Icon(
+                    Icons.event_available,
+                    color: isFinalized ? AppColors.success : AppColors.warning,
+                  ),
                 ),
-              ),
-              title: Text(
-                '${context.tr('Session')}: ${session.location ?? context.tr('Main Hall')}',
-                style: AppTypography.titleMedium(AppColors.darkTextPrimary),
-              ),
-              subtitle: Text(
-                '${context.tr('Date')}: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day} | ${context.tr('Status')}: ${context.tr(session.status.name)}',
-                style: AppTypography.bodySmall(AppColors.darkTextSecondary),
-              ),
-              trailing: Wrap(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${context.tr('Session')}: ${session.location ?? context.tr('Main Hall')}',
+                        style: AppTypography.titleMedium(AppColors.darkTextPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${context.tr('Date')}: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day} | ${context.tr('Status')}: ${context.tr(session.status.name)}',
+                        style: AppTypography.bodySmall(AppColors.darkTextSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                Wrap(
                 spacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
@@ -314,6 +323,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     ),
                 ],
               ),
+              ],
             ),
           ),
         );

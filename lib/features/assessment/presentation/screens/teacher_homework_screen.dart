@@ -268,20 +268,30 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                       padding: const EdgeInsets.only(bottom: 12.0),
                                       child: GlassCard(
                                         padding: const EdgeInsets.all(16),
-                                        child: ListTile(
-                                          contentPadding: EdgeInsets.zero,
-                                          leading: CircleAvatar(
-                                            backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                                            child: const Icon(Icons.assignment, color: AppColors.primary),
-                                          ),
-                                          title: Text(
-                                            h.title,
-                                            style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold),
-                                          ),
-                                          subtitle: Text(
-                                            '${context.tr('Max Score')}: ${h.maxScore} | ${context.tr('Due')}: ${h.dueAt.year}-${h.dueAt.month}-${h.dueAt.day} | ${context.tr('Status')}: ${context.tr(h.status)}',
-                                            style: AppTypography.caption(subtitleColor),
-                                          ),
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                                              child: const Icon(Icons.assignment, color: AppColors.primary),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    h.title,
+                                                    style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    '${context.tr('Max Score')}: ${h.maxScore} | ${context.tr('Due')}: ${h.dueAt.year}-${h.dueAt.month}-${h.dueAt.day} | ${context.tr('Status')}: ${context.tr(h.status)}',
+                                                    style: AppTypography.caption(subtitleColor),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),

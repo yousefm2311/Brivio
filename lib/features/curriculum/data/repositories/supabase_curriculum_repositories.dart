@@ -172,17 +172,13 @@ class SupabaseLessonRepository implements ILessonRepository {
   }
 
   @override
-  Future<void> publishLesson(String lessonId) async {
+  Future<void> publishLesson(String lessonId, {bool publish = true}) async {
     try {
-      final response = await _wrapper.client.rpc(
-        'publish_lesson',
-        params: {'p_lesson_id': lessonId},
-      );
-
-      final jsonMap = Map<String, dynamic>.from(response as Map);
-      if (jsonMap['success'] != true) {
-        throw DatabaseFailure(message: 'Publish operation failed');
-      }
+      await _wrapper.client.from('lessons').update({
+        'status': publish ? 'published' : 'draft',
+        'published_at': publish ? DateTime.now().toUtc().toIso8601String() : null,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', lessonId);
     } on supabase.PostgrestException catch (e) {
       throw DatabaseFailure(message: e.message);
     } catch (e) {

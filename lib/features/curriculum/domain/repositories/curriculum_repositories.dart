@@ -14,7 +14,7 @@ abstract class ILessonRepository {
   Future<List<Lesson>> fetchLessonsForUnit(String unitId);
   Future<Lesson> getLessonById(String lessonId);
   Future<Lesson> createLesson(Lesson lesson);
-  Future<void> publishLesson(String lessonId);
+  Future<void> publishLesson(String lessonId, {bool publish = true});
   Future<void> reorderLessons({
     required String unitId,
     required List<String> orderedLessonIds,

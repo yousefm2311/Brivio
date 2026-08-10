@@ -591,6 +591,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                             onPressed: () async {
                                               await _lessonRepo.publishLesson(
                                                 lesson.id,
+                                                publish: !isPublished,
                                               );
                                               _loadCurriculum();
                                             },

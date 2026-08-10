@@ -267,20 +267,30 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                       padding: const EdgeInsets.only(bottom: 12.0),
                                       child: GlassCard(
                                         padding: const EdgeInsets.all(16),
-                                        child: ListTile(
-                                          contentPadding: EdgeInsets.zero,
-                                          leading: CircleAvatar(
-                                            backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                                            child: const Icon(Icons.quiz, color: AppColors.primary),
-                                          ),
-                                          title: Text(
-                                            exam.title,
-                                            style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold),
-                                          ),
-                                          subtitle: Text(
-                                            '${context.tr('Duration')}: ${exam.durationMinutes} ${context.tr('min')} | ${context.tr('Pass Score')}: ${exam.passScore} | ${context.tr('Status')}: ${context.tr(exam.status)}',
-                                            style: AppTypography.caption(subtitleColor),
-                                          ),
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                                              child: const Icon(Icons.quiz, color: AppColors.primary),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    exam.title,
+                                                    style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    '${context.tr('Duration')}: ${exam.durationMinutes} ${context.tr('min')} | ${context.tr('Pass Score')}: ${exam.passScore} | ${context.tr('Status')}: ${context.tr(exam.status)}',
+                                                    style: AppTypography.caption(subtitleColor),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),

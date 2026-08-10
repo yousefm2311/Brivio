@@ -218,41 +218,52 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                                     padding: const EdgeInsets.only(bottom: 12.0),
                                     child: GlassCard(
                                       padding: const EdgeInsets.all(16),
-                                      child: ListTile(
-                                        contentPadding: EdgeInsets.zero,
-                                          leading: CircleAvatar(
+                                      child: Row(
+                                        children: [
+                                          CircleAvatar(
                                             backgroundColor: isGraded ? Colors.green.withValues(alpha: 0.2) : Colors.orange.withValues(alpha: 0.2),
                                             child: Icon(Icons.grading, color: isGraded ? Colors.green : Colors.orange),
                                           ),
-                                          title: Text(
-                                            '${context.tr('Student')}: ${sub['student_full_name'] ?? context.tr("Learner")}',
-                                            style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  '${context.tr('Student')}: ${sub['student_full_name'] ?? context.tr("Learner")}',
+                                                  style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '${sub['homework_title'] ?? context.tr("Homework")} | ${context.tr('Status')}: ${context.tr((sub['status'] as String? ?? "submitted"))} | ${context.tr('Score')}: ${sub['score'] ?? context.tr("Pending")}',
+                                                  style: AppTypography.caption(subtitleColor),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                          subtitle: Text(
-                                            '${sub['homework_title'] ?? context.tr("Homework")} | ${context.tr('Status')}: ${context.tr((sub['status'] as String? ?? "submitted"))} | ${context.tr('Score')}: ${sub['score'] ?? context.tr("Pending")}',
-                                            style: AppTypography.caption(subtitleColor),
-                                          ),
-                                        trailing: isGraded
-                                            ? Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.green,
-                                                  borderRadius: BorderRadius.circular(12),
+                                          const SizedBox(width: 8),
+                                          isGraded
+                                              ? Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.green,
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: Text(
+                                                    context.tr('graded'),
+                                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                                  ),
+                                                )
+                                              : ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: AppColors.primary,
+                                                    foregroundColor: Colors.white,
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                  ),
+                                                  onPressed: () => _showGradeSubmissionDialog(sub),
+                                                  child: Text(context.tr('Grade')),
                                                 ),
-                                                child: Text(
-                                                  context.tr('graded'),
-                                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                                ),
-                                              )
-                                            : ElevatedButton(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: AppColors.primary,
-                                                  foregroundColor: Colors.white,
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                                ),
-                                                onPressed: () => _showGradeSubmissionDialog(sub),
-                                                child: Text(context.tr('Grade')),
-                                              ),
+                                        ],
                                       ),
                                     ),
                                   ),

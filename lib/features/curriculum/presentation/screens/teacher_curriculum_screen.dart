@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -305,24 +305,25 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                       final bytes = file == null
                           ? null
                           : await file.readAsBytes();
-                      if (titleCtrl.text.trim().isEmpty ||
-                          file == null ||
-                          bytes == null) {
+                      if (titleCtrl.text.trim().isEmpty || file == null || bytes == null) {
                         return;
                       }
 
                       final nav = Navigator.of(ctx);
-                      setDialogState(() => isUploading = true);
+                      bool popped = false;
                       try {
-                        final objectPath = _buildLessonResourcePath(
-                          lesson.id,
-                          file.name,
-                        );
+                        setDialogState(() => isUploading = true);
+
+                        final bytes = await file.readAsBytes();
+                        final ext = file.name.split('.').last;
+                        final objectPath =
+                            'lessons/${lesson.id}/${DateTime.now().millisecondsSinceEpoch}.$ext';
+
                         await Supabase.instance.client.storage
                             .from('curriculum_assets')
                             .uploadBinary(
                               objectPath,
-                              Uint8List.fromList(bytes),
+                              bytes,
                               fileOptions: const FileOptions(
                                 contentType: 'application/pdf',
                                 upsert: true,
@@ -341,6 +342,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
 
                         await _resourceRepo.createResource(res);
                         nav.pop();
+                        popped = true;
                         await _loadCurriculum();
                         if (mounted) {
                           messenger.showSnackBar(
@@ -353,7 +355,9 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                           );
                         }
                       } catch (e) {
-                        setDialogState(() => isUploading = false);
+                        if (!popped) {
+                          setDialogState(() => isUploading = false);
+                        }
                         if (mounted) {
                           messenger.showSnackBar(
                             SnackBar(
@@ -373,13 +377,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
     );
   }
 
-  String _buildLessonResourcePath(String lessonId, String fileName) {
-    final safeName = fileName
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9._-]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_');
-    return 'lessons/$lessonId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
-  }
+
 
   void _showCodeChallengesDialog(Lesson lesson) {
     showDialog(
@@ -557,6 +555,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                               onPressed: () async {
                                                 await _lessonRepo.publishLesson(
                                                   lesson.id,
+                                                  publish: !isPublished,
                                                 );
                                                 _loadCurriculum();
                                               },
