@@ -283,7 +283,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
+                Flexible(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

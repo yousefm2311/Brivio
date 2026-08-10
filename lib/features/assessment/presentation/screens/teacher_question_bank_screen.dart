@@ -96,7 +96,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
 
     if (existingQuestion != null && existingQuestion.options.isNotEmpty) {
       if (selectedType == QuestionType.multipleChoice) {
-        if (existingQuestion.options.length > 0) opt1Ctrl.text = existingQuestion.options[0].text;
+        if (existingQuestion.options.isNotEmpty) opt1Ctrl.text = existingQuestion.options[0].text;
         if (existingQuestion.options.length > 1) opt2Ctrl.text = existingQuestion.options[1].text;
         if (existingQuestion.options.length > 2) opt3Ctrl.text = existingQuestion.options[2].text;
         if (existingQuestion.options.length > 3) opt4Ctrl.text = existingQuestion.options[3].text;
@@ -133,7 +133,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<QuestionType>(
-                      value: selectedType,
+                      initialValue: selectedType,
                       dropdownColor: isDark ? AppColors.darkCard : AppColors.lightCard,
                       decoration: InputDecoration(
                         labelText: context.tr('Question Type'),
@@ -181,7 +181,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                       TextField(controller: opt4Ctrl, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: context.tr('Option 4'))),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<int>(
-                        value: correctIdx,
+                        initialValue: correctIdx,
                         dropdownColor: isDark ? AppColors.darkCard : AppColors.lightCard,
                         decoration: InputDecoration(labelText: context.tr('Correct Option')),
                         items: [
@@ -195,7 +195,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                     ] else if (selectedType == QuestionType.trueFalse) ...[
                       const SizedBox(height: 16),
                       DropdownButtonFormField<int>(
-                        value: correctIdx,
+                        initialValue: correctIdx,
                         dropdownColor: isDark ? AppColors.darkCard : AppColors.lightCard,
                         decoration: InputDecoration(labelText: context.tr('Correct Option')),
                         items: [

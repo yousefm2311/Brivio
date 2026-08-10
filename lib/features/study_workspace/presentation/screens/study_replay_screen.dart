@@ -215,7 +215,9 @@ class _SessionList extends StatelessWidget {
             borderColor: isSelected ? AppColors.teacherRole : null,
             padding: const EdgeInsets.all(12),
             onTap: () => onSelected(session),
-            child: ListTile(
+            child: Material(
+              color: Colors.transparent,
+              child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(Icons.play_circle, color: isSelected ? AppColors.teacherRole : AppColors.info),
               title: Text(session.studentName, style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
@@ -227,6 +229,7 @@ class _SessionList extends StatelessWidget {
                 label: session.startedLabel,
                 status: ChipStatus.neutral,
               ),
+            ),
             ),
           ),
         );
@@ -339,12 +342,15 @@ class _ReplayTimeline extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             color: reached ? event.color.withValues(alpha: 0.1) : AppColors.glassLight,
             borderColor: reached ? event.color : AppColors.glassBorder,
-            child: ListTile(
+            child: Material(
+              color: Colors.transparent,
+              child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(reached ? event.icon : Icons.radio_button_unchecked, color: reached ? event.color : Colors.grey),
               title: Text(event.eventType.replaceAll('_', ' '), style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
               subtitle: Text('${event.offsetLabel} | ${event.payload}', style: AppTypography.bodySmall(AppColors.darkTextSecondary)),
               trailing: StatusChip(label: event.kind, status: ChipStatus.info),
+            ),
             ),
           ),
         );

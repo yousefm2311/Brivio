@@ -48,6 +48,52 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   DateTime? _studySessionStartedAt;
   final Set<int> _visitedPages = {};
 
+  static const _inkColors = [
+    Color(0xFF1D4ED8),
+    Color(0xFF111827),
+    Color(0xFFDC2626),
+    Color(0xFF16A34A),
+    Color(0xFFEAB308),
+  ];
+  Color _selectedColor = _inkColors.first;
+  bool _eraser = false;
+  _BoardStroke? _activeStroke;
+  bool _isFabMenuOpen = false;
+
+  void _startStroke(DragStartDetails details) {
+    setState(() {
+      _activeStroke = _BoardStroke(
+        color: _eraser ? Colors.white : _selectedColor,
+        width: _eraser ? 18 : 4,
+        points: [details.localPosition],
+      );
+    });
+  }
+
+  void _appendStroke(DragUpdateDetails details) {
+    final stroke = _activeStroke;
+    if (stroke == null) return;
+    setState(() {
+      _activeStroke = stroke.copyWith(
+        points: [...stroke.points, details.localPosition],
+      );
+    });
+  }
+
+  void _endStroke([DragEndDetails? _]) {
+    final stroke = _activeStroke;
+    if (stroke == null || stroke.points.length < 2) {
+      setState(() => _activeStroke = null);
+      return;
+    }
+    _queueBoardSave([..._boardStrokes, stroke]);
+    setState(() => _activeStroke = null);
+  }
+
+  void _clearBoard() {
+    _queueBoardSave([]);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -113,7 +159,10 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     setState(() => _boardStrokes = strokes);
     _boardDebounce?.cancel();
     _boardDebounce = Timer(const Duration(milliseconds: 450), () {
-      _viewModel.saveBoard(_encodeBoard(strokes));
+      final strokesToSave = widget.teacherId == null 
+        ? strokes.where((s) => !s.isTeacher).toList()
+        : strokes;
+      _viewModel.saveBoard(_encodeBoard(strokesToSave));
       _recordReplayEvent('board_changed', {'stroke_count': strokes.length});
     });
   }
@@ -192,12 +241,26 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
 
     final repository = widget.repository;
     final studentId = widget.studentId;
-    if (repository == null || studentId == null) return;
+    final teacherId = widget.teacherId;
+    if (repository == null || (studentId == null && teacherId == null)) return;
     try {
-      final cloudRows = await repository.fetchPdfAnnotations(
-        studentId: studentId,
-        lessonId: widget.lesson.id,
-      );
+      List<Map<String, dynamic>> cloudRows = [];
+      if (teacherId != null) {
+        cloudRows = await repository.fetchTeacherPdfAnnotations(
+          teacherId: teacherId,
+          lessonId: widget.lesson.id,
+        );
+      } else if (studentId != null) {
+        cloudRows = await repository.fetchPdfAnnotations(
+          studentId: studentId,
+          lessonId: widget.lesson.id,
+        );
+        final teacherRows = await repository.fetchTeacherPdfAnnotationsForStudent(
+          studentId: studentId,
+          lessonId: widget.lesson.id,
+        );
+        cloudRows = [...cloudRows, ...teacherRows];
+      }
       final cloudAnnotations = cloudRows
           .map(_PdfAnnotation.fromJson)
           .where((annotation) => annotation.id.isNotEmpty)
@@ -263,7 +326,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   }
 
   String get _pdfAnnotationKey =>
-      'study_workspace_pdf_annotations_${widget.lesson.id}';
+      'study_workspace_pdf_annotations_${widget.lesson.id}_${widget.teacherId ?? widget.studentId ?? 'guest'}';
 
   Future<void> _addStickyNote() async {
     final controller = TextEditingController();
@@ -362,8 +425,15 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   }
 
   Future<void> _deletePdfAnnotation(String id) async {
+    final annotation = _pdfAnnotations.firstWhere(
+      (a) => a.id == id, 
+      orElse: () => _PdfAnnotation(id: '', page: 0, type: _PdfAnnotationType.note, text: '', createdAt: DateTime.now())
+    );
+    if (annotation.id.isEmpty) return;
+    if (widget.teacherId == null && annotation.isTeacher) return;
+
     await _savePdfAnnotations(
-      _pdfAnnotations.where((annotation) => annotation.id != id).toList(),
+      _pdfAnnotations.where((a) => a.id != id).toList(),
     );
     _recordReplayEvent('pdf_annotation_deleted', {'id': id});
   }
@@ -414,309 +484,299 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, _) {
+        if (!_viewModel.isLoaded) {
+          return Scaffold(
+            backgroundColor: bgColor,
+            body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+          );
+        }
+        
+        final hasPdf = widget.lesson.pdfUrl != null;
+
         return Scaffold(
           backgroundColor: bgColor,
-          appBar: AppBar(
-            backgroundColor: surfaceColor,
-            title: Text(widget.lesson.title, style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800)),
-            actions: [
-              Padding(
-                padding: const EdgeInsetsDirectional.only(end: 16),
-                child: Center(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: _viewModel.isSaving
-                        ? const SizedBox(
-                            key: ValueKey('saving'),
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                          )
-                        : const Icon(
-                            key: ValueKey('saved'),
-                            Icons.cloud_done_rounded,
-                            color: AppColors.success,
-                          ),
+          body: Stack(
+            children: [
+              if (hasPdf)
+                Positioned.fill(
+                  child: _PdfPane(
+                    viewModel: _viewModel,
+                    annotations: _pdfAnnotations,
+                    onAddNote: _addStickyNote,
+                    onAddHighlight: _addHighlight,
+                    onToggleBookmark: _toggleBookmark,
+                    onDeleteAnnotation: _deletePdfAnnotation,
+                    onFreehandChanged: _savePdfFreehand,
+                    onPreviousPage: () => _goToPage(-1),
+                    onNextPage: () => _goToPage(1),
+                    teacherId: widget.teacherId,
                   ),
+                ),
+
+              Positioned.fill(
+                child: _DrawingBoard(
+                  strokes: _activeStroke == null ? _boardStrokes : [..._boardStrokes, _activeStroke!],
+                  onPanStart: _startStroke,
+                  onPanUpdate: _appendStroke,
+                  onPanEnd: _endStroke,
+                  isTransparent: hasPdf,
+                ),
+              ),
+
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 16,
+                left: 16,
+                child: _FloatingHeaderPill(lesson: widget.lesson, isSaving: _viewModel.isSaving),
+              ),
+
+              Positioned(
+                bottom: MediaQuery.of(context).padding.bottom + 24,
+                right: 24,
+                child: _FloatingToolMenu(
+                  isOpen: _isFabMenuOpen,
+                  onToggle: () => setState(() => _isFabMenuOpen = !_isFabMenuOpen),
+                  selectedColor: _selectedColor,
+                  eraser: _eraser,
+                  onColorSelected: (c) => setState(() { _selectedColor = c; _eraser = false; }),
+                  onToggleEraser: () => setState(() => _eraser = !_eraser),
+                  onClear: _clearBoard,
+                  hasPdf: hasPdf,
+                  onPrevPage: () => _goToPage(-1),
+                  onNextPage: () => _goToPage(1),
+                  currentPage: _viewModel.currentPage,
+                  totalPages: widget.lesson.totalPages,
                 ),
               ),
             ],
           ),
-          body: !_viewModel.isLoaded
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isWide = constraints.maxWidth >= 900;
-                    return DefaultTabController(
-                      length: 3,
-                      child: Column(
-                        children: [
-                          _WorkspaceHeader(lesson: widget.lesson),
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: TabBar(
-                              dividerColor: Colors.transparent,
-                              indicator: BoxDecoration(
-                                color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: [
-                                  BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 2)),
-                                  BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4)),
-                                ],
-                              ),
-                              indicatorSize: TabBarIndicatorSize.tab,
-                              labelColor: textPrimary,
-                              unselectedLabelColor: textPrimary.withValues(alpha: 0.5),
-                              labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                              unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                              tabs: [
-                                Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.picture_as_pdf_rounded, size: 18), const SizedBox(width: 8), Text(context.tr('PDF'))])),
-                                Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.draw_rounded, size: 18), const SizedBox(width: 8), Text(context.tr('Notebook'))])),
-                                Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.code_rounded, size: 18), const SizedBox(width: 8), Text(context.tr('Code'))])),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: FadeInSlide(
-                              duration: const Duration(milliseconds: 500),
-                              child: isWide
-                                  ? _WideWorkspace(
-                                      viewModel: _viewModel,
-                                      notebookController: _notebookController,
-                                      codeController: _codeController,
-                                      boardStrokes: _boardStrokes,
-                                      pdfAnnotations: _pdfAnnotations,
-                                      teacherId: widget.teacherId,
-                                      onNotebookChanged: _queueNotebookSave,
-                                      onCodeChanged: _queueCodeSave,
-                                      onBoardChanged: _queueBoardSave,
-                                      onPdfNote: _addStickyNote,
-                                      onPdfHighlight: _addHighlight,
-                                      onPdfBookmark: _toggleBookmark,
-                                      onPdfAnnotationDelete: _deletePdfAnnotation,
-                                      onPdfFreehandChanged: _savePdfFreehand,
-                                      onPreviousPdfPage: () => _goToPage(-1),
-                                      onNextPdfPage: () => _goToPage(1),
-                                    )
-                                  : TabBarView(
-                                      children: [
-                                        _PdfPane(
-                                          viewModel: _viewModel,
-                                          annotations: _pdfAnnotations,
-                                          onAddNote: _addStickyNote,
-                                          onAddHighlight: _addHighlight,
-                                          onToggleBookmark: _toggleBookmark,
-                                          onDeleteAnnotation: _deletePdfAnnotation,
-                                          onFreehandChanged: _savePdfFreehand,
-                                          onPreviousPage: () => _goToPage(-1),
-                                          onNextPage: () => _goToPage(1),
-                                          teacherId: widget.teacherId,
-                                        ),
-                                        _NotebookPane(
-                                          controller: _notebookController,
-                                          strokes: _boardStrokes,
-                                          onChanged: _queueNotebookSave,
-                                          onBoardChanged: _queueBoardSave,
-                                        ),
-                                        _CodePane(
-                                          viewModel: _viewModel,
-                                          controller: _codeController,
-                                          onChanged: _queueCodeSave,
-                                        ),
-                                      ],
-                                    ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
         );
       },
     );
   }
 }
 
-class _WorkspaceHeader extends StatelessWidget {
+class _FloatingHeaderPill extends StatelessWidget {
   final StudyLessonSummary lesson;
+  final bool isSaving;
 
-  const _WorkspaceHeader({required this.lesson});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkBackgroundElevated : AppColors.lightSurface,
-        border: Border(
-          bottom: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, width: 0.5),
-        ),
-      ),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          _HeaderChip(icon: Icons.route_rounded, label: lesson.pathName),
-          _HeaderChip(icon: Icons.menu_book_rounded, label: lesson.unitName),
-          _HeaderChip(
-            icon: Icons.timer_outlined,
-            label: '${lesson.estimatedMinutes} ${context.tr("min")}',
-          ),
-          _HeaderChip(icon: Icons.auto_awesome_rounded, label: '${lesson.xp} XP', isHighlight: true),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 140,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: lesson.progress,
-                minHeight: 6,
-                backgroundColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.success),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text('${lesson.progressPercentage}% ${context.tr("complete")}', style: AppTypography.labelLarge(isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isHighlight;
-
-  const _HeaderChip({required this.icon, required this.label, this.isHighlight = false});
+  const _FloatingHeaderPill({required this.lesson, required this.isSaving});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = isHighlight ? AppColors.warning : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
-    final bgColor = isHighlight ? AppColors.warningSubtle : (isDark ? AppColors.darkSurfaceSecondary : AppColors.lightCardSecondary);
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isHighlight ? AppColors.warning.withValues(alpha: 0.3) : Colors.transparent),
-      ),
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      borderRadius: BorderRadius.circular(30),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+          const BackButton(),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                lesson.title,
+                style: AppTypography.labelLarge(
+                  isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                ).copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.timer_outlined, size: 12, color: AppColors.info),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${lesson.estimatedMinutes} min',
+                    style: const TextStyle(fontSize: 10, color: AppColors.info, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 60,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: lesson.progress,
+                        minHeight: 4,
+                        backgroundColor: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: isSaving
+                        ? const SizedBox(
+                            width: 12, height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          )
+                        : const Icon(Icons.cloud_done_rounded, size: 14, color: AppColors.success),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _WideWorkspace extends StatelessWidget {
-  final StudyWorkspaceViewModel viewModel;
-  final TextEditingController notebookController;
-  final TextEditingController codeController;
-  final List<_BoardStroke> boardStrokes;
-  final List<_PdfAnnotation> pdfAnnotations;
-  final String? teacherId;
-  final ValueChanged<String> onNotebookChanged;
-  final ValueChanged<String> onCodeChanged;
-  final ValueChanged<List<_BoardStroke>> onBoardChanged;
-  final VoidCallback onPdfNote;
-  final VoidCallback onPdfHighlight;
-  final VoidCallback onPdfBookmark;
-  final ValueChanged<String> onPdfAnnotationDelete;
-  final void Function(int page, List<_BoardStroke> strokes)
-  onPdfFreehandChanged;
-  final VoidCallback onPreviousPdfPage;
-  final VoidCallback onNextPdfPage;
+class _FloatingToolMenu extends StatelessWidget {
+  final bool isOpen;
+  final VoidCallback onToggle;
+  final Color selectedColor;
+  final bool eraser;
+  final ValueChanged<Color> onColorSelected;
+  final VoidCallback onToggleEraser;
+  final VoidCallback onClear;
+  final bool hasPdf;
+  final VoidCallback onPrevPage;
+  final VoidCallback onNextPage;
+  final int currentPage;
+  final int totalPages;
 
-  const _WideWorkspace({
-    required this.viewModel,
-    required this.notebookController,
-    required this.codeController,
-    required this.boardStrokes,
-    required this.pdfAnnotations,
-    this.teacherId,
-    required this.onNotebookChanged,
-    required this.onCodeChanged,
-    required this.onBoardChanged,
-    required this.onPdfNote,
-    required this.onPdfHighlight,
-    required this.onPdfBookmark,
-    required this.onPdfAnnotationDelete,
-    required this.onPdfFreehandChanged,
-    required this.onPreviousPdfPage,
-    required this.onNextPdfPage,
+  static const _colors = [
+    Color(0xFF1D4ED8),
+    Color(0xFF111827),
+    Color(0xFFDC2626),
+    Color(0xFF16A34A),
+    Color(0xFFEAB308),
+  ];
+
+  const _FloatingToolMenu({
+    required this.isOpen,
+    required this.onToggle,
+    required this.selectedColor,
+    required this.eraser,
+    required this.onColorSelected,
+    required this.onToggleEraser,
+    required this.onClear,
+    required this.hasPdf,
+    required this.onPrevPage,
+    required this.onNextPage,
+    required this.currentPage,
+    required this.totalPages,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Expanded(
-          flex: 6,
-          child: _PdfPane(
-            viewModel: viewModel,
-            annotations: pdfAnnotations,
-            onAddNote: onPdfNote,
-            onAddHighlight: onPdfHighlight,
-            onToggleBookmark: onPdfBookmark,
-            onDeleteAnnotation: onPdfAnnotationDelete,
-            onFreehandChanged: onPdfFreehandChanged,
-            onPreviousPage: onPreviousPdfPage,
-            onNextPage: onNextPdfPage,
-            teacherId: teacherId,
+        if (isOpen) ...[
+          if (hasPdf) ...[
+            GlassCard(
+              borderRadius: BorderRadius.circular(20),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: currentPage > 1 ? onPrevPage : null,
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    tooltip: 'Previous Page',
+                  ),
+                  Text('${currentPage} / ${totalPages}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  IconButton(
+                    onPressed: currentPage < totalPages ? onNextPage : null,
+                    icon: const Icon(Icons.chevron_right_rounded),
+                    tooltip: 'Next Page',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          GlassCard(
+            borderRadius: BorderRadius.circular(24),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final color in _colors)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _ToolColorDot(
+                      color: color,
+                      isSelected: !eraser && selectedColor == color,
+                      onTap: () => onColorSelected(color),
+                    ),
+                  ),
+                Container(height: 1, width: 24, color: theme.dividerColor, margin: const EdgeInsets.only(bottom: 12)),
+                IconButton(
+                  onPressed: onToggleEraser,
+                  icon: Icon(Icons.cleaning_services_rounded, color: eraser ? AppColors.primary : null),
+                  tooltip: 'Eraser',
+                ),
+                IconButton(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                  tooltip: 'Clear Board',
+                ),
+              ],
+            ),
           ),
-        ),
-        VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
-        Expanded(
-          flex: 4,
-          child: TabBarView(
-            children: [
-              _PdfPane(
-                viewModel: viewModel,
-                annotations: pdfAnnotations,
-                onAddNote: onPdfNote,
-                onAddHighlight: onPdfHighlight,
-                onToggleBookmark: onPdfBookmark,
-                onDeleteAnnotation: onPdfAnnotationDelete,
-                onFreehandChanged: onPdfFreehandChanged,
-                onPreviousPage: onPreviousPdfPage,
-                onNextPage: onNextPdfPage,
-                teacherId: teacherId,
-              ),
-              _NotebookPane(
-                controller: notebookController,
-                strokes: boardStrokes,
-                onChanged: onNotebookChanged,
-                onBoardChanged: onBoardChanged,
-              ),
-              _CodePane(
-                viewModel: viewModel,
-                controller: codeController,
-                onChanged: onCodeChanged,
-              ),
-            ],
+          const SizedBox(height: 16),
+        ],
+        FloatingActionButton(
+          onPressed: onToggle,
+          backgroundColor: isDark ? AppColors.darkSurface : AppColors.primary,
+          foregroundColor: isDark ? AppColors.primary : Colors.white,
+          elevation: isOpen ? 0 : 4,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            transitionBuilder: (child, anim) => RotationTransition(
+              turns: child.key == const ValueKey('close') ? Tween<double>(begin: -0.125, end: 0).animate(anim) : Tween<double>(begin: 0.125, end: 0).animate(anim),
+              child: ScaleTransition(scale: anim, child: child),
+            ),
+            child: isOpen
+                ? const Icon(Icons.close_rounded, key: ValueKey('close'))
+                : const Icon(Icons.edit_rounded, key: ValueKey('open')),
           ),
         ),
       ],
     );
   }
 }
+
+class _ToolColorDot extends StatelessWidget {
+  final Color color;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ToolColorDot({required this.color, required this.isSelected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isSelected ? AppColors.primary : Colors.transparent,
+            width: 3,
+          ),
+          boxShadow: [
+            if (isSelected) BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 8)
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ 
 
 class _PdfPane extends StatefulWidget {
   final StudyWorkspaceViewModel viewModel;
@@ -900,47 +960,7 @@ class _PdfPaneState extends State<_PdfPane> {
               ),
             ),
           ),
-        PositionedDirectional(
-          start: 16,
-          top: 16,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.surface.withValues(alpha: .9),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Theme.of(context).dividerColor),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.picture_as_pdf, color: AppColors.error),
-                  const SizedBox(width: 8),
-                  Text('Page ${viewModel.currentPage}/${lesson.totalPages}'),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Previous page',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: viewModel.currentPage <= 1
-                        ? null
-                        : widget.onPreviousPage,
-                    icon: const Icon(Icons.chevron_left),
-                  ),
-                  IconButton(
-                    tooltip: 'Next page',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: viewModel.currentPage >= lesson.totalPages
-                        ? null
-                        : widget.onNextPage,
-                    icon: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+        // Pagination removed as it's now in the Floating UI
         PositionedDirectional(
           end: 16,
           top: 16,
@@ -972,14 +992,6 @@ class _PdfPaneState extends State<_PdfPane> {
                   tooltip: 'Sticky note',
                   onPressed: widget.onAddNote,
                   icon: const Icon(Icons.sticky_note_2_outlined),
-                ),
-                IconButton(
-                  tooltip: _drawMode ? 'Stop drawing' : 'Draw on PDF',
-                  onPressed: () => setState(() => _drawMode = !_drawMode),
-                  icon: Icon(
-                    _drawMode ? Icons.gesture : Icons.gesture_outlined,
-                    color: _drawMode ? AppColors.info : null,
-                  ),
                 ),
               ],
             ),
@@ -1593,33 +1605,26 @@ class _DrawingBoard extends StatelessWidget {
   final GestureDragStartCallback onPanStart;
   final GestureDragUpdateCallback onPanUpdate;
   final GestureDragEndCallback onPanEnd;
+  final bool isTransparent;
 
   const _DrawingBoard({
     required this.strokes,
     required this.onPanStart,
     required this.onPanUpdate,
     required this.onPanEnd,
+    this.isTransparent = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Theme.of(context).dividerColor),
-        ),
-        child: GestureDetector(
-          onPanStart: onPanStart,
-          onPanUpdate: onPanUpdate,
-          onPanEnd: onPanEnd,
-          child: CustomPaint(
-            painter: _NotebookSketchPainter(strokes),
-            child: const SizedBox.expand(),
-          ),
-        ),
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onPanStart: onPanStart,
+      onPanUpdate: onPanUpdate,
+      onPanEnd: onPanEnd,
+      child: CustomPaint(
+        painter: _NotebookSketchPainter(strokes, isTransparent: isTransparent),
+        child: const SizedBox.expand(),
       ),
     );
   }
@@ -1627,16 +1632,22 @@ class _DrawingBoard extends StatelessWidget {
 
 class _NotebookSketchPainter extends CustomPainter {
   final List<_BoardStroke> strokes;
+  final bool isTransparent;
 
-  const _NotebookSketchPainter(this.strokes);
+  const _NotebookSketchPainter(this.strokes, {this.isTransparent = false});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final gridPaint = Paint()
-      ..color = AppColors.lightBorder
-      ..strokeWidth = 1;
-    for (var y = 24.0; y < size.height; y += 24) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    if (!isTransparent) {
+      final bgPaint = Paint()..color = Colors.white;
+      canvas.drawRect(Offset.zero & size, bgPaint);
+      
+      final gridPaint = Paint()
+        ..color = AppColors.lightBorder
+        ..strokeWidth = 1;
+      for (var y = 24.0; y < size.height; y += 24) {
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+      }
     }
 
     for (final stroke in strokes) {
@@ -1658,7 +1669,7 @@ class _NotebookSketchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _NotebookSketchPainter oldDelegate) =>
-      oldDelegate.strokes != strokes;
+      oldDelegate.strokes != strokes || oldDelegate.isTransparent != isTransparent;
 }
 
 class _ColorDot extends StatelessWidget {

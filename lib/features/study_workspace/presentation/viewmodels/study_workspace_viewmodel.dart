@@ -45,12 +45,13 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   CodeRunResult? get lastRunResult => _lastRunResult;
 
   Future<void> load() async {
+    final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
     final preferences = await SharedPreferences.getInstance();
-    _notebookText = preferences.getString('$_notebookPrefix${lesson.id}') ?? '';
-    _codeText = preferences.getString('$_codePrefix${lesson.id}') ?? '';
-    _boardData = preferences.getString('$_boardPrefix${lesson.id}') ?? '';
+    _notebookText = preferences.getString('$_notebookPrefix${lesson.id}_$userSuffix') ?? '';
+    _codeText = preferences.getString('$_codePrefix${lesson.id}_$userSuffix') ?? '';
+    _boardData = preferences.getString('$_boardPrefix${lesson.id}_$userSuffix') ?? '';
     _currentPage =
-        preferences.getInt('$_pagePrefix${lesson.id}') ?? lesson.lastPage;
+        preferences.getInt('$_pagePrefix${lesson.id}_$userSuffix') ?? lesson.lastPage;
 
     final draft = await _fetchCloudDraft();
     if (draft != null) {
@@ -84,12 +85,13 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
         }
       }
 
+      final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
       await preferences.setString(
-        '$_notebookPrefix${lesson.id}',
+        '$_notebookPrefix${lesson.id}_$userSuffix',
         _notebookText,
       );
-      await preferences.setString('$_codePrefix${lesson.id}', _codeText);
-      await preferences.setString('$_boardPrefix${lesson.id}', _boardData);
+      await preferences.setString('$_codePrefix${lesson.id}_$userSuffix', _codeText);
+      await preferences.setString('$_boardPrefix${lesson.id}_$userSuffix', _boardData);
     }
 
     _isLoaded = true;
@@ -100,7 +102,8 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     _notebookText = value;
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
-      await preferences.setString('$_notebookPrefix${lesson.id}', value);
+      final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
+      await preferences.setString('$_notebookPrefix${lesson.id}_$userSuffix', value);
       final currentStudentId = studentId;
       if (repository != null && currentStudentId != null) {
         try {
@@ -118,7 +121,8 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     _codeText = value;
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
-      await preferences.setString('$_codePrefix${lesson.id}', value);
+      final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
+      await preferences.setString('$_codePrefix${lesson.id}_$userSuffix', value);
       final currentStudentId = studentId;
       if (repository != null && currentStudentId != null) {
         try {
@@ -136,7 +140,8 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     _boardData = value;
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
-      await preferences.setString('$_boardPrefix${lesson.id}', value);
+      final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
+      await preferences.setString('$_boardPrefix${lesson.id}_$userSuffix', value);
       final currentStudentId = studentId;
       final currentTeacherId = teacherId;
       if (repository != null) {
@@ -164,7 +169,8 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     _currentPage = normalized;
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
-      await preferences.setInt('$_pagePrefix${lesson.id}', normalized);
+      final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
+      await preferences.setInt('$_pagePrefix${lesson.id}_$userSuffix', normalized);
       if (repository != null && studentId != null) {
         final progress = lesson.totalPages <= 0
             ? 0

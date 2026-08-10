@@ -295,10 +295,9 @@ class _SubmissionGradeDialog extends StatefulWidget {
   final VoidCallback onGraded;
 
   const _SubmissionGradeDialog({
-    Key? key,
     required this.initialSubmission,
     required this.onGraded,
-  }) : super(key: key);
+  });
 
   @override
   State<_SubmissionGradeDialog> createState() => _SubmissionGradeDialogState();

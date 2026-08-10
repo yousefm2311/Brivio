@@ -12,6 +12,9 @@ import '../../../features/assessment/data/repositories/supabase_assessment_repos
 import '../../../features/attendance/data/repositories/supabase_attendance_repositories.dart';
 import '../../../features/attendance/domain/models/attendance_models.dart';
 import '../../../features/assessment/presentation/screens/assessment_screens.dart';
+import '../../../features/study_workspace/data/repositories/supabase_study_workspace_repository.dart';
+import '../../../features/study_workspace/domain/models/study_workspace_models.dart';
+import '../../../features/study_workspace/presentation/screens/study_workspace_screen.dart';
 import '../../../features/curriculum/domain/models/curriculum_models.dart';
 import '../student_dashboard_models.dart';
 
@@ -342,11 +345,38 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                                   .from(res.bucket)
                                   .getPublicUrl(res.objectPath);
                               final uri = Uri.parse(url);
-                              try {
-                                await launchUrl(uri, mode: LaunchMode.externalApplication);
-                              } catch (e) {
+                              if (res.resourceType == 'pdf') {
+                                final summary = StudyLessonSummary(
+                                  id: lesson.id,
+                                  title: lesson.title,
+                                  pathName: widget.group.name,
+                                  unitName: '',
+                                  progressPercentage: 0,
+                                  estimatedMinutes: lesson.estimatedDurationMinutes ?? 30,
+                                  lastPage: 1,
+                                  totalPages: 0,
+                                  xp: 0,
+                                  hasPdf: true,
+                                  hasCodePlayground: false,
+                                  pdfUrl: url,
+                                );
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open file: $e')));
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => StudyWorkspaceScreen(
+                                      lesson: summary,
+                                      repository: SupabaseStudyWorkspaceRepository(
+                                        SupabaseClientWrapper(Supabase.instance.client),
+                                      ),
+                                    ),
+                                  ));
+                                }
+                              } else {
+                                try {
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open file: $e')));
+                                  }
                                 }
                               }
                             },
