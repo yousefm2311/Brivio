@@ -77,7 +77,39 @@ class SupabaseQuestionBankRepository implements IQuestionBankRepository {
       throw DatabaseFailure(message: 'Failed to create question: ${e.message}');
     } catch (e) {
       throw DatabaseFailure(
-        message: 'Failed to create question: ${e.toString()}',
+        message: 'Unexpected error creating question: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<void> updateQuestion(
+    Question question,
+    List<QuestionOption> options,
+  ) async {
+    try {
+      await _wrapper.client.rpc(
+        'update_question_with_options',
+        params: {
+          'p_question_id': question.id,
+          'p_prompt': question.prompt,
+          'p_explanation': question.explanation,
+          'p_default_points': question.defaultPoints,
+          'p_options': [
+            for (int i = 0; i < options.length; i++)
+              {
+                'text': options[i].text,
+                'order_number': i + 1,
+                'is_correct': options[i].isCorrect,
+              },
+          ],
+        },
+      );
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: 'Failed to update question: ${e.message}');
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Unexpected error updating question: ${e.toString()}',
       );
     }
   }

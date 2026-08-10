@@ -142,6 +142,115 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
     await _loadCurriculum();
   }
 
+  void _showCreateSemesterDialog() {
+    final titleCtrl = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('Add Semester / Term')),
+        content: TextField(
+          controller: titleCtrl,
+          decoration: InputDecoration(
+            labelText: context.tr('Semester Title (e.g. Fall 2026)'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.trim().isEmpty) return;
+              final nav = Navigator.of(ctx);
+              try {
+                if (_selectedGroup == null) return;
+                final sem = Semester(
+                  id: '',
+                  subjectId: _selectedGroup!.subjectId,
+                  name: titleCtrl.text.trim(),
+                  code: titleCtrl.text.trim().replaceAll(' ', '_').toLowerCase(),
+                  orderNumber: _semesters.length + 1,
+                  status: 'active',
+                  units: [],
+                );
+                
+                await _semesterRepo.createSemester(sem);
+                nav.pop();
+                _loadCurriculum();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                }
+              }
+            },
+            child: Text(context.tr('Add')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateUnitDialog(Semester semester) {
+    final titleCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('Add Unit to ${semester.name}')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              decoration: InputDecoration(labelText: context.tr('Unit Title')),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: descCtrl,
+              decoration: InputDecoration(labelText: context.tr('Description')),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.trim().isEmpty) return;
+              final nav = Navigator.of(ctx);
+              try {
+                if (_selectedGroup == null) return;
+                final unit = Unit(
+                  id: '',
+                  semesterId: semester.id,
+                  name: titleCtrl.text.trim(),
+                  code: titleCtrl.text.trim().replaceAll(' ', '_').toLowerCase(),
+                  orderNumber: semester.units.length + 1,
+                  status: 'active',
+                  lessons: [],
+                );
+                
+                await _unitRepo.createUnit(unit);
+                nav.pop();
+                _loadCurriculum();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                }
+              }
+            },
+            child: Text(context.tr('Add')),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCreateLessonDialog(Unit unit) {
     final titleCtrl = TextEditingController();
     String lessonTypeStr = 'video';
@@ -237,6 +346,8 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
     XFile? selectedFile;
     bool isUploading = false;
     final messenger = ScaffoldMessenger.of(context);
+    final successStr = context.tr('PDF uploaded and attached.');
+    final failStr = context.tr('Upload failed');
 
     showDialog(
       context: context,
@@ -347,9 +458,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                         if (mounted) {
                           messenger.showSnackBar(
                             SnackBar(
-                              content: Text(
-                                context.tr('PDF uploaded and attached.'),
-                              ),
+                              content: Text(successStr),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -361,9 +470,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                         if (mounted) {
                           messenger.showSnackBar(
                             SnackBar(
-                              content: Text(
-                                '${context.tr('Upload failed')}: $e',
-                              ),
+                              content: Text('$failStr: $e'),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -421,29 +528,44 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
               ],
             )
           : _semesters.isEmpty
-          ? Column(
+          ? Stack(
               children: [
-                _GroupPicker(
-                  groups: _groups,
-                  selectedGroup: _selectedGroup,
-                  onChanged: _selectGroup,
-                ),
-                Expanded(
-                  child: CustomScrollView(
-                    slivers: [
-                      SliverFillRemaining(
-                        child: Center(
-                          child: Text(
-                            context.tr(
-                              'No semesters found for your taught subjects.',
+                Column(
+                  children: [
+                    _GroupPicker(
+                      groups: _groups,
+                      selectedGroup: _selectedGroup,
+                      onChanged: _selectGroup,
+                    ),
+                    Expanded(
+                      child: CustomScrollView(
+                        slivers: [
+                          SliverFillRemaining(
+                            child: Center(
+                              child: Text(
+                                context.tr(
+                                  'No semesters found for your taught subjects.',
+                                ),
+                                style: AppTypography.bodyMedium(subtitleColor),
+                              ),
                             ),
-                            style: AppTypography.bodyMedium(subtitleColor),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                if (_selectedGroup != null)
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: FloatingActionButton.extended(
+                      onPressed: _showCreateSemesterDialog,
+                      backgroundColor: AppColors.primary,
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: Text(context.tr('Add Semester / Term'), style: const TextStyle(color: Colors.white)),
+                    ),
+                  ),
               ],
             )
           : Column(
@@ -475,6 +597,11 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                               subtitle: Text(
                                 '${context.tr('Code')}: ${sem.code} | ${context.tr('Units')}: ${sem.units.length}',
                                 style: AppTypography.bodySmall(subtitleColor),
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                                onPressed: () => _showCreateUnitDialog(sem),
+                                tooltip: context.tr('Add Unit'),
                               ),
                               children: sem.units.map((unit) {
                                 return Padding(
@@ -564,18 +691,21 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                           ],
                                         ),
                                         children: lesson.resources.map((res) {
-                                          return ListTile(
-                                            leading: const Icon(
-                                              Icons.picture_as_pdf,
-                                              color: AppColors.error,
-                                            ),
-                                            title: Text(
-                                              res.title,
-                                              style: AppTypography.bodyMedium(textColor),
-                                            ),
-                                            subtitle: Text(
-                                              '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
-                                              style: AppTypography.bodySmall(subtitleColor),
+                                          return Material(
+                                            type: MaterialType.transparency,
+                                            child: ListTile(
+                                              leading: const Icon(
+                                                Icons.picture_as_pdf,
+                                                color: AppColors.error,
+                                              ),
+                                              title: Text(
+                                                res.title,
+                                                style: AppTypography.bodyMedium(textColor),
+                                              ),
+                                              subtitle: Text(
+                                                '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
+                                                style: AppTypography.bodySmall(subtitleColor),
+                                              ),
                                             ),
                                           );
                                         }).toList(),

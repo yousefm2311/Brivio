@@ -73,9 +73,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     }
   }
 
-  void _showCreateQuestionDialog() {
-    final selectedGroup = _selectedGroup;
-    if (selectedGroup == null) {
+  void _showQuestionEditorDialog([Question? existingQuestion]) async {
+    if (_selectedGroup == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(context.tr('No assigned teaching groups found.')),
@@ -84,9 +83,9 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
       return;
     }
     
-    QuestionType selectedType = QuestionType.multipleChoice;
-    final promptCtrl = TextEditingController();
-    final ptsCtrl = TextEditingController(text: '5');
+    QuestionType selectedType = existingQuestion?.questionType ?? QuestionType.multipleChoice;
+    final promptCtrl = TextEditingController(text: existingQuestion?.prompt);
+    final ptsCtrl = TextEditingController(text: existingQuestion?.defaultPoints.toString() ?? '5');
     
     // MCQ/TF specific
     final opt1Ctrl = TextEditingController();
@@ -94,9 +93,23 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     final opt3Ctrl = TextEditingController();
     final opt4Ctrl = TextEditingController();
     int correctIdx = 0;
+
+    if (existingQuestion != null && existingQuestion.options.isNotEmpty) {
+      if (selectedType == QuestionType.multipleChoice) {
+        if (existingQuestion.options.length > 0) opt1Ctrl.text = existingQuestion.options[0].text;
+        if (existingQuestion.options.length > 1) opt2Ctrl.text = existingQuestion.options[1].text;
+        if (existingQuestion.options.length > 2) opt3Ctrl.text = existingQuestion.options[2].text;
+        if (existingQuestion.options.length > 3) opt4Ctrl.text = existingQuestion.options[3].text;
+        correctIdx = existingQuestion.options.indexWhere((o) => o.isCorrect);
+        if (correctIdx == -1) correctIdx = 0;
+      } else if (selectedType == QuestionType.trueFalse) {
+        correctIdx = existingQuestion.options.indexWhere((o) => o.isCorrect);
+        if (correctIdx == -1) correctIdx = 0;
+      }
+    }
     
     // Short/Long answer specific
-    final explanationCtrl = TextEditingController();
+    final explanationCtrl = TextEditingController(text: existingQuestion?.explanation);
 
     showDialog(
       context: context,
@@ -115,7 +128,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      context.tr('Create Question'),
+                      existingQuestion == null ? context.tr('Create Question') : context.tr('Edit Question'),
                       style: AppTypography.displaySmall(textColor),
                     ),
                     const SizedBox(height: 16),
@@ -241,8 +254,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                               }
 
                               final q = Question(
-                                id: '',
-                                subjectId: selectedGroup.subjectId,
+                                id: existingQuestion?.id ?? '',
+                                subjectId: _selectedGroup!.subjectId,
                                 questionType: selectedType,
                                 prompt: promptCtrl.text.trim(),
                                 explanation: explanationCtrl.text.trim().isNotEmpty ? explanationCtrl.text.trim() : null,
@@ -250,7 +263,44 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 options: opts,
                               );
 
-                              await _questionRepo.createQuestion(q, opts);
+                              if (existingQuestion != null) {
+                                // Check if used in exams
+                                final res = await Supabase.instance.client
+                                    .from('exam_questions')
+                                    .select('exams(title)')
+                                    .eq('question_id', existingQuestion.id);
+                                
+                                if (res.isNotEmpty) {
+                                  // Ask to update all or save as new
+                                  if (!mounted) return;
+                                  final doUpdate = await showDialog<bool>(
+                                    context: context,
+                                    builder: (c) => AlertDialog(
+                                      title: Text(context.tr('Warning')),
+                                      content: Text(context.tr('This question is used in active exams. Do you want to update it everywhere, or save this as a new question?')),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(context.tr('Save as New'))),
+                                        FilledButton(
+                                          style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                                          onPressed: () => Navigator.pop(c, true), 
+                                          child: Text(context.tr('Update Everywhere'))
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  
+                                  if (doUpdate == true) {
+                                    await _questionRepo.updateQuestion(q, opts);
+                                  } else {
+                                    await _questionRepo.createQuestion(q, opts);
+                                  }
+                                } else {
+                                  await _questionRepo.updateQuestion(q, opts);
+                                }
+                              } else {
+                                await _questionRepo.createQuestion(q, opts);
+                              }
+
                               nav.pop();
                               _loadQuestions();
                               if (mounted) {
@@ -264,12 +314,12 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('${context.tr('Creation failed')}: $e'), backgroundColor: Colors.red),
+                                  SnackBar(content: Text('${context.tr('Save failed')}: $e'), backgroundColor: Colors.red),
                                 );
                               }
                             }
                           },
-                          child: Text(context.tr('Save Question')),
+                          child: Text(existingQuestion == null ? context.tr('Save Question') : context.tr('Update Question')),
                         ),
                       ],
                     ),
@@ -397,6 +447,10 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                             '${context.tr('Type')}: ${context.tr(q.questionType.name)} | ${context.tr('Points')}: ${q.defaultPoints}',
                                             style: AppTypography.caption(subtitleColor),
                                           ),
+                                          trailing: IconButton(
+                                            icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
+                                            onPressed: () => _showQuestionEditorDialog(q),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -414,7 +468,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
             bottom: 16,
             right: 16,
             child: FloatingActionButton.extended(
-              onPressed: _showCreateQuestionDialog,
+              onPressed: () => _showQuestionEditorDialog(),
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),

@@ -6,6 +6,10 @@ abstract class IQuestionBankRepository {
     Question question,
     List<QuestionOption> options,
   );
+  Future<void> updateQuestion(
+    Question question,
+    List<QuestionOption> options,
+  );
 }
 
 abstract class IHomeworkRepository {

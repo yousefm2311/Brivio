@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/network/supabase_client_wrapper.dart';
 import '../../../design_system/components/glass_card.dart';
@@ -62,14 +63,17 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       try {
         final lessonsData = await Supabase.instance.client
             .from('lessons')
-            .select('*, units!inner(subject_id)')
+            .select('*, units!inner(subject_id), lesson_resources(*)')
             .eq('units.subject_id', widget.group.subjectId)
             .eq('status', 'published')
             .order('order_number');
             
-        lessonRes = (lessonsData as List)
-            .map((e) => Lesson.fromJson(e as Map<String, dynamic>))
-            .toList();
+        lessonRes = (lessonsData as List).map((e) {
+          final jsonMap = e as Map<String, dynamic>;
+          final resourcesList = jsonMap['lesson_resources'] as List<dynamic>? ?? [];
+          final resources = resourcesList.map((r) => LessonResource.fromJson(r as Map<String, dynamic>)).toList();
+          return Lesson.fromJson(jsonMap, resources);
+        }).toList();
       } catch (e) {
         debugPrint('Error fetching curriculum: $e');
       }
@@ -132,6 +136,37 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   }
 
   Future<void> _submitHomework(StudentHomeworkItem item) async {
+    if (item.homework.questions.isNotEmpty) {
+      final Map<String, String> currentAnswers = {};
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => HomeworkRunnerScreen(
+          homework: item.homework,
+          onOptionSelected: (qId, oId) => currentAnswers[qId] = oId,
+          onSubmit: () async {
+            try {
+              await Supabase.instance.client.rpc(
+                'submit_homework_mcq',
+                params: {
+                  'p_homework_id': item.homework.id,
+                  'p_answers': currentAnswers,
+                },
+              );
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Homework submitted.'))));
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
+              }
+            }
+          },
+        ),
+      ));
+      await _loadData();
+      return;
+    }
+
     final textCtrl = TextEditingController();
     final attachCtrl = TextEditingController();
     final submitted = await showDialog<bool>(
@@ -280,7 +315,29 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                     if (lesson.estimatedDurationMinutes != null) ...[
                       const SizedBox(height: 4),
                       Text('${lesson.estimatedDurationMinutes} mins', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
-                    ]
+                    ],
+                    if (lesson.resources.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: lesson.resources.map((res) {
+                          return ActionChip(
+                            avatar: const Icon(Icons.insert_drive_file, size: 16),
+                            label: Text(res.title),
+                            onPressed: () async {
+                              final url = Supabase.instance.client.storage
+                                  .from(res.bucket)
+                                  .getPublicUrl(res.objectPath);
+                              final uri = Uri.parse(url);
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -319,6 +376,42 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exam failed: $e')));
+    }
+  }
+
+  Future<void> _requestExamReset(StudentExamItem item) async {
+    final reasonCtrl = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('Request Exam Reset')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(context.tr('If you encountered an issue, explain why you need a reset.')),
+            const SizedBox(height: 12),
+            TextField(controller: reasonCtrl, decoration: InputDecoration(labelText: context.tr('Reason')), maxLines: 3),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.tr('Submit Request'))),
+        ],
+      ),
+    );
+
+    if (submitted != true) return;
+
+    try {
+      await Supabase.instance.client.rpc('request_exam_reset', params: {
+        'p_exam_id': item.exam.id,
+        'p_reason': reasonCtrl.text.trim(),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Reset request submitted.')), backgroundColor: Colors.green));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${context.tr("Failed to submit request")}: $e'), backgroundColor: Colors.red));
     }
   }
 
@@ -370,10 +463,10 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                 ),
               ),
               SizedBox(
-                width: 120,
+                width: 130,
                 child: PrimaryButton(
-                  text: exam.canStart ? context.tr('Start') : context.tr('Completed'),
-                  onPressed: exam.canStart ? () => _startExam(exam) : null,
+                  text: exam.canStart ? context.tr('Start') : context.tr('Request Reset'),
+                  onPressed: exam.canStart ? () => _startExam(exam) : () => _requestExamReset(exam),
                   color: AppColors.error,
                 ),
               ),

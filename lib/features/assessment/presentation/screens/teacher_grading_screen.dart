@@ -18,6 +18,7 @@ class TeacherGradingScreen extends StatefulWidget {
 
 class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
   List<Map<String, dynamic>> _homeworkSubmissions = [];
+  List<Map<String, dynamic>> _resetRequests = [];
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -38,10 +39,18 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
         'get_teacher_grading_queue',
         params: {'p_teacher_id': widget.teacherId},
       );
+      
+      final resetsRes = await Supabase.instance.client
+          .from('exam_reset_requests')
+          .select('*, exams(title), students(profiles(full_name))')
+          .eq('status', 'pending');
 
       if (mounted) {
         setState(() {
           _homeworkSubmissions = (res as List<dynamic>)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+          _resetRequests = (resetsRes as List<dynamic>)
               .map((e) => Map<String, dynamic>.from(e as Map))
               .toList();
           _isLoading = false;
@@ -53,6 +62,37 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
           _errorMessage = e.toString();
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  void _handleResetRequest(Map<String, dynamic> req, bool approve) async {
+    try {
+      if (approve) {
+        await Supabase.instance.client.rpc(
+          'reset_student_exam_attempt',
+          params: {
+            'p_student_id': req['student_id'],
+            'p_exam_id': req['exam_id'],
+          },
+        );
+      }
+      
+      await Supabase.instance.client.from('exam_reset_requests').update({
+        'status': approve ? 'approved' : 'rejected',
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', req['id']);
+      
+      _loadGradingQueue();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(approve ? context.tr('Exam reset approved.') : context.tr('Reset request rejected.')),
+          backgroundColor: approve ? Colors.green : Colors.orange,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
       }
     }
   }
@@ -70,10 +110,14 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
 
     List<Map<String, dynamic>> answers = [];
     try {
+      final isExam = submission['assessment_type'] == 'exam';
+      final table = isExam ? 'exam_answers' : 'homework_answers';
+      final foreignKey = isExam ? 'attempt_id' : 'submission_id';
+      
       final res = await Supabase.instance.client
-          .from('homework_answers')
+          .from(table)
           .select('*, questions(*), question_options(*)')
-          .eq('submission_id', submission['id']);
+          .eq(foreignKey, submission['id']);
       answers = List<Map<String, dynamic>>.from(res);
     } catch (e) {
       debugPrint('Failed to fetch answers: $e');
@@ -219,10 +263,14 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                           final nav = Navigator.of(ctx);
                           final score = double.tryParse(scoreCtrl.text) ?? 90.0;
                           try {
+                            final isExam = submission['assessment_type'] == 'exam';
+                            final rpcName = isExam ? 'grade_exam_attempt_with_feedback' : 'grade_homework_submission';
+                            final paramIdName = isExam ? 'p_attempt_id' : 'p_submission_id';
+                            
                             await Supabase.instance.client.rpc(
-                              'grade_homework_submission',
+                              rpcName,
                               params: {
-                                'p_submission_id': submission['id'],
+                                paramIdName: submission['id'],
                                 'p_score': score,
                                 'p_feedback': feedbackCtrl.text.trim().isEmpty ? null : feedbackCtrl.text.trim(),
                               },
@@ -310,6 +358,66 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [
                         const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                        if (_resetRequests.isNotEmpty) ...[
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                            sliver: SliverToBoxAdapter(
+                              child: Text(
+                                context.tr('Pending Reset Requests'),
+                                style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold, color: AppColors.error),
+                              ),
+                            ),
+                          ),
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (ctx, i) {
+                                  final req = _resetRequests[i];
+                                  final studentName = req['students']?['profiles']?['full_name'] ?? 'Student';
+                                  final examTitle = req['exams']?['title'] ?? 'Exam';
+                                  return Card(
+                                    color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      side: const BorderSide(color: AppColors.error),
+                                    ),
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    child: ListTile(
+                                      leading: const Icon(Icons.warning_amber_rounded, color: AppColors.error),
+                                      title: Text('$studentName requested a reset for $examTitle', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                      subtitle: Text('${context.tr("Reason")}: ${req["reason"]}', style: TextStyle(color: subtitleColor)),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.close, color: Colors.grey),
+                                            onPressed: () => _handleResetRequest(req, false),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.check, color: AppColors.success),
+                                            onPressed: () => _handleResetRequest(req, true),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                                childCount: _resetRequests.length,
+                              ),
+                            ),
+                          ),
+                          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                            sliver: SliverToBoxAdapter(
+                              child: Text(
+                                context.tr('Submissions'),
+                                style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
                         SliverPadding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           sliver: SliverList(
@@ -341,7 +449,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  '${sub['homework_title'] ?? context.tr("Homework")} | ${context.tr('Status')}: ${context.tr((sub['status'] as String? ?? "submitted"))} | ${context.tr('Score')}: ${sub['score'] ?? context.tr("Pending")}',
+                                                  '[${(sub['assessment_type'] as String?)?.toUpperCase() ?? 'HOMEWORK'}] ${sub['assessment_title'] ?? context.tr("Assessment")} | ${context.tr('Status')}: ${context.tr((sub['status'] as String? ?? "submitted"))} | ${context.tr('Score')}: ${sub['score'] ?? context.tr("Pending")}',
                                                   style: AppTypography.caption(subtitleColor),
                                                 ),
                                               ],
