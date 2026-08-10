@@ -6,6 +6,7 @@ import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../design_system/widgets/portal_components.dart';
+import '../../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../student_dashboard_models.dart';
 
 String _formatDate(DateTime? dt) => dt == null ? '' : DateFormat.yMMMd().format(dt);
@@ -45,12 +46,12 @@ class ActivityTab extends StatefulWidget {
   final List<StudentExamItem> examItems;
   final List<StudentAttendanceItem> attendanceItems;
   final List<StudentLeaveItem> leaveItems;
-  final List<PublishedSessionBoard> sessionBoards;
+  final List<StudyLessonSummary> sessionBoards;
   final ValueChanged<StudentHomeworkItem> onSubmitHomework;
   final ValueChanged<StudentExamItem> onStartExam;
   final VoidCallback onCreateLeaveRequest;
   final VoidCallback onScanQr;
-  final ValueChanged<PublishedSessionBoard> onOpenBoard;
+  final ValueChanged<StudyLessonSummary> onOpenBoard;
 
   const ActivityTab({
     super.key,
@@ -709,8 +710,8 @@ class _AttendanceView extends StatelessWidget {
 
 class _BoardsView extends StatelessWidget {
   final bool isLoading;
-  final List<PublishedSessionBoard> boards;
-  final ValueChanged<PublishedSessionBoard> onOpenBoard;
+  final List<StudyLessonSummary> boards;
+  final ValueChanged<StudyLessonSummary> onOpenBoard;
 
   const _BoardsView({required this.isLoading, required this.boards, required this.onOpenBoard});
 
@@ -763,7 +764,7 @@ class _BoardsView extends StatelessWidget {
                           children: [
                             Text(board.title, style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 4),
-                            Text('${board.groupName}  ·  ${_formatDate(board.sessionDate)}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500)),
+                            Text('${board.pathName}  ·  ${_formatDate(board.publishedAt)}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),

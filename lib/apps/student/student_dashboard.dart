@@ -54,7 +54,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<Receipt> _receipts = [];
   List<Announcement> _announcements = [];
   List<AppNotification> _notifications = [];
-  List<PublishedSessionBoard> _sessionBoards = [];
+  List<StudyLessonSummary> _sessionBoards = [];
   List<StudentHomeworkItem> _homeworkItems = [];
   List<StudentExamItem> _examItems = [];
   List<StudentAttendanceItem> _attendanceItems = [];
@@ -134,7 +134,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _announcements = results[5] as List<Announcement>;
         _notifications = results[6] as List<AppNotification>;
         _unreadCount = results[7] as int;
-        _sessionBoards = results[8] as List<PublishedSessionBoard>;
+        _sessionBoards = results[8] as List<StudyLessonSummary>;
         _homeworkItems = results[9] as List<StudentHomeworkItem>;
         _examItems = results[10] as List<StudentExamItem>;
         _attendanceItems = results[11] as List<StudentAttendanceItem>;
@@ -171,9 +171,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return (rows as List).whereType<Map>().map((r) => StudentLeaveItem.fromJson(r)).toList();
   }
 
-  Future<List<PublishedSessionBoard>> _fetchSessionBoards() async {
-    final rows = await Supabase.instance.client.rpc('get_student_published_session_boards');
-    return (rows as List).whereType<Map>().map((r) => PublishedSessionBoard.fromJson(r)).toList();
+  Future<List<StudyLessonSummary>> _fetchSessionBoards() async {
+    final rows = await Supabase.instance.client.rpc('get_student_teacher_study_boards');
+    return (rows as List).whereType<Map>().map((r) => StudyLessonSummary.fromJson(r)).toList();
   }
 
   // ── actions ──
@@ -190,10 +190,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
     ));
   }
 
-  void _openSessionBoard(PublishedSessionBoard board) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => _SessionBoardScreen(board: board),
-    ));
+  void _openSessionBoard(StudyLessonSummary board) {
+    _openWorkspace(board);
   }
 
   Future<void> _openGroupDetails(GroupEntity group) async {
@@ -508,77 +506,4 @@ class _StudentDashboardState extends State<StudentDashboard> {
       ),
     );
   }
-}
-
-// ─────────────────────────────────────────────
-//  Session Board screen
-// ─────────────────────────────────────────────
-
-class _SessionBoardScreen extends StatelessWidget {
-  final PublishedSessionBoard board;
-
-  const _SessionBoardScreen({required this.board});
-
-  @override
-  Widget build(BuildContext context) {
-    final strokes = decodeSessionBoard(board.boardData);
-    return Scaffold(
-      appBar: AppBar(title: Text(board.title)),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                Chip(avatar: const Icon(Icons.group_work, size: 18), label: Text(board.groupName), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                Chip(avatar: const Icon(Icons.event, size: 18), label: Text(DateFormat.yMMMd().format(board.sessionDate)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                Chip(avatar: const Icon(Icons.update, size: 18), label: Text('${context.tr("Updated")} ${DateFormat.yMMMd().format(board.updatedAt)}'), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.white, // Force white so dark strokes are visible
-                    border: Border.all(color: Theme.of(context).dividerColor),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: CustomPaint(painter: _BoardPainter(strokes), child: const SizedBox.expand()),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BoardPainter extends CustomPainter {
-  final List<BoardStroke> strokes;
-
-  const _BoardPainter(this.strokes);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final gridPaint = Paint()..color = const Color(0xFFE5E7EB)..strokeWidth = 1;
-    for (var y = 28.0; y < size.height; y += 28) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-    for (final stroke in strokes) {
-      if (stroke.points.length < 2) continue;
-      final paint = Paint()..color = stroke.color..strokeWidth = stroke.width..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round;
-      final path = Path()..moveTo(stroke.points.first.dx, stroke.points.first.dy);
-      for (final point in stroke.points.skip(1)) { path.lineTo(point.dx, point.dy); }
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _BoardPainter old) => old.strokes != strokes;
 }

@@ -530,34 +530,97 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                 top: MediaQuery.of(context).padding.top + 16,
                 left: 16,
                 right: 16,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: _FloatingHeaderPill(lesson: widget.lesson, isSaving: _viewModel.isSaving),
-                    ),
-                    if (hasPdf)
-                      GlassCard(
-                        padding: const EdgeInsets.all(4),
-                        borderRadius: BorderRadius.circular(30),
-                        child: Row(
+                child: GlassCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  borderRadius: BorderRadius.circular(32),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                        onPressed: () => Navigator.of(context).pop(),
+                        splashRadius: 20,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _ToggleButton(
-                              title: 'PDF',
-                              isSelected: !_showBoard,
-                              onTap: () => setState(() => _showBoard = false),
+                            Text(
+                              widget.lesson.title,
+                              style: AppTypography.labelLarge(
+                                isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                              ).copyWith(fontWeight: FontWeight.w800),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            _ToggleButton(
-                              title: 'Whiteboard',
-                              isSelected: _showBoard,
-                              onTap: () => setState(() => _showBoard = true),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.timer_outlined, size: 12, color: AppColors.info),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${widget.lesson.estimatedMinutes} min',
+                                  style: const TextStyle(fontSize: 10, color: AppColors.info, fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: widget.lesson.progress,
+                                      minHeight: 4,
+                                      backgroundColor: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
+                                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 200),
+                                  child: _viewModel.isSaving
+                                      ? const SizedBox(
+                                          width: 14, height: 14,
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                        )
+                                      : const Icon(Icons.cloud_done_rounded, size: 16, color: AppColors.success),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                  ],
+                      if (hasPdf) ...[
+                        const SizedBox(width: 16),
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _ToggleButton(
+                                title: 'PDF',
+                                isSelected: !_showBoard,
+                                onTap: () => setState(() => _showBoard = false),
+                              ),
+                              _ToggleButton(
+                                title: 'Whiteboard',
+                                isSelected: _showBoard,
+                                onTap: () => setState(() => _showBoard = true),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -587,76 +650,6 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   }
 }
 
-class _FloatingHeaderPill extends StatelessWidget {
-  final StudyLessonSummary lesson;
-  final bool isSaving;
-
-  const _FloatingHeaderPill({required this.lesson, required this.isSaving});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      borderRadius: BorderRadius.circular(30),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const BackButton(),
-          const SizedBox(width: 4),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                lesson.title,
-                style: AppTypography.labelLarge(
-                  isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                ).copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  const Icon(Icons.timer_outlined, size: 12, color: AppColors.info),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${lesson.estimatedMinutes} min',
-                    style: const TextStyle(fontSize: 10, color: AppColors.info, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 60,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: lesson.progress,
-                        minHeight: 4,
-                        backgroundColor: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: isSaving
-                        ? const SizedBox(
-                            width: 12, height: 12,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                          )
-                        : const Icon(Icons.cloud_done_rounded, size: 14, color: AppColors.success),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _ToggleButton extends StatelessWidget {
   final String title;

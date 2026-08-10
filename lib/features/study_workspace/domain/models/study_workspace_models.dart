@@ -13,6 +13,7 @@ class StudyLessonSummary extends Equatable {
   final bool hasPdf;
   final bool hasCodePlayground;
   final String? pdfUrl;
+  final DateTime? publishedAt;
 
   const StudyLessonSummary({
     required this.id,
@@ -27,6 +28,7 @@ class StudyLessonSummary extends Equatable {
     required this.hasPdf,
     required this.hasCodePlayground,
     this.pdfUrl,
+    this.publishedAt,
   });
 
   double get progress => progressPercentage.clamp(0, 100) / 100;
@@ -45,6 +47,7 @@ class StudyLessonSummary extends Equatable {
       hasPdf: hasPdf,
       hasCodePlayground: hasCodePlayground,
       pdfUrl: pdfUrl,
+      publishedAt: publishedAt,
     );
   }
 
@@ -62,7 +65,27 @@ class StudyLessonSummary extends Equatable {
     hasPdf,
     hasCodePlayground,
     pdfUrl,
+    publishedAt,
   ];
+
+  factory StudyLessonSummary.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    return StudyLessonSummary(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? 'Untitled',
+      pathName: json['description'] as String? ?? 'Board',
+      unitName: json['lesson_type'] as String? ?? 'Lesson',
+      progressPercentage: (json['progress_percentage'] as num?)?.round() ?? 100,
+      estimatedMinutes: (json['estimated_minutes'] as num?)?.round() ?? 0,
+      lastPage: (json['last_page'] as num?)?.round() ?? 1,
+      totalPages: (json['total_pages'] as num?)?.round() ?? 1,
+      xp: (json['xp'] as num?)?.round() ?? 0,
+      hasPdf: json['has_pdf'] == true,
+      hasCodePlayground: json['has_code_playground'] == true,
+      pdfUrl: json['pdf_url'] as String?,
+      publishedAt: json['published_at'] != null ? DateTime.tryParse(json['published_at'].toString()) : null,
+    );
+  }
 }
 
 class StudyMetric extends Equatable {
