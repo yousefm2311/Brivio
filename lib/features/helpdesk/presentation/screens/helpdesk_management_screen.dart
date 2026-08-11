@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../../design_system/components/glass_card.dart';
+import '../../data/models/support_ticket.dart';
+import '../../data/repositories/helpdesk_repository.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 class HelpdeskManagementScreen extends StatefulWidget {
   const HelpdeskManagementScreen({super.key});
@@ -12,45 +15,81 @@ class HelpdeskManagementScreen extends StatefulWidget {
 }
 
 class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen> {
-  // Dummy data for UI
-  final List<Map<String, dynamic>> _tickets = [
-    {
-      'id': 'TKT-1001',
-      'title': 'Cannot access Gradebook',
-      'submitter': 'Sarah Connor (Teacher)',
-      'status': 'Open',
-      'priority': 'High',
-      'date': '10 mins ago',
-      'avatarColor': Colors.purple,
-    },
-    {
-      'id': 'TKT-1002',
-      'title': 'Payment gateway error',
-      'submitter': 'John Doe (Parent)',
-      'status': 'Open',
-      'priority': 'Critical',
-      'date': '1 hour ago',
-      'avatarColor': Colors.red,
-    },
-    {
-      'id': 'TKT-1003',
-      'title': 'Request new curriculum materials',
-      'submitter': 'Alan Smith (Teacher)',
-      'status': 'In Progress',
-      'priority': 'Low',
-      'date': '1 day ago',
-      'avatarColor': Colors.blue,
-    },
-    {
-      'id': 'TKT-1004',
-      'title': 'Reset password for student',
-      'submitter': 'Emma Watson (Student)',
-      'status': 'Closed',
-      'priority': 'Medium',
-      'date': '3 days ago',
-      'avatarColor': Colors.green,
-    },
-  ];
+  final HelpdeskRepository _repository = HelpdeskRepository();
+  late Future<List<SupportTicket>> _ticketsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTickets();
+  }
+
+  void _loadTickets() {
+    setState(() {
+      _ticketsFuture = _repository.getTickets();
+    });
+  }
+
+  void _showCreateTicketDialog() {
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    String priority = 'normal';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Create Ticket'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: 'Subject'),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(labelText: 'Description'),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: priority,
+                items: ['low', 'normal', 'high', 'urgent']
+                    .map((p) => DropdownMenuItem(value: p, child: Text(p.toUpperCase())))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) priority = val;
+                },
+                decoration: const InputDecoration(labelText: 'Priority'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (titleController.text.isNotEmpty && descriptionController.text.isNotEmpty) {
+                  Navigator.pop(context);
+                  await _repository.createTicket(
+                    subject: titleController.text,
+                    description: descriptionController.text,
+                    priority: priority,
+                  );
+                  _loadTickets();
+                }
+              },
+              child: const Text('Submit'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,56 +102,83 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen> {
         accentColor: AppColors.info,
         actions: [
           PortalAction(
-            icon: Icons.search,
-            label: 'Search',
-            onPressed: () {},
+            icon: Icons.add,
+            label: 'New Ticket',
+            onPressed: _showCreateTicketDialog,
           ),
           PortalAction(
-            icon: Icons.filter_list,
-            label: 'Filter',
-            onPressed: () {},
+            icon: Icons.refresh,
+            label: 'Refresh',
+            onPressed: _loadTickets,
           ),
         ],
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+        child: FutureBuilder<List<SupportTicket>>(
+          future: _ticketsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+
+            final allTickets = snapshot.data ?? [];
+            final openTickets = allTickets.where((t) => t.status == 'open').toList();
+            final inProgressTickets = allTickets.where((t) => t.status == 'in_progress').toList();
+            final closedTickets = allTickets.where((t) => t.status == 'resolved' || t.status == 'closed').toList();
+
+            return Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: TabBar(
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: AppColors.info.withOpacity(0.15),
+                  child: TabBar(
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    indicator: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: AppColors.info.withOpacity(0.15),
+                    ),
+                    labelColor: AppColors.info,
+                    unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color,
+                    tabs: [
+                      Tab(text: 'Open (${openTickets.length})'),
+                      Tab(text: 'In Progress (${inProgressTickets.length})'),
+                      Tab(text: 'Closed (${closedTickets.length})'),
+                    ],
+                  ),
                 ),
-                labelColor: AppColors.info,
-                unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color,
-                tabs: const [
-                  Tab(text: 'Open Tickets (2)'),
-                  Tab(text: 'In Progress (1)'),
-                  Tab(text: 'Closed (1)'),
-                ],
-              ),
-            ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _TicketList(tickets: _tickets.where((t) => t['status'] == 'Open').toList()),
-                  _TicketList(tickets: _tickets.where((t) => t['status'] == 'In Progress').toList()),
-                  _TicketList(tickets: _tickets.where((t) => t['status'] == 'Closed').toList()),
-                ],
-              ),
-            ),
-          ],
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _TicketList(
+                        tickets: openTickets,
+                        onStatusChange: _loadTickets,
+                      ),
+                      _TicketList(
+                        tickets: inProgressTickets,
+                        onStatusChange: _loadTickets,
+                      ),
+                      _TicketList(
+                        tickets: closedTickets,
+                        onStatusChange: _loadTickets,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -120,9 +186,25 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen> {
 }
 
 class _TicketList extends StatelessWidget {
-  final List<Map<String, dynamic>> tickets;
+  final List<SupportTicket> tickets;
+  final VoidCallback onStatusChange;
 
-  const _TicketList({required this.tickets});
+  const _TicketList({required this.tickets, required this.onStatusChange});
+
+  Color _getPriorityColor(String priority) {
+    switch (priority) {
+      case 'urgent': return Colors.red;
+      case 'high': return Colors.orange;
+      case 'normal': return Colors.blue;
+      case 'low': return Colors.green;
+      default: return Colors.grey;
+    }
+  }
+  
+  Color _getAvatarColor(String id) {
+    final colors = [Colors.purple, Colors.red, Colors.blue, Colors.green, Colors.orange];
+    return colors[id.hashCode % colors.length];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,12 +220,9 @@ class _TicketList extends StatelessWidget {
       separatorBuilder: (ctx, i) => const SizedBox(height: 12),
       itemBuilder: (ctx, i) {
         final t = tickets[i];
-        
-        Color priorityColor = Colors.grey;
-        if (t['priority'] == 'Critical') priorityColor = Colors.red;
-        if (t['priority'] == 'High') priorityColor = Colors.orange;
-        if (t['priority'] == 'Medium') priorityColor = Colors.blue;
-        if (t['priority'] == 'Low') priorityColor = Colors.green;
+        final priorityColor = _getPriorityColor(t.priority);
+        final avatarColor = _getAvatarColor(t.userId);
+        final dateFormatted = timeago.format(t.createdAt);
 
         return FadeInSlide(
           delay: Duration(milliseconds: 50 * i),
@@ -151,16 +230,16 @@ class _TicketList extends StatelessWidget {
             color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
             borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
             child: InkWell(
-              onTap: () => _showTicketDetails(context, t),
-              borderRadius: BorderRadius.circular(24), // matching glass card default
+              onTap: () => _showTicketDetails(context, t, avatarColor, dateFormatted),
+              borderRadius: BorderRadius.circular(24),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     CircleAvatar(
-                      backgroundColor: (t['avatarColor'] as Color).withOpacity(0.15),
-                      child: Icon(Icons.person, color: t['avatarColor']),
+                      backgroundColor: avatarColor.withOpacity(0.15),
+                      child: Icon(Icons.person, color: avatarColor),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -170,7 +249,7 @@ class _TicketList extends StatelessWidget {
                           Row(
                             children: [
                               Text(
-                                t['id'],
+                                t.id.substring(0, 8).toUpperCase(),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.grey,
@@ -179,7 +258,7 @@ class _TicketList extends StatelessWidget {
                               ),
                               const Spacer(),
                               Text(
-                                t['date'],
+                                dateFormatted,
                                 style: const TextStyle(
                                   color: Colors.grey,
                                   fontSize: 12,
@@ -189,14 +268,14 @@ class _TicketList extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            t['title'],
+                            t.subject,
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            t['submitter'],
+                            'User ID: ${t.userId.substring(0, 8)}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           const SizedBox(height: 12),
@@ -210,7 +289,7 @@ class _TicketList extends StatelessWidget {
                                   border: Border.all(color: priorityColor.withOpacity(0.5)),
                                 ),
                                 child: Text(
-                                  t['priority'],
+                                  t.priority.toUpperCase(),
                                   style: TextStyle(
                                     color: priorityColor,
                                     fontSize: 10,
@@ -219,7 +298,7 @@ class _TicketList extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              PortalStatusChip(status: t['status']),
+                              PortalStatusChip(status: t.status),
                             ],
                           ),
                         ],
@@ -235,7 +314,7 @@ class _TicketList extends StatelessWidget {
     );
   }
 
-  void _showTicketDetails(BuildContext context, Map<String, dynamic> ticket) {
+  void _showTicketDetails(BuildContext context, SupportTicket ticket, Color avatarColor, String dateFormatted) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     showModalBottomSheet(
@@ -265,11 +344,11 @@ class _TicketList extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                ticket['id'],
+                                ticket.id,
                                 style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
                               ),
                               Text(
-                                ticket['title'],
+                                ticket.subject,
                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                               ),
                             ],
@@ -291,11 +370,25 @@ class _TicketList extends StatelessWidget {
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: CircleAvatar(
-                            backgroundColor: (ticket['avatarColor'] as Color).withOpacity(0.15),
-                            child: Icon(Icons.person, color: ticket['avatarColor']),
+                            backgroundColor: avatarColor.withOpacity(0.15),
+                            child: Icon(Icons.person, color: avatarColor),
                           ),
-                          title: Text(ticket['submitter']),
-                          subtitle: Text('Submitted: ${ticket['date']}'),
+                          title: Text('User ID: ${ticket.userId}'),
+                          subtitle: Text('Submitted: $dateFormatted'),
+                          trailing: DropdownButton<String>(
+                            value: ticket.status,
+                            items: ['open', 'in_progress', 'resolved', 'closed']
+                                .map((s) => DropdownMenuItem(value: s, child: Text(s.toUpperCase())))
+                                .toList(),
+                            onChanged: (val) async {
+                              if (val != null) {
+                                final repo = HelpdeskRepository();
+                                await repo.updateTicketStatus(ticket.id, val);
+                                if (context.mounted) Navigator.pop(context);
+                                onStatusChange();
+                              }
+                            },
+                          ),
                         ),
                         const SizedBox(height: 24),
                         const Text(
@@ -304,7 +397,7 @@ class _TicketList extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'I am experiencing an issue where I cannot access my gradebook. It gives me a 403 Forbidden error every time I try to open the class for Section B. Please advise.',
+                          ticket.description,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 32),
@@ -313,7 +406,6 @@ class _TicketList extends StatelessWidget {
                           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
                         ),
                         const SizedBox(height: 16),
-                        // Fake activity log
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -334,9 +426,9 @@ class _TicketList extends StatelessWidget {
                                 child: const Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('System Admin', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                    Text('System', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                     SizedBox(height: 4),
-                                    Text('We are looking into this. It appears to be an issue with role permissions caching.'),
+                                    Text('Ticket logged successfully.'),
                                   ],
                                 ),
                               ),

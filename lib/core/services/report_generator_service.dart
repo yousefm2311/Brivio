@@ -142,4 +142,98 @@ class ReportGeneratorService {
       throw Exception('Could not save the PDF report: $e');
     }
   }
+
+  /// Generates a PDF report for Student Roster
+  Future<void> generateStudentRosterReport({
+    required List<Map<String, dynamic>> studentsData,
+  }) async {
+    final pdf = pw.Document();
+    
+    pdf.addPage(pw.MultiPage(
+      build: (context) => [
+        pw.Header(level: 0, child: pw.Text('Student Roster Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
+        pw.SizedBox(height: 20),
+        pw.TableHelper.fromTextArray(
+          context: context,
+          data: [
+            ['Student Name', 'Student Code', 'Email', 'Status'],
+            ...studentsData.map((record) => [
+              record['name']?.toString() ?? '',
+              record['code']?.toString() ?? '',
+              record['email']?.toString() ?? '',
+              record['status']?.toString() ?? '',
+            ]),
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.blue),
+          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
+        ),
+      ],
+    ));
+
+    await _saveAndSharePdf(pdf, 'Student_Roster_Report.pdf');
+  }
+
+  /// Generates a PDF report for Teacher Roster
+  Future<void> generateTeacherRosterReport({
+    required List<Map<String, dynamic>> teachersData,
+  }) async {
+    final pdf = pw.Document();
+    
+    pdf.addPage(pw.MultiPage(
+      build: (context) => [
+        pw.Header(level: 0, child: pw.Text('Teacher Roster Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
+        pw.SizedBox(height: 20),
+        pw.TableHelper.fromTextArray(
+          context: context,
+          data: [
+            ['Teacher Name', 'Email', 'Specialization', 'Status'],
+            ...teachersData.map((record) => [
+              record['name']?.toString() ?? '',
+              record['email']?.toString() ?? '',
+              record['specialization']?.toString() ?? '',
+              record['status']?.toString() ?? '',
+            ]),
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.teal),
+          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
+        ),
+      ],
+    ));
+
+    await _saveAndSharePdf(pdf, 'Teacher_Roster_Report.pdf');
+  }
+
+  /// Generates a PDF report for Exam Details
+  Future<void> generateExamReport({
+    required String groupName,
+    required List<Map<String, dynamic>> examData,
+  }) async {
+    final pdf = pw.Document();
+    
+    pdf.addPage(pw.MultiPage(
+      build: (context) => [
+        pw.Header(level: 0, child: pw.Text('Exam Report - $groupName', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
+        pw.SizedBox(height: 20),
+        pw.TableHelper.fromTextArray(
+          context: context,
+          data: [
+            ['Exam Title', 'Duration (mins)', 'Pass Score', 'Status'],
+            ...examData.map((record) => [
+              record['title']?.toString() ?? '',
+              record['duration']?.toString() ?? '',
+              record['pass_score']?.toString() ?? '',
+              record['status']?.toString() ?? '',
+            ]),
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.indigo),
+          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
+        ),
+      ],
+    ));
+
+    await _saveAndSharePdf(pdf, 'Exam_Report_$groupName.pdf');
+  }
 }

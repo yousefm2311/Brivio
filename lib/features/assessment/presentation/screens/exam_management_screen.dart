@@ -7,6 +7,7 @@ import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../domain/models/assessment_models.dart';
 import 'exam_submissions_screen.dart';
+import '../../../../core/services/report_generator_service.dart';
 
 class ExamManagementScreen extends StatefulWidget {
   const ExamManagementScreen({super.key});
@@ -252,6 +253,29 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     );
   }
 
+  Future<void> _exportExamData() async {
+    try {
+      final service = ReportGeneratorService();
+      final examDataList = _exams.map((e) => {
+        'title': e.title,
+        'duration': e.durationMinutes,
+        'pass_score': e.passScore,
+        'status': e.status,
+      }).toList();
+      
+      final groupName = _selectedGroup?.name ?? 'Unknown Group';
+      await service.generateExamReport(groupName: groupName, examData: examDataList);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Exam report generated.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
@@ -271,6 +295,13 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
             label: 'Add Exam',
             onPressed: _showCreateExamDialog,
             primary: true,
+          ),
+        if (_selectedGroup != null)
+          PortalAction(
+            icon: Icons.picture_as_pdf,
+            label: 'Export Report',
+            onPressed: _exportExamData,
+            primary: false,
           ),
       ],
       child: PortalStateView(

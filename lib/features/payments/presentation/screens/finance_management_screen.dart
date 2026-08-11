@@ -478,9 +478,10 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
             primary: true,
           ),
           PortalAction(
-            icon: Icons.download,
-            label: 'Export',
+            icon: Icons.picture_as_pdf,
+            label: 'Export Report',
             onPressed: _exportFinancialData,
+            primary: false,
           ),
         ],
         child: Column(

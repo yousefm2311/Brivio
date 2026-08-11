@@ -7,6 +7,7 @@ import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../widgets/account_login_qr_dialog.dart';
+import '../../../../core/services/report_generator_service.dart';
 
 class StudentManagementScreen extends StatefulWidget {
   const StudentManagementScreen({super.key});
@@ -286,6 +287,28 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     );
   }
 
+  Future<void> _exportStudentData() async {
+    try {
+      final service = ReportGeneratorService();
+      final rosterData = _students.map((s) => {
+        'name': s.fullName,
+        'code': s.studentCode,
+        'email': s.email,
+        'status': s.status,
+      }).toList();
+      
+      await service.generateStudentRosterReport(studentsData: rosterData);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student report generated.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _students.where((s) {
@@ -312,6 +335,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           label: 'Provision Student',
           onPressed: _showProvisionStudentDialog,
           primary: true,
+        ),
+        PortalAction(
+          icon: Icons.picture_as_pdf,
+          label: 'Export Report',
+          onPressed: _exportStudentData,
+          primary: false,
         ),
       ],
       child: Column(

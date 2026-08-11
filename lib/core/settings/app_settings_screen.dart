@@ -38,6 +38,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
   bool _twoFactorAuth = false;
   bool _dataCollection = false;
   bool _biometricLogin = false;
+  bool _pushNotifications = true;
+  bool _animationQuality = true;
 
   @override
   void initState() {
@@ -56,6 +58,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       adminRepo.getSetting('two_factor_auth'),
       adminRepo.getSetting('data_collection'),
       adminRepo.getSetting('biometric_login'),
+      adminRepo.getSetting('push_notifications'),
+      adminRepo.getSetting('animation_quality'),
     ]);
 
     if (mounted) {
@@ -64,6 +68,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
         _twoFactorAuth = _parseBool(results[1]?.value);
         _dataCollection = _parseBool(results[2]?.value);
         _biometricLogin = _parseBool(results[3]?.value);
+        _pushNotifications = results[4] != null ? _parseBool(results[4]?.value) : true;
+        _animationQuality = results[5] != null ? _parseBool(results[5]?.value) : true;
         _isLoading = false;
       });
     }
@@ -142,8 +148,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     subtitle: 'Use 120fps fluid animations',
                     icon: Icons.animation,
                     trailing: Switch.adaptive(
-                      value: true,
-                      onChanged: (val) {},
+                      value: _animationQuality,
+                      onChanged: (val) => _updateSetting('animation_quality', val, (v) => _animationQuality = v),
                       activeColor: Colors.purple,
                     ),
                   ),
@@ -196,8 +202,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     subtitle: context.tr('push_notifications_subtitle'),
                     icon: Icons.phonelink_ring,
                     trailing: Switch.adaptive(
-                      value: pushService?.isConfigured ?? true,
-                      onChanged: (val) {},
+                      value: _pushNotifications,
+                      onChanged: (val) => _updateSetting('push_notifications', val, (v) => _pushNotifications = v),
                       activeColor: Colors.orange,
                     ),
                   ),
