@@ -70,7 +70,10 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   void _showEditTeacherDialog(Teacher teacher) {
     final nameCtrl = TextEditingController(text: teacher.fullName);
     final specCtrl = TextEditingController(text: teacher.specialization ?? '');
-    String? selectedBranchId = teacher.primaryBranchId;
+    String? selectedBranchId = teacher.primaryBranchId?.isEmpty == true ? null : teacher.primaryBranchId;
+    if (selectedBranchId != null && !_branches.any((b) => b.id == selectedBranchId)) {
+      selectedBranchId = null;
+    }
 
     showDialog(
       context: context,
@@ -101,12 +104,12 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     ),
                     items: _branches
                         .map(
-                          (b) => DropdownMenuItem(
+                          (b) => DropdownMenuItem<String>(
                             value: b.id,
                             child: Text(b.name),
                           ),
                         )
-                        .toList(),
+                        .toList()..insert(0, const DropdownMenuItem(value: null, child: Text('No Branch Assigned'))),
                     onChanged: (v) =>
                         setStateDialog(() => selectedBranchId = v),
                   ),
@@ -396,6 +399,34 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                         tooltip: context.tr('Edit Teacher'),
                         onPressed: () => _showEditTeacherDialog(t),
                         icon: const Icon(Icons.edit, color: Colors.blue),
+                      ),
+                      IconButton(
+                        tooltip: context.tr('Delete Teacher'),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Delete Teacher'),
+                              content: const Text('Are you sure you want to permanently delete this teacher?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true), 
+                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            try {
+                              await Supabase.instance.client.rpc('hard_delete_user', params: {'target_user_id': t.profileId});
+                              _loadTeachers();
+                            } catch (e) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
                       ),
                     ],
                   );

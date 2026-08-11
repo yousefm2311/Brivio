@@ -70,8 +70,10 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   void _showEditStudentDialog(Student student) {
     final nameCtrl = TextEditingController(text: student.fullName);
     final codeCtrl = TextEditingController(text: student.studentCode);
-    String? selectedBranchId = student.primaryBranchId;
-
+    String? selectedBranchId = student.primaryBranchId?.isEmpty == true ? null : student.primaryBranchId;
+    if (selectedBranchId != null && !_branches.any((b) => b.id == selectedBranchId)) {
+      selectedBranchId = null;
+    }
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -101,12 +103,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     ),
                     items: _branches
                         .map(
-                          (b) => DropdownMenuItem(
+                          (b) => DropdownMenuItem<String>(
                             value: b.id,
                             child: Text(b.name),
                           ),
                         )
-                        .toList(),
+                        .toList()..insert(0, const DropdownMenuItem(value: null, child: Text('No Branch Assigned'))),
                     onChanged: (v) =>
                         setStateDialog(() => selectedBranchId = v),
                   ),

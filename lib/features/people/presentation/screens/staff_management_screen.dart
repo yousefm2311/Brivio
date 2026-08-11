@@ -64,6 +64,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
   void _showEditStaffDialog(Map<String, dynamic> staff) {
     final nameCtrl = TextEditingController(text: staff['full_name'] as String? ?? '');
     String targetRole = staff['role'] as String? ?? 'staff';
+    if (targetRole != 'staff' && targetRole != 'admin') targetRole = 'staff';
 
     showDialog(
       context: context,

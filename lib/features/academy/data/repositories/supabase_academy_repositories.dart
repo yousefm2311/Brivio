@@ -811,7 +811,7 @@ class SupabaseScheduleRepository implements IScheduleRepository {
         'day_of_week': dayOfWeek,
         'start_time': startTime,
         'end_time': endTime,
-        'room_location': roomLocation,
+        'location': roomLocation,
       }).eq('id', scheduleId);
     } on supabase.PostgrestException catch (e) {
       if (e.code == '23514') {
