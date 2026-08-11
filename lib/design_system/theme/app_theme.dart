@@ -92,7 +92,7 @@ class AppTheme {
           disabledBackgroundColor: AppColors.darkSurfaceSecondary,
           disabledForegroundColor: AppColors.darkTextTertiary,
           elevation: 0,
-          minimumSize: const Size(double.infinity, 52),
+          minimumSize: const Size(88, 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_radiusLg),
           ),
@@ -108,7 +108,7 @@ class AppTheme {
           foregroundColor: AppColors.primary,
           disabledForegroundColor: AppColors.darkTextTertiary,
           side: const BorderSide(color: AppColors.darkBorder, width: 1.0),
-          minimumSize: const Size(double.infinity, 52),
+          minimumSize: const Size(88, 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_radiusLg),
           ),
@@ -375,7 +375,7 @@ class AppTheme {
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
-          minimumSize: const Size(double.infinity, 52),
+          minimumSize: const Size(88, 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_radiusLg),
           ),

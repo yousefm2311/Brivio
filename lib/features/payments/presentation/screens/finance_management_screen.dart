@@ -9,6 +9,7 @@ import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_payment_repositories.dart';
 import '../../domain/models/payment_models.dart';
+import '../../../../core/services/report_generator_service.dart';
 
 class FinanceManagementScreen extends StatefulWidget {
   const FinanceManagementScreen({super.key});
@@ -418,6 +419,39 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     }
   }
 
+  Future<void> _exportFinancialData() async {
+    try {
+      final service = ReportGeneratorService();
+      final financialData = <Map<String, dynamic>>[];
+      for (var inv in _invoices) {
+        financialData.add({
+          'date': inv.dueAt.toIso8601String().substring(0, 10),
+          'description': 'Invoice #${inv.invoiceNumber}',
+          'type': 'Invoice',
+          'amount': (inv.totalMinor / 100).toStringAsFixed(2),
+          'notes': inv.status,
+        });
+      }
+      for (var rec in _receipts) {
+        financialData.add({
+          'date': rec.issuedAt.toIso8601String().substring(0, 10),
+          'description': 'Receipt #${rec.id.substring(0, 8)}',
+          'type': 'Inflow',
+          'amount': (rec.amountMinor / 100).toStringAsFixed(2),
+          'notes': 'Transaction: ${rec.transactionId}',
+        });
+      }
+      await service.generateFinancialReport(financialData: financialData);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Financial report generated.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -438,6 +472,11 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
             label: 'Add Plan',
             onPressed: _showCreatePlanDialog,
             primary: true,
+          ),
+          PortalAction(
+            icon: Icons.download,
+            label: 'Export',
+            onPressed: _exportFinancialData,
           ),
         ],
         child: Column(

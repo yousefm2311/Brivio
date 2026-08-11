@@ -253,6 +253,36 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                         onPressed: () => _showLoginQr(s),
                         icon: const Icon(Icons.qr_code_2),
                       ),
+                      IconButton(
+                        tooltip: context.tr('Suspend User'),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Suspend Student'),
+                              content: const Text('Are you sure you want to suspend this student?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Suspend', style: TextStyle(color: Colors.red))),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            try {
+                              await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': s.profileId});
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student suspended')));
+                                _loadStudents();
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                              }
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.block, color: Colors.red),
+                      ),
                       PortalStatusChip(status: s.status),
                     ],
                   );

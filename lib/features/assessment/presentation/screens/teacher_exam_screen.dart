@@ -11,6 +11,7 @@ import '../../domain/models/assessment_models.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
+import 'student_submissions_screen.dart';
 
 class TeacherExamScreen extends StatefulWidget {
   final String teacherId;
@@ -341,7 +342,10 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
     );
 
     List<Map<String, dynamic>> attempts = [];
@@ -389,6 +393,26 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                         contentPadding: EdgeInsets.zero,
                         title: Text(studentName, style: AppTypography.bodyMedium(textColor)),
                         subtitle: Text('${context.tr('Score')}: ${att['score']} | ${context.tr('Status')}: ${att['status']}', style: AppTypography.caption(subtitleColor)),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => StudentSubmissionsScreen(
+                                initialSubmission: {
+                                  'id': att['id'],
+                                  'assessment_type': 'exam',
+                                  'assessment_id': exam.id,
+                                  'student_id': att['student_id'],
+                                  'score': att['score'],
+                                },
+                                onGraded: () {
+                                  _loadGroupsAndExams();
+                                },
+                              ),
+                            ),
+                          );
+                        },
                         trailing: IconButton(
                           icon: const Icon(Icons.refresh, color: AppColors.error),
                           tooltip: context.tr('Reset Attempt'),

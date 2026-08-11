@@ -250,6 +250,36 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                         onPressed: () => _showLoginQr(t),
                         icon: const Icon(Icons.qr_code_2),
                       ),
+                      IconButton(
+                        tooltip: context.tr('Suspend User'),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Suspend Teacher'),
+                              content: const Text('Are you sure you want to suspend this teacher?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Suspend', style: TextStyle(color: Colors.red))),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            try {
+                              await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': t.profileId});
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Teacher suspended')));
+                                _loadTeachers();
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                              }
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.block, color: Colors.red),
+                      ),
                     ],
                   );
                 },

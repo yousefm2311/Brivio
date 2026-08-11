@@ -37,6 +37,11 @@ class FakeBranchRepository implements IBranchRepository {
     if (idx != -1) branches[idx] = branch;
     return branch;
   }
+
+  @override
+  Future<void> deleteBranch(String id) async {
+    branches.removeWhere((b) => b.id == id);
+  }
 }
 
 class FakeSubjectRepository implements ISubjectRepository {
@@ -66,6 +71,11 @@ class FakeSubjectRepository implements ISubjectRepository {
     final idx = subjects.indexWhere((s) => s.id == subject.id);
     if (idx != -1) subjects[idx] = subject;
     return subject;
+  }
+
+  @override
+  Future<void> deleteSubject(String id) async {
+    subjects.removeWhere((s) => s.id == id);
   }
 }
 

@@ -63,7 +63,7 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
       final attemptsList = List<Map<String, dynamic>>.from(attemptsRes);
       
       // Fetch answers for all these attempts
-      final ansTable = isExam ? 'exam_answers' : 'homework_answers';
+      final ansTable = isExam ? 'attempt_answers' : 'homework_answers';
       final ansForeignKey = isExam ? 'attempt_id' : 'submission_id';
       
       final attemptIds = attemptsList.map((a) => a['id']).toList();
@@ -124,7 +124,7 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (dialogCtx, setDialogState) {
             return AlertDialog(
               title: Text(context.tr('Manual Grade Override')),
               content: Column(
@@ -153,7 +153,7 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    Navigator.pop(context);
+                    Navigator.pop(dialogCtx);
                     
                     try {
                       final newPoints = double.tryParse(pointsCtrl.text) ?? 0.0;
@@ -163,7 +163,7 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                           'p_attempt_id': attemptId,
                           'p_question_id': questionId,
                           'p_is_correct': isCorrect,
-                          'p_points_awarded': newPoints,
+                          'p_points': newPoints,
                         },
                       );
                       

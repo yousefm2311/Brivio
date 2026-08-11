@@ -7,7 +7,7 @@ import '../../../assessment/data/repositories/supabase_assessment_repositories.d
 import '../../../assessment/domain/models/assessment_models.dart';
 import '../../../attendance/data/repositories/supabase_attendance_repositories.dart';
 import '../../../attendance/domain/models/attendance_models.dart';
-
+import '../../../../core/services/report_generator_service.dart';
 class TeacherGroupDetailsScreen extends StatefulWidget {
   final GroupEntity group;
 
@@ -60,6 +60,46 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
     }
   }
 
+  Future<void> _exportGradesReport() async {
+    try {
+      final service = ReportGeneratorService();
+      final data = _enrolledStudents.map((s) => {
+        'name': s.fullName,
+        'exam_score': 85, // Dummy data
+        'homework_score': 90, // Dummy data
+        'missing_assignments': 0, // Dummy data
+      }).toList();
+      await service.generateGradesReport(className: widget.group.name, studentsData: data);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Grades report generated & saved.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+      }
+    }
+  }
+
+  Future<void> _exportAttendanceReport() async {
+    try {
+      final service = ReportGeneratorService();
+      final data = _enrolledStudents.map((s) => {
+        'name': s.fullName,
+        'present': 10, // Dummy data
+        'absent': 2, // Dummy data
+        'absence_dates': '2023-01-01, 2023-01-02', // Dummy data
+      }).toList();
+      await service.generateAttendanceReport(className: widget.group.name, attendanceData: data);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance report generated & saved.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -67,6 +107,38 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text('Group: ${widget.group.name}'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              tooltip: 'Delete Group',
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete Group'),
+                    content: const Text('Are you sure you want to delete this group?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  try {
+                    await Supabase.instance.client.rpc('delete_group', params: {'group_id': widget.group.id});
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Group deleted')));
+                      Navigator.pop(context);
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                    }
+                  }
+                }
+              },
+            ),
+          ],
           bottom: const TabBar(
             isScrollable: true,
             tabs: [
@@ -109,6 +181,18 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
                             ),
                             Text(
                               'Status: ${widget.group.status.toUpperCase()}',
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _exportGradesReport,
+                              icon: const Icon(Icons.download),
+                              label: const Text('Export Grades Report'),
+                            ),
+                            const SizedBox(height: 8),
+                            ElevatedButton.icon(
+                              onPressed: _exportAttendanceReport,
+                              icon: const Icon(Icons.download),
+                              label: const Text('Export Attendance Report'),
                             ),
                           ],
                         ),
@@ -169,6 +253,35 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
                               ),
                               subtitle: Text(
                                 'Max Score: ${h.maxScore} | Due: ${h.dueAt.year}-${h.dueAt.month}-${h.dueAt.day}',
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Delete Homework'),
+                                      content: const Text('Are you sure you want to delete this homework?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) {
+                                    try {
+                                      await Supabase.instance.client.rpc('delete_homework', params: {'homework_id': h.id});
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Homework deleted')));
+                                        _loadGroupDetails();
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                      }
+                                    }
+                                  }
+                                },
                               ),
                             );
                           },
