@@ -34,6 +34,7 @@ class LearnTab extends StatelessWidget {
     }
 
     return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverAppBar(
           backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,

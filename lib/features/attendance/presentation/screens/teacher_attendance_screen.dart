@@ -617,14 +617,22 @@ class _TeacherAttendanceQrDialogState
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Checked in $presentCount/${_roster.length}',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${context.tr('Present')}: $presentCount',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: Colors.green),
+                ),
+                Text(
+                  '${context.tr('Absent')}: ${_roster.length - presentCount}',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: Colors.red),
+                ),
+                Text(
+                  '${context.tr('Total')}: ${_roster.length}',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             ConstrainedBox(

@@ -60,6 +60,7 @@ class HomeTab extends StatelessWidget {
       color: AppColors.primary,
       backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           // ── Large Title App Bar ──
           SliverAppBar(

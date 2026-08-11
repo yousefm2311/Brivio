@@ -469,11 +469,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
         final body = SafeArea(
           bottom: false,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            child: tabs[_selectedIndex],
+          child: RefreshIndicator(
+            onRefresh: _loadAll,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: tabs[_selectedIndex],
+            ),
           ),
         );
 
@@ -577,19 +580,106 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
 // ── Session Board screen ──
 
-class _SessionBoardScreen extends StatelessWidget {
+class _SessionBoardScreen extends StatefulWidget {
   final PublishedSessionBoard board;
-
   const _SessionBoardScreen({required this.board});
 
   @override
+  State<_SessionBoardScreen> createState() => _SessionBoardScreenState();
+}
+
+class _SessionBoardScreenState extends State<_SessionBoardScreen> {
+  final List<BoardStroke> _studentStrokes = [];
+  BoardStroke? _activeStroke;
+  bool _isDrawingMode = false;
+  bool _eraser = false;
+  final Color _selectedColor = Colors.blue;
+
+  void _startStroke(DragStartDetails details) {
+    if (!_isDrawingMode) return;
+    setState(() {
+      _activeStroke = BoardStroke(
+        color: _eraser ? Colors.white : _selectedColor,
+        width: _eraser ? 22 : 4,
+        points: [details.localPosition],
+      );
+    });
+  }
+
+  void _appendStroke(DragUpdateDetails details) {
+    if (!_isDrawingMode) return;
+    final stroke = _activeStroke;
+    if (stroke == null) return;
+    setState(() {
+      _activeStroke = BoardStroke(
+        color: stroke.color,
+        width: stroke.width,
+        points: [...stroke.points, details.localPosition],
+      );
+    });
+  }
+
+  void _endStroke([DragEndDetails? _]) {
+    if (!_isDrawingMode) return;
+    final stroke = _activeStroke;
+    if (stroke != null && stroke.points.length > 1) {
+      setState(() => _studentStrokes.add(stroke));
+    }
+    setState(() => _activeStroke = null);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final strokes = decodeSessionBoard(board.boardData);
+    final teacherStrokes = decodeSessionBoard(widget.board.boardData);
+    final allStrokes = [
+      ...teacherStrokes,
+      ..._studentStrokes,
+      if (_activeStroke != null) _activeStroke!,
+    ];
+
     return Scaffold(
-      appBar: AppBar(title: Text(board.title)),
-      body: CustomPaint(
-        painter: _BoardPainter(strokes),
-        child: Container(),
+      backgroundColor: Colors.grey[200],
+      appBar: AppBar(
+        title: Text(widget.board.title),
+        actions: [
+          IconButton(
+            icon: Icon(_isDrawingMode ? Icons.pan_tool : Icons.edit),
+            tooltip: _isDrawingMode ? context.tr('Switch to Pan/Zoom') : context.tr('Switch to Draw'),
+            onPressed: () => setState(() => _isDrawingMode = !_isDrawingMode),
+          ),
+          if (_isDrawingMode) ...[
+            IconButton(
+              icon: Icon(_eraser ? Icons.edit : Icons.auto_fix_high),
+              tooltip: context.tr('Toggle Eraser'),
+              onPressed: () => setState(() => _eraser = !_eraser),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: context.tr('Clear my drawing'),
+              onPressed: () => setState(() => _studentStrokes.clear()),
+            ),
+          ],
+        ],
+      ),
+      body: InteractiveViewer(
+        panEnabled: !_isDrawingMode,
+        scaleEnabled: true,
+        minScale: 0.1,
+        maxScale: 5.0,
+        boundaryMargin: const EdgeInsets.all(double.infinity),
+        child: GestureDetector(
+          onPanStart: _isDrawingMode ? _startStroke : null,
+          onPanUpdate: _isDrawingMode ? _appendStroke : null,
+          onPanEnd: _isDrawingMode ? _endStroke : null,
+          child: Container(
+            color: Colors.white,
+            width: double.infinity,
+            height: double.infinity,
+            child: CustomPaint(
+              painter: _BoardPainter(allStrokes),
+            ),
+          ),
+        ),
       ),
     );
   }

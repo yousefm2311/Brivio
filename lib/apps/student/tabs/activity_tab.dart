@@ -284,6 +284,7 @@ class _HomeworkAndExamsView extends StatelessWidget {
     }
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
         if (homeworkItems.isNotEmpty) ...[
@@ -571,6 +572,7 @@ class _AttendanceView extends StatelessWidget {
     final rate = total == 0 ? 100 : (((present + late + excused) / total) * 100).round();
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
         // ── Action buttons ──
@@ -738,6 +740,7 @@ class _SessionBoardsSection extends StatelessWidget {
     }
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
         FadeInSlide(
