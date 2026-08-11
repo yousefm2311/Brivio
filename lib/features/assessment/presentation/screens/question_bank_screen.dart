@@ -183,6 +183,115 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
     );
   }
 
+  void _showEditQuestionDialog(Question q) {
+    final textCtrl = TextEditingController(text: q.prompt);
+    final ptsCtrl = TextEditingController(text: q.defaultPoints.toString());
+    String qType = q.questionType.name;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text('Edit Question'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: textCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Question Prompt / Text',
+                    ),
+                    maxLines: 2,
+                  ),
+                  DropdownButtonFormField<String>(
+                    initialValue: qType,
+                    decoration: const InputDecoration(
+                      labelText: 'Question Type',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'multiple_choice',
+                        child: Text('Multiple Choice (MCQ)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'true_false',
+                        child: Text('True / False'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'short_answer',
+                        child: Text('Short Answer'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'long_answer',
+                        child: Text('Long Answer'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setStateDialog(() => qType = v);
+                    },
+                  ),
+                  TextField(
+                    controller: ptsCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Default Points',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (textCtrl.text.trim().isEmpty) return;
+
+                  final nav = Navigator.of(ctx);
+                  try {
+                    await Supabase.instance.client
+                        .from('questions')
+                        .update({
+                          'prompt': textCtrl.text.trim(),
+                          'question_type': qType,
+                          'default_points': double.tryParse(ptsCtrl.text) ?? 5.0,
+                        })
+                        .eq('id', q.id);
+
+                    nav.pop();
+                    _loadQuestions();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Question updated!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Update failed: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Save Changes'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
@@ -255,6 +364,11 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           subtitle:
                               'Type: ${q.questionType.name.toUpperCase()} | Points: ${q.defaultPoints}',
                           trailing: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _showEditQuestionDialog(q),
+                              tooltip: 'Edit Question',
+                            ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () async {

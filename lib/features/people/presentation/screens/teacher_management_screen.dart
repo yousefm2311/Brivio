@@ -67,6 +67,105 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     }
   }
 
+  void _showEditTeacherDialog(Teacher teacher) {
+    final nameCtrl = TextEditingController(text: teacher.fullName);
+    final specCtrl = TextEditingController(text: teacher.specialization ?? '');
+    String? selectedBranchId = teacher.primaryBranchId;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: Text(context.tr('Edit Teacher')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Full Name'),
+                  ),
+                ),
+                TextField(
+                  controller: specCtrl,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Specialization'),
+                  ),
+                ),
+                if (_branches.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    value: selectedBranchId,
+                    decoration: InputDecoration(
+                      labelText: context.tr('Branch Assignment'),
+                    ),
+                    items: _branches
+                        .map(
+                          (b) => DropdownMenuItem(
+                            value: b.id,
+                            child: Text(b.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) =>
+                        setStateDialog(() => selectedBranchId = v),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.tr('Cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty) return;
+
+                final nav = Navigator.of(ctx);
+                try {
+                  await Supabase.instance.client
+                      .from('profiles')
+                      .update({'full_name': nameCtrl.text.trim()})
+                      .eq('id', teacher.profileId);
+                  
+                  await Supabase.instance.client
+                      .from('teachers')
+                      .update({
+                        'specialization': specCtrl.text.trim(),
+                        if (selectedBranchId != null) 'primary_branch_id': selectedBranchId,
+                      })
+                      .eq('id', teacher.id);
+
+                  nav.pop();
+                  _loadTeachers();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Teacher updated successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Update error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text(context.tr('Save Changes')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showProvisionTeacherDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
@@ -293,6 +392,11 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                           },
                           icon: const Icon(Icons.block, color: Colors.red),
                         ),
+                      IconButton(
+                        tooltip: context.tr('Edit Teacher'),
+                        onPressed: () => _showEditTeacherDialog(t),
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                      ),
                     ],
                   );
                 },

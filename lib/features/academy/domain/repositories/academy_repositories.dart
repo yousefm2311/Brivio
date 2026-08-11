@@ -99,6 +99,14 @@ abstract class IScheduleRepository {
     required String endTime,
     String? roomLocation,
   });
+  Future<void> updateSchedule({
+    required String scheduleId,
+    required int dayOfWeek,
+    required String startTime,
+    required String endTime,
+    String? roomLocation,
+  });
+  Future<void> deleteSchedule(String scheduleId);
 }
 
 abstract class IAcademySummaryRepository {

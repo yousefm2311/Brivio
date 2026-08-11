@@ -61,6 +61,95 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     }
   }
 
+  void _showEditStaffDialog(Map<String, dynamic> staff) {
+    final nameCtrl = TextEditingController(text: staff['full_name'] as String? ?? '');
+    String targetRole = staff['role'] as String? ?? 'staff';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: Text(context.tr('Edit Staff')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Full Name'),
+                  ),
+                ),
+                DropdownButtonFormField<String>(
+                  value: targetRole,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Role'),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'staff',
+                      child: Text(context.tr('Operations Staff')),
+                    ),
+                    DropdownMenuItem(
+                      value: 'admin',
+                      child: Text(context.tr('Branch Admin')),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setStateDialog(() => targetRole = v);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.tr('Cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty) return;
+
+                final nav = Navigator.of(ctx);
+                try {
+                  await Supabase.instance.client
+                      .from('profiles')
+                      .update({
+                        'full_name': nameCtrl.text.trim(),
+                        'role': targetRole,
+                      })
+                      .eq('id', staff['id']);
+
+                  nav.pop();
+                  _loadStaff();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Staff updated successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Update error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text(context.tr('Save Changes')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showProvisionStaffDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
@@ -272,6 +361,11 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     }
                   },
                   icon: const Icon(Icons.block, color: Colors.orange),
+                ),
+                IconButton(
+                  tooltip: context.tr('Edit Staff'),
+                  onPressed: () => _showEditStaffDialog(p),
+                  icon: const Icon(Icons.edit, color: Colors.blue),
                 ),
                 IconButton(
                   tooltip: context.tr('Delete Staff'),

@@ -191,6 +191,118 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
     );
   }
 
+  void _showEditHomeworkDialog(Homework h) {
+    final titleCtrl = TextEditingController(text: h.title);
+    final descCtrl = TextEditingController(text: h.description ?? '');
+    final ptsCtrl = TextEditingController(text: h.maxScore.toString());
+    DateTime? dueAt = h.dueAt;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: const Text('Edit Homework Assignment'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Homework Title',
+                  ),
+                ),
+                TextField(
+                  controller: descCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Instructions / Description',
+                  ),
+                  maxLines: 2,
+                ),
+                TextField(
+                  controller: ptsCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Max Score / Points',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 730)),
+                      initialDate: dueAt ?? DateTime.now().add(const Duration(days: 7)),
+                    );
+                    if (picked != null) setStateDialog(() => dueAt = picked);
+                  },
+                  icon: const Icon(Icons.event),
+                  label: Text(
+                    dueAt == null
+                        ? 'Select due date'
+                        : 'Due ${dueAt!.year}-${dueAt!.month}-${dueAt!.day}',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final maxScore = double.tryParse(ptsCtrl.text);
+                if (titleCtrl.text.trim().isEmpty ||
+                    maxScore == null ||
+                    maxScore <= 0 ||
+                    dueAt == null) {
+                  return;
+                }
+
+                final nav = Navigator.of(ctx);
+                try {
+                  await Supabase.instance.client
+                      .from('homework_assignments')
+                      .update({
+                        'title': titleCtrl.text.trim(),
+                        'description': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                        'max_score': maxScore,
+                        'due_at': dueAt!.toIso8601String(),
+                      })
+                      .eq('id', h.id);
+
+                  nav.pop();
+                  _loadHomeworks();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Homework updated successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Update failed: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save Changes'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
@@ -262,6 +374,11 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                               'Max Score: ${h.maxScore} | Due: ${h.dueAt.year}-${h.dueAt.month}-${h.dueAt.day} | Status: ${h.status.toUpperCase()}',
                           trailing: [
                             PortalStatusChip(status: h.status),
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _showEditHomeworkDialog(h),
+                              tooltip: 'Edit Homework',
+                            ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () async {

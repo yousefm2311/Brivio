@@ -797,6 +797,50 @@ class SupabaseScheduleRepository implements IScheduleRepository {
       );
     }
   }
+
+  @override
+  Future<void> updateSchedule({
+    required String scheduleId,
+    required int dayOfWeek,
+    required String startTime,
+    required String endTime,
+    String? roomLocation,
+  }) async {
+    try {
+      await _wrapper.client.from('schedules').update({
+        'day_of_week': dayOfWeek,
+        'start_time': startTime,
+        'end_time': endTime,
+        'room_location': roomLocation,
+      }).eq('id', scheduleId);
+    } on supabase.PostgrestException catch (e) {
+      if (e.code == '23514') {
+        throw DatabaseFailure(message: 'End time must be after start time.');
+      }
+      if (e.code == '23505') {
+        throw DatabaseFailure(
+          message:
+              'Schedule conflict detected for group, teacher, or location.',
+        );
+      }
+      throw DatabaseFailure(message: e.message);
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Schedule update failed: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<void> deleteSchedule(String scheduleId) async {
+    try {
+      await _wrapper.client.from('schedules').delete().eq('id', scheduleId);
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Schedule deletion failed: ${e.toString()}',
+      );
+    }
+  }
 }
 
 class SupabaseAcademySummaryRepository implements IAcademySummaryRepository {

@@ -6,6 +6,7 @@ import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../domain/models/assessment_models.dart';
+import 'exam_submissions_screen.dart';
 
 class ExamManagementScreen extends StatefulWidget {
   const ExamManagementScreen({super.key});
@@ -164,6 +165,93 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     );
   }
 
+  void _showEditExamDialog(Exam e) {
+    final titleCtrl = TextEditingController(text: e.title);
+    final durationCtrl = TextEditingController(text: e.durationMinutes.toString());
+    final passCtrl = TextEditingController(text: e.passScore.toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Exam'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Exam Title'),
+              ),
+              TextField(
+                controller: durationCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Duration (Minutes)',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: passCtrl,
+                decoration: const InputDecoration(labelText: 'Passing Score'),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final duration = int.tryParse(durationCtrl.text);
+              final passScore = double.tryParse(passCtrl.text);
+              if (titleCtrl.text.trim().isEmpty ||
+                  duration == null ||
+                  duration <= 0 ||
+                  passScore == null ||
+                  passScore < 0) {
+                return;
+              }
+
+              final nav = Navigator.of(ctx);
+              try {
+                await Supabase.instance.client
+                    .from('exams')
+                    .update({
+                      'title': titleCtrl.text.trim(),
+                      'duration_minutes': duration,
+                      'pass_score': passScore,
+                    })
+                    .eq('id', e.id);
+                nav.pop();
+                _loadExams();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Exam updated successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (err) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Update failed: $err'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Save Changes'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
@@ -235,6 +323,23 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                               'Duration: ${e.durationMinutes} min | Pass Score: ${e.passScore}',
                           trailing: [
                             PortalStatusChip(status: e.status),
+                            IconButton(
+                              icon: const Icon(Icons.people, color: Colors.green),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (ctx) => ExamSubmissionsScreen(exam: e),
+                                  ),
+                                );
+                              },
+                              tooltip: 'View Submissions',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _showEditExamDialog(e),
+                              tooltip: 'Edit Exam',
+                            ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () async {

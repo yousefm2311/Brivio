@@ -67,6 +67,105 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     }
   }
 
+  void _showEditStudentDialog(Student student) {
+    final nameCtrl = TextEditingController(text: student.fullName);
+    final codeCtrl = TextEditingController(text: student.studentCode);
+    String? selectedBranchId = student.primaryBranchId;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: Text(context.tr('Edit Student')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Full Name'),
+                  ),
+                ),
+                TextField(
+                  controller: codeCtrl,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Student Code'),
+                  ),
+                ),
+                if (_branches.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    value: selectedBranchId,
+                    decoration: InputDecoration(
+                      labelText: context.tr('Branch Assignment'),
+                    ),
+                    items: _branches
+                        .map(
+                          (b) => DropdownMenuItem(
+                            value: b.id,
+                            child: Text(b.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) =>
+                        setStateDialog(() => selectedBranchId = v),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.tr('Cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty) return;
+
+                final nav = Navigator.of(ctx);
+                try {
+                  await Supabase.instance.client
+                      .from('profiles')
+                      .update({'full_name': nameCtrl.text.trim()})
+                      .eq('id', student.profileId);
+                  
+                  await Supabase.instance.client
+                      .from('students')
+                      .update({
+                        'student_code': codeCtrl.text.trim(),
+                        if (selectedBranchId != null) 'primary_branch_id': selectedBranchId,
+                      })
+                      .eq('id', student.id);
+
+                  nav.pop();
+                  _loadStudents();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Student updated successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Update error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text(context.tr('Save Changes')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showProvisionStudentDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
@@ -296,6 +395,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                           },
                           icon: const Icon(Icons.block, color: Colors.red),
                         ),
+                      IconButton(
+                        tooltip: context.tr('Edit Student'),
+                        onPressed: () => _showEditStudentDialog(s),
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                      ),
                       IconButton(
                         tooltip: context.tr('Delete Student'),
                         onPressed: () async {

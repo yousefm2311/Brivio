@@ -210,6 +210,172 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     );
   }
 
+  void _deleteSchedule(ScheduleEntity s) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Schedule'),
+        content: const Text('Are you sure you want to delete this schedule?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await _scheduleRepo.deleteSchedule(s.id);
+        _loadSchedules();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  void _showEditScheduleDialog(ScheduleEntity s) {
+    int selectedDay = s.dayOfWeek;
+    TimeOfDay startTime = TimeOfDay(
+      hour: int.parse(s.startTime.split(':')[0]),
+      minute: int.parse(s.startTime.split(':')[1]),
+    );
+    TimeOfDay endTime = TimeOfDay(
+      hour: int.parse(s.endTime.split(':')[0]),
+      minute: int.parse(s.endTime.split(':')[1]),
+    );
+    final roomCtrl = TextEditingController(text: s.roomLocation ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text('Edit Class Schedule'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<int>(
+                    initialValue: selectedDay,
+                    decoration: const InputDecoration(labelText: 'Day of Week'),
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('Monday')),
+                      DropdownMenuItem(value: 2, child: Text('Tuesday')),
+                      DropdownMenuItem(value: 3, child: Text('Wednesday')),
+                      DropdownMenuItem(value: 4, child: Text('Thursday')),
+                      DropdownMenuItem(value: 5, child: Text('Friday')),
+                      DropdownMenuItem(value: 6, child: Text('Saturday')),
+                      DropdownMenuItem(value: 7, child: Text('Sunday')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setStateDialog(() => selectedDay = v);
+                    },
+                  ),
+                  TextField(
+                    controller: roomCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Room / Location',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.schedule),
+                          label: Text('Start ${startTime.format(context)}'),
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: startTime,
+                            );
+                            if (picked != null) {
+                              setStateDialog(() => startTime = picked);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.schedule),
+                          label: Text('End ${endTime.format(context)}'),
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: endTime,
+                            );
+                            if (picked != null) {
+                              setStateDialog(() => endTime = picked);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (roomCtrl.text.trim().isEmpty) return;
+
+                  final nav = Navigator.of(ctx);
+                  try {
+                    final startStr =
+                        '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}:00';
+                    final endStr =
+                        '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}:00';
+
+                    await _scheduleRepo.updateSchedule(
+                      scheduleId: s.id,
+                      dayOfWeek: selectedDay,
+                      startTime: startStr,
+                      endTime: endStr,
+                      roomLocation: roomCtrl.text.trim(),
+                    );
+                    nav.pop();
+                    _loadSchedules();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Class schedule updated!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Schedule conflict: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Save Changes'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
@@ -249,7 +415,19 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
               accentColor: AppColors.adminRole,
               title: 'Day ${s.dayOfWeek}: ${s.startTime} - ${s.endTime}',
               subtitle: 'Location: ${s.roomLocation ?? "Not assigned"}',
-              trailing: [PortalStatusChip(status: s.status)],
+              trailing: [
+                PortalStatusChip(status: s.status),
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  onPressed: () => _showEditScheduleDialog(s),
+                  tooltip: 'Edit Schedule',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _deleteSchedule(s),
+                  tooltip: 'Delete Schedule',
+                ),
+              ],
             );
           },
         ),

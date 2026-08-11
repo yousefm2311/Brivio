@@ -79,6 +79,70 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     }
   }
 
+  void _showEditParentDialog(Parent parent) {
+    final nameCtrl = TextEditingController(text: parent.fullName);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('Edit Parent')),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: context.tr('Full Name'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty) return;
+
+              final nav = Navigator.of(ctx);
+              try {
+                await Supabase.instance.client
+                    .from('profiles')
+                    .update({'full_name': nameCtrl.text.trim()})
+                    .eq('id', parent.profileId);
+
+                nav.pop();
+                _loadParents();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Parent updated successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Update error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text(context.tr('Save Changes')),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showProvisionParentDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
@@ -376,6 +440,11 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                           },
                           icon: const Icon(Icons.block, color: Colors.red),
                         ),
+                      IconButton(
+                        tooltip: context.tr('Edit Parent'),
+                        onPressed: () => _showEditParentDialog(p),
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                      ),
                       IconButton(
                         tooltip: context.tr('Delete Parent'),
                         onPressed: () async {
