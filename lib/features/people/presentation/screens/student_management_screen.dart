@@ -251,7 +251,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                       ),
                       if (s.status == 'suspended')
                         IconButton(
-                          tooltip: context.tr('Activate User'),
+                          tooltip: context.tr('Activate Student'),
                           onPressed: () async {
                             try {
                               await Supabase.instance.client.rpc('activate_user', params: {'user_uid': s.profileId});
@@ -296,6 +296,34 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                           },
                           icon: const Icon(Icons.block, color: Colors.red),
                         ),
+                      IconButton(
+                        tooltip: context.tr('Delete Student'),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Delete Student'),
+                              content: const Text('Are you sure you want to permanently delete this student?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true), 
+                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            try {
+                              await Supabase.instance.client.rpc('hard_delete_user', params: {'target_user_id': s.profileId});
+                              _loadStudents();
+                            } catch (e) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      ),
                       PortalStatusChip(status: s.status),
                     ],
                   );

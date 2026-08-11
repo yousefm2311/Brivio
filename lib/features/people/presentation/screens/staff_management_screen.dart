@@ -292,7 +292,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     );
                     if (confirm == true) {
                       try {
-                        await Supabase.instance.client.rpc('soft_delete_user', params: {'target_user_id': p['id']});
+                        await Supabase.instance.client.rpc('hard_delete_user', params: {'target_user_id': p['id']});
                         _loadStaff();
                       } catch (e) {
                         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));

@@ -351,15 +351,59 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                         IconButton(
                           tooltip: context.tr('Suspend Parent'),
                           onPressed: () async {
-                            try {
-                              await Supabase.instance.client.from('profiles').update({'status': 'suspended'}).eq('id', p.id);
-                              _loadParents();
-                            } catch (err) {
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to suspend: $err')));
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Suspend Parent'),
+                                content: const Text('Are you sure you want to suspend this parent?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true), 
+                                    child: const Text('Suspend', style: TextStyle(color: Colors.red)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              try {
+                                await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': p.id});
+                                _loadParents();
+                              } catch (err) {
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to suspend: $err')));
+                              }
                             }
                           },
                           icon: const Icon(Icons.block, color: Colors.red),
                         ),
+                      IconButton(
+                        tooltip: context.tr('Delete Parent'),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Delete Parent'),
+                              content: const Text('Are you sure you want to permanently delete this parent?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true), 
+                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            try {
+                              await Supabase.instance.client.rpc('hard_delete_user', params: {'target_user_id': p.id});
+                              _loadParents();
+                            } catch (e) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      ),
                       FilledButton.icon(
                         onPressed: () => _showLinkStudentDialog(p),
                         icon: const Icon(Icons.link),
