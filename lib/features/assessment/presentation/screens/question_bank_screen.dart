@@ -186,7 +186,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
   void _showEditQuestionDialog(Question q) {
     final textCtrl = TextEditingController(text: q.prompt);
     final ptsCtrl = TextEditingController(text: q.defaultPoints.toString());
-    String qType = q.questionType.name;
+    String qType = q.questionType.toDbValue();
 
     showDialog(
       context: context,

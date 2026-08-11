@@ -265,7 +265,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                 final nav = Navigator.of(ctx);
                 try {
                   await Supabase.instance.client
-                      .from('homework_assignments')
+                      .from('homework')
                       .update({
                         'title': titleCtrl.text.trim(),
                         'description': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),

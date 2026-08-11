@@ -32,8 +32,8 @@ class _ExamSubmissionsScreenState extends State<ExamSubmissionsScreen> {
 
     try {
       final res = await Supabase.instance.client
-          .from('exam_submissions')
-          .select('*, users(full_name, email)')
+          .from('exam_attempts')
+          .select('*, students(profiles(full_name, email))')
           .eq('exam_id', widget.exam.id)
           .order('submitted_at', ascending: false);
 
@@ -73,9 +73,10 @@ class _ExamSubmissionsScreenState extends State<ExamSubmissionsScreen> {
           separatorBuilder: (ctx, i) => const SizedBox(height: 8),
           itemBuilder: (ctx, i) {
             final sub = _submissions[i];
-            final user = sub['users'] ?? {};
-            final studentName = user['full_name'] ?? 'Unknown Student';
-            final score = sub['total_score'] ?? 0;
+            final studentInfo = sub['students'] ?? {};
+            final profile = studentInfo['profiles'] ?? {};
+            final studentName = profile['full_name'] ?? 'Unknown Student';
+            final score = sub['score'] ?? 0;
             return PortalListCard(
               icon: Icons.person,
               accentColor: AppColors.adminRole,
