@@ -38,6 +38,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   String? _qrMessage;
   String? _pendingQrToken;
 
+  Widget? _roleCircle;
+  Widget? _purpleCircle;
+
   late final AnimationController _ambientCtrl;
 
   @override
@@ -137,40 +140,46 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           body: Stack(
             children: [
               // Animated ambient background
-              if (isDark)
+              if (isDark) ...[
+                Builder(builder: (context) {
+                  _roleCircle ??= Container(
+                    width: 400,
+                    height: 400,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _roleColor.withValues(alpha: 0.15),
+                    ),
+                  );
+                  _purpleCircle ??= Container(
+                    width: 500,
+                    height: 500,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.purple.withValues(alpha: 0.12),
+                    ),
+                  );
+                  return const SizedBox();
+                }),
                 AnimatedBuilder(
                   animation: _ambientCtrl,
-                  builder: (context, _) {
+                  builder: (context, child) {
                     return Stack(
                       children: [
                         Positioned(
                           top: -150 + math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
                           left: -100 + math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
-                          child: Container(
-                            width: 400,
-                            height: 400,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _roleColor.withValues(alpha: 0.15),
-                            ),
-                          ),
+                          child: _roleCircle!,
                         ),
                         Positioned(
                           bottom: -200 + math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
                           right: -100 + math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
-                          child: Container(
-                            width: 500,
-                            height: 500,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.purple.withValues(alpha: 0.12),
-                            ),
-                          ),
+                          child: _purpleCircle!,
                         ),
                       ],
                     );
                   },
                 ),
+              ],
               // Extreme blur for ambient effect
               if (isDark)
                 Positioned.fill(

@@ -103,6 +103,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     _viewModel = StudyWorkspaceViewModel(
       lesson: widget.lesson,
       studentId: widget.studentId,
+      teacherId: widget.teacherId,
       repository: widget.repository,
     );
     _notebookController = TextEditingController();

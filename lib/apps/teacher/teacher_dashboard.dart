@@ -216,51 +216,106 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       ),
     ];
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: SafeArea(
-        bottom: false,
-        child: tabs[_selectedIndex],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          border: Border(top: BorderSide(color: borderColor, width: 0.5)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: NavigationBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            indicatorColor: AppColors.teacherRole.withValues(alpha: 0.12),
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.dashboard_outlined),
-                selectedIcon: const Icon(Icons.dashboard_rounded, color: AppColors.teacherRole),
-                label: context.tr('Home'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.school_outlined),
-                selectedIcon: const Icon(Icons.school_rounded, color: AppColors.teacherRole),
-                label: context.tr('Classes'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.grading_outlined),
-                selectedIcon: const Icon(Icons.grading_rounded, color: AppColors.teacherRole),
-                label: context.tr('Workspace'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.person_outline_rounded),
-                selectedIcon: const Icon(Icons.person_rounded, color: AppColors.teacherRole),
-                label: context.tr('Account'),
-              ),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 800;
+
+        final body = SafeArea(
+          bottom: false,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: tabs[_selectedIndex],
           ),
-        ),
-      ),
+        );
+
+        if (isWide) {
+          return Scaffold(
+            backgroundColor: bgColor,
+            body: Row(
+              children: [
+                NavigationRail(
+                  backgroundColor: surfaceColor,
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+                  labelType: NavigationRailLabelType.all,
+                  indicatorColor: AppColors.teacherRole.withValues(alpha: 0.12),
+                  selectedIconTheme: const IconThemeData(color: AppColors.teacherRole),
+                  destinations: [
+                    NavigationRailDestination(
+                      icon: const Icon(Icons.dashboard_outlined),
+                      selectedIcon: const Icon(Icons.dashboard_rounded),
+                      label: Text(context.tr('Home')),
+                    ),
+                    NavigationRailDestination(
+                      icon: const Icon(Icons.school_outlined),
+                      selectedIcon: const Icon(Icons.school_rounded),
+                      label: Text(context.tr('Classes')),
+                    ),
+                    NavigationRailDestination(
+                      icon: const Icon(Icons.grading_outlined),
+                      selectedIcon: const Icon(Icons.grading_rounded),
+                      label: Text(context.tr('Workspace')),
+                    ),
+                    NavigationRailDestination(
+                      icon: const Icon(Icons.person_outline_rounded),
+                      selectedIcon: const Icon(Icons.person_rounded),
+                      label: Text(context.tr('Account')),
+                    ),
+                  ],
+                ),
+                VerticalDivider(thickness: 1, width: 1, color: borderColor),
+                Expanded(child: body),
+              ],
+            ),
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: bgColor,
+          body: body,
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              color: surfaceColor,
+              border: Border(top: BorderSide(color: borderColor, width: 0.5)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: NavigationBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                indicatorColor: AppColors.teacherRole.withValues(alpha: 0.12),
+                selectedIndex: _selectedIndex,
+                onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                destinations: [
+                  NavigationDestination(
+                    icon: const Icon(Icons.dashboard_outlined),
+                    selectedIcon: const Icon(Icons.dashboard_rounded, color: AppColors.teacherRole),
+                    label: context.tr('Home'),
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.school_outlined),
+                    selectedIcon: const Icon(Icons.school_rounded, color: AppColors.teacherRole),
+                    label: context.tr('Classes'),
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.grading_outlined),
+                    selectedIcon: const Icon(Icons.grading_rounded, color: AppColors.teacherRole),
+                    label: context.tr('Workspace'),
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.person_outline_rounded),
+                    selectedIcon: const Icon(Icons.person_rounded, color: AppColors.teacherRole),
+                    label: context.tr('Account'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

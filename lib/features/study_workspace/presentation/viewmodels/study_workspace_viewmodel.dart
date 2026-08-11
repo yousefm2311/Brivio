@@ -29,6 +29,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   bool _isRunningCode = false;
   CodeRunResult? _lastRunResult;
   StreamSubscription? _teacherDraftSubscription;
+  bool _isDisposed = false;
 
   StudyWorkspaceViewModel({
     required this.lesson,
@@ -65,13 +66,14 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
         // Fetch initial state
         await _mergeTeacherDraft();
 
+        _teacherDraftSubscription?.cancel();
         // Subscribe to real-time updates
         _teacherDraftSubscription = repository!.listenToTeacherDraftForStudent(
           studentId: studentId!,
           lessonId: lesson.id,
         ).listen((draft) async {
           await _mergeTeacherDraft();
-          notifyListeners();
+          if (!_isDisposed) notifyListeners();
         });
       }
 
@@ -85,7 +87,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     }
 
     _isLoaded = true;
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
   }
 
   Future<void> _mergeTeacherDraft() async {
@@ -215,7 +217,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       isSuccess: true,
       output: _buildPreviewOutput(_codeText),
     );
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
   }
 
   Future<void> runCode({required String code, required String language}) async {
@@ -225,7 +227,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       isSuccess: true,
       output: 'Running code...',
     );
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
 
     try {
       final response = await http
@@ -273,24 +275,25 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       );
     } finally {
       _isRunningCode = false;
-      notifyListeners();
+      if (!_isDisposed) notifyListeners();
     }
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
     _teacherDraftSubscription?.cancel();
     super.dispose();
   }
 
   Future<void> _save(Future<void> Function() action) async {
     _isSaving = true;
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
     try {
       await action();
     } finally {
       _isSaving = false;
-      notifyListeners();
+      if (!_isDisposed) notifyListeners();
     }
   }
 

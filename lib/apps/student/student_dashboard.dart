@@ -461,55 +461,115 @@ class _StudentDashboardState extends State<StudentDashboard> {
       ),
     ];
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: SafeArea(
-        bottom: false,
-        child: tabs[_selectedIndex],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          border: Border(top: BorderSide(color: borderColor, width: 0.5)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: NavigationBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            indicatorColor: AppColors.primary.withValues(alpha: 0.12),
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.house_outlined),
-                selectedIcon: const Icon(Icons.house_rounded, color: AppColors.primary),
-                label: context.tr('Home'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.menu_book_outlined),
-                selectedIcon: const Icon(Icons.menu_book_rounded, color: AppColors.primary),
-                label: context.tr('Learn'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.bolt_outlined),
-                selectedIcon: const Icon(Icons.bolt_rounded, color: AppColors.primary),
-                label: context.tr('Activity'),
-              ),
-              NavigationDestination(
-                icon: Badge(
-                  isLabelVisible: _unreadCount > 0,
-                  label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
-                  child: const Icon(Icons.person_outline_rounded),
-                ),
-                selectedIcon: const Icon(Icons.person_rounded, color: AppColors.primary),
-                label: context.tr('Account'),
-              ),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 800;
+
+        final body = SafeArea(
+          bottom: false,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: tabs[_selectedIndex],
           ),
-        ),
-      ),
+        );
+
+        if (isWide) {
+          return Scaffold(
+            backgroundColor: bgColor,
+            body: Row(
+              children: [
+                NavigationRail(
+                  backgroundColor: surfaceColor,
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+                  labelType: NavigationRailLabelType.all,
+                  indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+                  selectedIconTheme: const IconThemeData(color: AppColors.primary),
+                  destinations: [
+                    NavigationRailDestination(
+                      icon: const Icon(Icons.house_outlined),
+                      selectedIcon: const Icon(Icons.house_rounded),
+                      label: Text(context.tr('Home')),
+                    ),
+                    NavigationRailDestination(
+                      icon: const Icon(Icons.menu_book_outlined),
+                      selectedIcon: const Icon(Icons.menu_book_rounded),
+                      label: Text(context.tr('Learn')),
+                    ),
+                    NavigationRailDestination(
+                      icon: const Icon(Icons.bolt_outlined),
+                      selectedIcon: const Icon(Icons.bolt_rounded),
+                      label: Text(context.tr('Activity')),
+                    ),
+                    NavigationRailDestination(
+                      icon: Badge(
+                        isLabelVisible: _unreadCount > 0,
+                        label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
+                        child: const Icon(Icons.person_outline_rounded),
+                      ),
+                      selectedIcon: const Icon(Icons.person_rounded),
+                      label: Text(context.tr('Account')),
+                    ),
+                  ],
+                ),
+                VerticalDivider(thickness: 1, width: 1, color: borderColor),
+                Expanded(child: body),
+              ],
+            ),
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: bgColor,
+          body: body,
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              color: surfaceColor,
+              border: Border(top: BorderSide(color: borderColor, width: 0.5)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: NavigationBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+                selectedIndex: _selectedIndex,
+                onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                destinations: [
+                  NavigationDestination(
+                    icon: const Icon(Icons.house_outlined),
+                    selectedIcon: const Icon(Icons.house_rounded, color: AppColors.primary),
+                    label: context.tr('Home'),
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.menu_book_outlined),
+                    selectedIcon: const Icon(Icons.menu_book_rounded, color: AppColors.primary),
+                    label: context.tr('Learn'),
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.bolt_outlined),
+                    selectedIcon: const Icon(Icons.bolt_rounded, color: AppColors.primary),
+                    label: context.tr('Activity'),
+                  ),
+                  NavigationDestination(
+                    icon: Badge(
+                      isLabelVisible: _unreadCount > 0,
+                      label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
+                      child: const Icon(Icons.person_outline_rounded),
+                    ),
+                    selectedIcon: const Icon(Icons.person_rounded, color: AppColors.primary),
+                    label: context.tr('Account'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
     );
   }
 }
+
