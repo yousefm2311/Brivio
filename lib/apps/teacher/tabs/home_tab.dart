@@ -89,14 +89,36 @@ class HomeTab extends StatelessWidget {
                 FadeInSlide(
                   duration: const Duration(milliseconds: 600),
                   delay: const Duration(milliseconds: 100),
-                  child: Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
+                  child: PortalMetricGrid(
                     children: [
-                      _buildMetricCard(context, context.tr('Assigned Groups'), '$assignedGroupsCount', Icons.groups, AppColors.teacherRole, () => onNavigate(1)),
-                      _buildMetricCard(context, context.tr('Today Sessions'), '$todaySessionsCount', Icons.today, AppColors.info, () => onNavigate(1)),
-                      _buildMetricCard(context, context.tr('Open Homework'), '$openHomeworkCount', Icons.assignment, AppColors.warning, () => onNavigate(2)),
-                      _buildMetricCard(context, context.tr('To Grade'), '$gradingQueueCount', Icons.grading, AppColors.error, () => onNavigate(2)),
+                      PortalMetricCard(
+                        label: context.tr('Assigned Groups'),
+                        value: '$assignedGroupsCount',
+                        icon: Icons.groups_rounded,
+                        accentColor: AppColors.teacherRole,
+                        onTap: () => onNavigate(1),
+                      ),
+                      PortalMetricCard(
+                        label: context.tr('Today Sessions'),
+                        value: '$todaySessionsCount',
+                        icon: Icons.today_rounded,
+                        accentColor: AppColors.info,
+                        onTap: () => onNavigate(1),
+                      ),
+                      PortalMetricCard(
+                        label: context.tr('Open Homework'),
+                        value: '$openHomeworkCount',
+                        icon: Icons.assignment_rounded,
+                        accentColor: AppColors.warning,
+                        onTap: () => onNavigate(2),
+                      ),
+                      PortalMetricCard(
+                        label: context.tr('To Grade'),
+                        value: '$gradingQueueCount',
+                        icon: Icons.grading_rounded,
+                        accentColor: AppColors.error,
+                        onTap: () => onNavigate(2),
+                      ),
                     ],
                   ),
                 ),

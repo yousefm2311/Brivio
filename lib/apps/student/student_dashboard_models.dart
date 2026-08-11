@@ -160,6 +160,14 @@ class BoardStroke {
       }).toList(),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'color': color.value,
+      'width': width,
+      'points': points.map((p) => {'x': p.dx, 'y': p.dy}).toList(),
+    };
+  }
 }
 
 List<BoardStroke> decodeSessionBoard(Map<String, dynamic> data) {

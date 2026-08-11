@@ -573,14 +573,14 @@ class _AdminOverview extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
-                child: PortalSectionTitle(
-                  title: 'Export',
-                  subtitle: 'Copy CSV snapshots from the data loaded here.',
-                ),
+              const PortalSectionTitle(
+                title: 'Export',
+                subtitle: 'Copy CSV snapshots from the data loaded here.',
               ),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,

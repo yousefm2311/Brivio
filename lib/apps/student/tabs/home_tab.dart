@@ -12,6 +12,7 @@ import '../../../features/academy/presentation/screens/academy_screens.dart';
 import '../../../features/payments/domain/models/payment_models.dart';
 import '../../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../../../features/code_playground/presentation/screens/code_playground_screen.dart';
+import '../student_dashboard_models.dart';
 
 String _formatMoney(int amountMinor, String currency) {
   final format = NumberFormat.currency(
@@ -32,6 +33,7 @@ class HomeTab extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback? onOpenWorkspace;
   final ValueChanged<int> onNavigate;
+  final List<StudentHomeworkItem> pendingHomework;
 
   const HomeTab({
     super.key,
@@ -45,6 +47,7 @@ class HomeTab extends StatelessWidget {
     required this.onRetry,
     required this.onOpenWorkspace,
     required this.onNavigate,
+    required this.pendingHomework,
   });
 
   @override
@@ -201,8 +204,37 @@ class HomeTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 28),
 
+                // ── Pending Homework ──
+                if (pendingHomework.isNotEmpty) ...[
+                  FadeInSlide(
+                    duration: const Duration(milliseconds: 500),
+                    delay: const Duration(milliseconds: 320),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          context.tr('Due Soon'),
+                          style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                        ),
+                        TextButton(
+                          onPressed: () => onNavigate(2),
+                          style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                          child: Text(context.tr('See All')),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  FadeInSlide(
+                    duration: const Duration(milliseconds: 600),
+                    delay: const Duration(milliseconds: 380),
+                    child: _PendingHomeworkCard(homework: pendingHomework.first, onTap: () => onNavigate(2)),
+                  ),
+                  const SizedBox(height: 28),
+                ],
+
                 // ── Gamification ──
-                if (gamification != null) ...[
+                if (gamification != null && gamification.level > 0) ...[
                   FadeInSlide(
                     duration: const Duration(milliseconds: 500),
                     delay: const Duration(milliseconds: 300),
@@ -616,6 +648,63 @@ class _StudyMetricsGrid extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _PendingHomeworkCard extends StatelessWidget {
+  final StudentHomeworkItem homework;
+  final VoidCallback onTap;
+
+  const _PendingHomeworkCard({required this.homework, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        padding: const EdgeInsets.all(16),
+        color: surfaceColor,
+        borderColor: borderColor,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.assignment_late_rounded, color: AppColors.warning),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    homework.homework.title,
+                    style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w800),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${context.tr("Due")}: ${DateFormat.yMMMd().format(homework.homework.dueAt)}',
+                    style: AppTypography.caption(textSecondary).copyWith(color: AppColors.warning),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.warning),
+          ],
+        ),
+      ),
     );
   }
 }

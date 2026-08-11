@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -420,6 +422,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         enrolledGroups: _enrolledGroups,
         financialSummary: _financialSummary,
         unreadCount: _unreadCount,
+        pendingHomework: _homeworkItems.where((h) => !h.isSubmitted).toList(),
         onRetry: _loadAll,
         onOpenWorkspace: nextLesson == null ? null : () => _openWorkspace(nextLesson),
         onNavigate: (i) => setState(() => _selectedIndex = i),
@@ -595,6 +598,35 @@ class _SessionBoardScreenState extends State<_SessionBoardScreen> {
   bool _eraser = false;
   final Color _selectedColor = Colors.blue;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadStrokes();
+  }
+
+  Future<void> _loadStrokes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'board_${widget.board.id}_strokes';
+    final data = prefs.getStringList(key);
+    if (data != null) {
+      setState(() {
+        _studentStrokes.clear();
+        for (final item in data) {
+          try {
+            _studentStrokes.add(BoardStroke.fromJson(jsonDecode(item)));
+          } catch (_) {}
+        }
+      });
+    }
+  }
+
+  Future<void> _saveStrokes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'board_${widget.board.id}_strokes';
+    final data = _studentStrokes.map((s) => jsonEncode(s.toJson())).toList();
+    await prefs.setStringList(key, data);
+  }
+
   void _startStroke(DragStartDetails details) {
     if (!_isDrawingMode) return;
     setState(() {
@@ -624,6 +656,7 @@ class _SessionBoardScreenState extends State<_SessionBoardScreen> {
     final stroke = _activeStroke;
     if (stroke != null && stroke.points.length > 1) {
       setState(() => _studentStrokes.add(stroke));
+      _saveStrokes();
     }
     setState(() => _activeStroke = null);
   }
@@ -656,7 +689,10 @@ class _SessionBoardScreenState extends State<_SessionBoardScreen> {
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: context.tr('Clear my drawing'),
-              onPressed: () => setState(() => _studentStrokes.clear()),
+              onPressed: () {
+                setState(() => _studentStrokes.clear());
+                _saveStrokes();
+              },
             ),
           ],
         ],

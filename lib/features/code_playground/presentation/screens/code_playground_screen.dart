@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 
@@ -19,19 +21,104 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
   String _terminalOutput = '';
 
   void _runCode() async {
+    final code = _codeController.text;
+    if (code.trim().isEmpty) {
+      setState(() {
+        _isTerminalExpanded = true;
+        _terminalOutput = 'Error: Code is empty.';
+      });
+      return;
+    }
+
     setState(() {
       _isRunning = true;
       _isTerminalExpanded = true;
       _terminalOutput = 'Running...';
     });
 
-    await Future.delayed(const Duration(milliseconds: 1500));
+    String compilerId;
+    switch (_selectedLanguage) {
+      case 'Dart':
+        compilerId = 'dart373';
+        break;
+      case 'Python':
+        compilerId = 'python311';
+        break;
+      case 'JS':
+        compilerId = 'v8113';
+        break;
+      case 'C++':
+        compilerId = 'g132';
+        break;
+      default:
+        compilerId = 'python311';
+    }
 
-    if (mounted) {
-      setState(() {
-        _isRunning = false;
-        _terminalOutput = 'Compilation successful.\nProgram exited with code 0.\nHello from $_selectedLanguage!';
-      });
+    try {
+      final response = await http.post(
+        Uri.parse('https://godbolt.org/api/compiler/$compilerId/compile'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          "source": code,
+          "compiler": compilerId,
+          "options": {
+            "userArguments": "",
+            "executeParameters": {"args": [], "stdin": ""},
+            "compilerOptions": {"executorRequest": true},
+            "filters": {"execute": true},
+            "tools": [],
+            "libraries": [],
+          },
+        }),
+      );
+
+      if (mounted) {
+        setState(() {
+          _isRunning = false;
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            String output = '';
+
+            if (data['stdout'] != null) {
+              for (var line in data['stdout']) {
+                output += (line['text'] ?? '') + '\n';
+              }
+            }
+            if (data['stderr'] != null) {
+              for (var line in data['stderr']) {
+                output += (line['text'] ?? '') + '\n';
+              }
+            }
+            if (data['buildResult'] != null &&
+                data['buildResult']['stderr'] != null) {
+              for (var line in data['buildResult']['stderr']) {
+                final text = line['text'] ?? '';
+                if (text.isNotEmpty &&
+                    !text.startsWith('<Compilation failed>')) {
+                  output += text + '\n';
+                }
+              }
+            }
+
+            _terminalOutput = output.trim().isEmpty
+                ? 'Program finished with no output.'
+                : output.trim();
+          } else {
+            _terminalOutput =
+                'Execution failed. Server responded with status code ${response.statusCode}.';
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isRunning = false;
+          _terminalOutput = 'Error connecting to execution API:\n$e';
+        });
+      }
     }
   }
 
@@ -65,7 +152,10 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
-              icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.darkTextPrimary),
+              icon: const Icon(
+                Icons.keyboard_arrow_down,
+                color: AppColors.darkTextPrimary,
+              ),
               onChanged: (String? newValue) {
                 if (newValue != null) {
                   setState(() {
@@ -90,7 +180,10 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                 onTap: _isRunning ? null : _runCode,
                 borderRadius: BorderRadius.circular(20),
                 child: GlassCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   borderRadius: BorderRadius.circular(20),
                   color: AppColors.primarySubtle,
                   borderColor: AppColors.primary,
@@ -107,7 +200,11 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                           ),
                         )
                       else
-                        const Icon(Icons.play_arrow, color: AppColors.primary, size: 18),
+                        const Icon(
+                          Icons.play_arrow,
+                          color: AppColors.primary,
+                          size: 18,
+                        ),
                       const SizedBox(width: 8),
                       const Text(
                         'Run',
@@ -121,7 +218,7 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                 ),
               ),
             ),
-          )
+          ),
         ],
       ),
       body: Stack(
@@ -145,7 +242,10 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                 decoration: const InputDecoration(
                   border: InputBorder.none,
                   hintText: '// Write your code here...',
-                  hintStyle: TextStyle(color: AppColors.darkTextPlaceholder, fontFamily: 'monospace'),
+                  hintStyle: TextStyle(
+                    color: AppColors.darkTextPlaceholder,
+                    fontFamily: 'monospace',
+                  ),
                 ),
               ),
             ),
@@ -165,7 +265,9 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                 },
                 child: GlassCard(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(32),
+                  ),
                   color: AppColors.darkSurface.withValues(alpha: 0.85),
                   height: 300,
                   child: Column(
@@ -194,7 +296,11 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.close, color: AppColors.darkTextSecondary, size: 20),
+                            icon: const Icon(
+                              Icons.close,
+                              color: AppColors.darkTextSecondary,
+                              size: 20,
+                            ),
                             onPressed: () {
                               setState(() {
                                 _isTerminalExpanded = false;
