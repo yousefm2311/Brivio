@@ -491,7 +491,7 @@ class SupabaseBranchRepository implements IBranchRepository {
   @override
   Future<void> deleteBranch(String id) async {
     try {
-      await _wrapper.client.rpc('delete_branch', params: {'p_branch_id': id});
+      await _wrapper.client.rpc('delete_branch', params: {'branch_id': id});
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to delete branch: ${e.toString()}');
     }
@@ -562,7 +562,7 @@ class SupabaseSubjectRepository implements ISubjectRepository {
   @override
   Future<void> deleteSubject(String id) async {
     try {
-      await _wrapper.client.rpc('delete_subject', params: {'p_subject_id': id});
+      await _wrapper.client.rpc('delete_subject', params: {'subject_id': id});
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to delete subject: ${e.toString()}');
     }
@@ -640,7 +640,7 @@ class SupabaseGroupRepository implements IGroupRepository {
   @override
   Future<void> deleteGroup(String id) async {
     try {
-      await _wrapper.client.rpc('delete_group', params: {'p_group_id': id});
+      await _wrapper.client.rpc('delete_group', params: {'group_id': id});
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to delete group: ${e.toString()}');
     }

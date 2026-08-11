@@ -142,23 +142,19 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
 
                 final nav = Navigator.of(ctx);
                 try {
-                  final response = await Supabase.instance.client.functions
-                      .invoke(
-                        'provision-user',
-                        body: {
-                          'email': emailCtrl.text.trim(),
-                          'fullName': nameCtrl.text.trim(),
-                          'role': targetRole,
-                          if (selectedBranchId != null)
-                            'branchId': selectedBranchId,
-                        },
-                      );
+                  final response = await Supabase.instance.client.rpc(
+                    'provision_privileged_user',
+                    params: {
+                      'p_email': emailCtrl.text.trim(),
+                      'p_full_name': nameCtrl.text.trim(),
+                      'p_role': targetRole,
+                      if (selectedBranchId != null)
+                        'p_branch_id': selectedBranchId,
+                    },
+                  );
 
-                  if (response.status != 200) {
-                    final err = response.data is Map
-                        ? response.data['error']
-                        : 'Provisioning failed';
-                    throw Exception(err ?? 'Status ${response.status}');
+                  if (response == null || (response is Map && response['success'] != true)) {
+                    throw Exception('Provisioning failed.');
                   }
 
                   nav.pop();
@@ -233,6 +229,78 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
               subtitle:
                   '${context.tr('Email')}: ${p['email']} | ${context.tr('Role')}: ${context.l10n.t(p['role'] as String? ?? "staff").toUpperCase()}',
               trailing: [
+                if (p['status'] == 'suspended')
+                  IconButton(
+                    tooltip: context.tr('Activate Staff'),
+                    onPressed: () async {
+                      try {
+                        await Supabase.instance.client.rpc('activate_user', params: {'user_uid': p['id']});
+                        _loadStaff();
+                      } catch (err) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to activate: $err')));
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.check_circle, color: Colors.green),
+                  )
+                else
+                  IconButton(
+                    tooltip: context.tr('Suspend Staff'),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Suspend Staff'),
+                          content: const Text('Are you sure you want to suspend this staff member?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true), 
+                              child: const Text('Suspend', style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      try {
+                        await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': p['id']});
+                        _loadStaff();
+                      } catch (e) {
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.block, color: Colors.orange),
+                ),
+                IconButton(
+                  tooltip: context.tr('Delete Staff'),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete Staff'),
+                        content: const Text('Are you sure you want to permanently delete this staff member?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true), 
+                            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      try {
+                        await Supabase.instance.client.rpc('soft_delete_user', params: {'target_user_id': p['id']});
+                        _loadStaff();
+                      } catch (e) {
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.delete_forever, color: Colors.red),
+                ),
                 PortalStatusChip(status: (p['status'] as String? ?? "active")),
               ],
             );

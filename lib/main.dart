@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'core/services/notification_service.dart';
+import 'core/error/supabase_error_handler.dart';
 
 import 'apps/admin/admin_dashboard.dart';
 import 'apps/parent/parent_dashboard.dart';
@@ -21,8 +24,37 @@ import 'features/auth/presentation/viewmodels/auth_viewmodel.dart';
 final GlobalKey<NavigatorState> globalNavigatorKey =
     GlobalKey<NavigatorState>();
 
+final GlobalKey<ScaffoldMessengerState> globalScaffoldMessengerKey = 
+    GlobalKey<ScaffoldMessengerState>();
+
+void _showGlobalError(Object error) {
+  final message = SupabaseErrorHandler.parseError(error);
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (globalScaffoldMessengerKey.currentState != null) {
+      globalScaffoldMessengerKey.currentState!.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red.shade800,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  });
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    _showGlobalError(details.exception);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    AppLogger.error('Unhandled async error', error, stack);
+    _showGlobalError(error);
+    return true;
+  };
+
   try {
     await Firebase.initializeApp();
     await NotificationService().init();
@@ -47,6 +79,7 @@ class StartupFailureApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: globalScaffoldMessengerKey,
       title: 'Academy Platform',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme(),
@@ -130,6 +163,7 @@ class _MainAppSelectorState extends State<MainAppSelector> {
   Widget build(BuildContext context) {
     return AcademyMaterialApp(
       navigatorKey: globalNavigatorKey,
+      scaffoldMessengerKey: globalScaffoldMessengerKey,
       titleKey: 'academy_platform',
       home: ListenableBuilder(
         listenable: _viewModel,

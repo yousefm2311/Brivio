@@ -96,8 +96,8 @@ class Parent extends Equatable {
   });
 
   factory Parent.fromJson(Map<String, dynamic> json) => Parent(
-    id: json['id'] as String,
-    profileId: json['profile_id'] as String,
+    id: json['id'] as String? ?? '',
+    profileId: json['profile_id'] as String? ?? '',
     occupation: json['occupation'] as String?,
     status: json['status'] as String? ?? 'active',
     fullName: json['full_name'] as String? ?? '',
@@ -129,6 +129,7 @@ class Teacher extends Equatable {
   final String email;
   final String? avatarUrl;
   final String? phoneNumber;
+  final String? status;
 
   const Teacher({
     required this.id,
@@ -140,18 +141,20 @@ class Teacher extends Equatable {
     required this.email,
     this.avatarUrl,
     this.phoneNumber,
+    this.status,
   });
 
   factory Teacher.fromJson(Map<String, dynamic> json) => Teacher(
-    id: json['id'] as String,
-    profileId: json['profile_id'] as String,
-    primaryBranchId: json['primary_branch_id'] as String,
+    id: json['id'] as String? ?? '',
+    profileId: json['profile_id'] as String? ?? '',
+    primaryBranchId: json['primary_branch_id'] as String? ?? '',
     specialization: json['specialization'] as String?,
     bio: json['bio'] as String?,
     fullName: json['full_name'] as String? ?? '',
     email: json['email'] as String? ?? '',
     avatarUrl: json['avatar_url'] as String?,
     phoneNumber: json['phone_number'] as String?,
+    status: json['status'] as String? ?? 'active',
   );
 
   @override
@@ -165,6 +168,7 @@ class Teacher extends Equatable {
     email,
     avatarUrl,
     phoneNumber,
+    status,
   ];
 }
 
@@ -219,14 +223,17 @@ class Branch extends Equatable {
     status: json['status'] as String? ?? 'active',
   );
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'code': code,
-    'address': address,
-    'phone_number': phoneNumber,
-    'status': status,
-  };
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{
+      'name': name,
+      'code': code,
+      'address': address,
+      'phone_number': phoneNumber,
+      'status': status,
+    };
+    if (id.isNotEmpty) map['id'] = id;
+    return map;
+  }
 
   @override
   List<Object?> get props => [id, name, code, address, phoneNumber, status];
@@ -255,13 +262,16 @@ class SubjectEntity extends Equatable {
     status: json['status'] as String? ?? 'active',
   );
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'code': code,
-    'description': description,
-    'status': status,
-  };
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{
+      'name': name,
+      'code': code,
+      'description': description,
+      'status': status,
+    };
+    if (id.isNotEmpty) map['id'] = id;
+    return map;
+  }
 
   @override
   List<Object?> get props => [id, name, code, description, status];
@@ -296,15 +306,18 @@ class GroupEntity extends Equatable {
     status: json['status'] as String? ?? 'active',
   );
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'code': code,
-    'subject_id': subjectId,
-    'branch_id': branchId,
-    'max_capacity': maxCapacity,
-    'status': status,
-  };
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{
+      'name': name,
+      'code': code,
+      'subject_id': subjectId,
+      'branch_id': branchId,
+      'max_capacity': maxCapacity,
+      'status': status,
+    };
+    if (id.isNotEmpty) map['id'] = id;
+    return map;
+  }
 
   @override
   List<Object?> get props => [

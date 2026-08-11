@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ReportGeneratorService {
   /// Generates a CSV report for Student Grades and Missing Homeworks.
@@ -95,9 +95,12 @@ class ReportGeneratorService {
       String csvData = Csv().encode(rows);
       await file.writeAsString(csvData);
       
-      await Share.shareXFiles([XFile(filePath)], text: 'Generated Report: $fileName');
+      final uri = Uri.file(directory.path);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      }
     } catch (e) {
-      throw Exception('Could not save or share the report: $e');
+      throw Exception('Could not save the report: $e');
     }
   }
 }

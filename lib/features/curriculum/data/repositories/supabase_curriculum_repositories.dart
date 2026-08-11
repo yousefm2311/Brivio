@@ -57,7 +57,7 @@ class SupabaseSemesterRepository implements ISemesterRepository {
   @override
   Future<void> deleteSemester(String id) async {
     try {
-      await _wrapper.client.rpc('delete_semester', params: {'p_semester_id': id});
+      await _wrapper.client.rpc('delete_semester', params: {'semester_id': id});
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to delete semester: ${e.toString()}');
     }
@@ -107,7 +107,7 @@ class SupabaseUnitRepository implements IUnitRepository {
   @override
   Future<void> deleteUnit(String id) async {
     try {
-      await _wrapper.client.rpc('delete_unit', params: {'p_unit_id': id});
+      await _wrapper.client.rpc('delete_unit', params: {'unit_id': id});
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to delete unit: ${e.toString()}');
     }
@@ -233,7 +233,7 @@ class SupabaseLessonRepository implements ILessonRepository {
   @override
   Future<void> deleteLesson(String id) async {
     try {
-      await _wrapper.client.rpc('delete_lesson', params: {'p_lesson_id': id});
+      await _wrapper.client.rpc('delete_lesson', params: {'lesson_id': id});
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to delete lesson: ${e.toString()}');
     }

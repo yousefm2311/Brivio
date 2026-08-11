@@ -128,23 +128,19 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
                 final nav = Navigator.of(ctx);
                 try {
-                  final response = await Supabase.instance.client.functions
-                      .invoke(
-                        'provision-user',
-                        body: {
-                          'email': emailCtrl.text.trim(),
-                          'fullName': nameCtrl.text.trim(),
-                          'role': 'student',
-                          if (selectedBranchId != null)
-                            'branchId': selectedBranchId,
-                        },
-                      );
+                  final response = await Supabase.instance.client.rpc(
+                    'provision_privileged_user',
+                    params: {
+                      'p_email': emailCtrl.text.trim(),
+                      'p_full_name': nameCtrl.text.trim(),
+                      'p_role': 'student',
+                      if (selectedBranchId != null)
+                        'p_branch_id': selectedBranchId,
+                    },
+                  );
 
-                  if (response.status != 200) {
-                    final err = response.data is Map
-                        ? response.data['error']
-                        : 'Provisioning failed';
-                    throw Exception(err ?? 'Status ${response.status}');
+                  if (response == null || (response is Map && response['success'] != true)) {
+                    throw Exception('Provisioning failed.');
                   }
 
                   nav.pop();
@@ -253,36 +249,53 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                         onPressed: () => _showLoginQr(s),
                         icon: const Icon(Icons.qr_code_2),
                       ),
-                      IconButton(
-                        tooltip: context.tr('Suspend User'),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Suspend Student'),
-                              content: const Text('Are you sure you want to suspend this student?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Suspend', style: TextStyle(color: Colors.red))),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
+                      if (s.status == 'suspended')
+                        IconButton(
+                          tooltip: context.tr('Activate User'),
+                          onPressed: () async {
                             try {
-                              await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': s.profileId});
+                              await Supabase.instance.client.rpc('activate_user', params: {'user_uid': s.profileId});
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student suspended')));
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student activated')));
                                 _loadStudents();
                               }
                             } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                            }
+                          },
+                          icon: const Icon(Icons.check_circle, color: Colors.green),
+                        )
+                      else
+                        IconButton(
+                          tooltip: context.tr('Suspend User'),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Suspend Student'),
+                                content: const Text('Are you sure you want to suspend this student?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Suspend', style: TextStyle(color: Colors.red))),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              try {
+                                await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': s.profileId});
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student suspended')));
+                                  _loadStudents();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                }
                               }
                             }
-                          }
-                        },
-                        icon: const Icon(Icons.block, color: Colors.red),
-                      ),
+                          },
+                          icon: const Icon(Icons.block, color: Colors.red),
+                        ),
                       PortalStatusChip(status: s.status),
                     ],
                   );

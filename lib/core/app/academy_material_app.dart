@@ -13,12 +13,14 @@ class AcademyMaterialApp extends StatelessWidget {
   final String titleKey;
   final Widget home;
   final GlobalKey<NavigatorState>? navigatorKey;
+  final GlobalKey<ScaffoldMessengerState>? scaffoldMessengerKey;
 
   const AcademyMaterialApp({
     super.key,
     required this.titleKey,
     required this.home,
     this.navigatorKey,
+    this.scaffoldMessengerKey,
   });
 
   @override
@@ -34,6 +36,7 @@ class AcademyMaterialApp extends StatelessWidget {
             : TextDirection.ltr;
 
         return MaterialApp(
+          scaffoldMessengerKey: scaffoldMessengerKey,
           navigatorKey: navigatorKey ?? globalNavigatorKey,
           title: AppLocalizations(locale).t(titleKey),
           debugShowCheckedModeBanner: false,

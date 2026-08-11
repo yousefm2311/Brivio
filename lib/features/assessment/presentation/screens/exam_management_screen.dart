@@ -251,7 +251,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                 );
                                 if (confirm == true) {
                                   try {
-                                    await Supabase.instance.client.rpc('delete_exam', params: {'p_exam_id': e.id});
+                                    await Supabase.instance.client.rpc('delete_exam', params: {'exam_id': e.id});
                                     _loadExams();
                                   } catch (err) {
                                     if (mounted) {

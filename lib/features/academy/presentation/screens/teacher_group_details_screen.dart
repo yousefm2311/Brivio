@@ -62,40 +62,86 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
 
   Future<void> _exportGradesReport() async {
     try {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gathering grades data...')));
       final service = ReportGeneratorService();
-      final data = _enrolledStudents.map((s) => {
-        'name': s.fullName,
-        'exam_score': 85, // Dummy data
-        'homework_score': 90, // Dummy data
-        'missing_assignments': 0, // Dummy data
+      
+      final studentIds = _enrolledStudents.map((s) => s.id).toList();
+      
+      List<dynamic> examAttempts = [];
+      List<dynamic> hwSubmissions = [];
+      if (studentIds.isNotEmpty) {
+        examAttempts = await Supabase.instance.client
+            .from('exam_attempts')
+            .select('student_id, score')
+            .filter('student_id', 'in', studentIds);
+            
+        hwSubmissions = await Supabase.instance.client
+            .from('homework_submissions')
+            .select('student_id, score')
+            .filter('student_id', 'in', studentIds);
+      }
+      
+      final data = _enrolledStudents.map((s) {
+        final sExams = examAttempts.where((e) => e['student_id'] == s.id).toList();
+        final sHws = hwSubmissions.where((h) => h['student_id'] == s.id).toList();
+        
+        final examAvg = sExams.isEmpty ? 0 : sExams.map((e) => e['score'] as num).reduce((a, b) => a + b) / sExams.length;
+        final hwAvg = sHws.isEmpty ? 0 : sHws.map((h) => h['score'] as num).reduce((a, b) => a + b) / sHws.length;
+        
+        return {
+          'name': s.fullName,
+          'exam_score': examAvg.toStringAsFixed(1),
+          'homework_score': hwAvg.toStringAsFixed(1),
+          'missing_assignments': _groupHomeworks.length - sHws.length > 0 ? _groupHomeworks.length - sHws.length : 0,
+        };
       }).toList();
+
       await service.generateGradesReport(className: widget.group.name, studentsData: data);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Grades report generated & saved.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Grades report generated & saved.'), backgroundColor: Colors.green));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e'), backgroundColor: Colors.red));
       }
     }
   }
 
   Future<void> _exportAttendanceReport() async {
     try {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gathering attendance data...')));
       final service = ReportGeneratorService();
-      final data = _enrolledStudents.map((s) => {
-        'name': s.fullName,
-        'present': 10, // Dummy data
-        'absent': 2, // Dummy data
-        'absence_dates': '2023-01-01, 2023-01-02', // Dummy data
+      
+      final studentIds = _enrolledStudents.map((s) => s.id).toList();
+      List<dynamic> attendance = [];
+      if (studentIds.isNotEmpty) {
+        attendance = await Supabase.instance.client
+            .from('attendance')
+            .select('student_id, date, status')
+            .filter('student_id', 'in', studentIds);
+      }
+      
+      final data = _enrolledStudents.map((s) {
+        final sAtt = attendance.where((a) => a['student_id'] == s.id).toList();
+        final presentCount = sAtt.where((a) => a['status'] == 'present').length;
+        final absentCount = sAtt.where((a) => a['status'] == 'absent').length;
+        final absentDates = sAtt.where((a) => a['status'] == 'absent').map((a) => a['date']).join(', ');
+        
+        return {
+          'name': s.fullName,
+          'present': presentCount,
+          'absent': absentCount,
+          'absence_dates': absentDates.isEmpty ? 'None' : absentDates,
+        };
       }).toList();
+
       await service.generateAttendanceReport(className: widget.group.name, attendanceData: data);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance report generated & saved.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance report generated & saved.'), backgroundColor: Colors.green));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e'), backgroundColor: Colors.red));
       }
     }
   }

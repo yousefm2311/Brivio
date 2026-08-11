@@ -21,6 +21,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
 
   List<Parent> _parents = [];
   List<Student> _students = [];
+  Map<String, List<Student>> _linkedStudents = {};
   bool _isLoading = false;
   String? _errorMessage;
   final TextEditingController _searchController = TextEditingController();
@@ -49,10 +50,22 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     try {
       final res = await _parentRepo.fetchParents();
       final sRes = await _studentRepo.fetchStudents();
+      
+      final Map<String, List<Student>> linked = {};
+      final futures = res.data.map((p) async {
+        try {
+          linked[p.id] = await _parentRepo.fetchLinkedStudents(p.id);
+        } catch (_) {
+          linked[p.id] = [];
+        }
+      });
+      await Future.wait(futures);
+
       if (mounted) {
         setState(() {
           _parents = res.data;
           _students = sRes.data;
+          _linkedStudents = linked;
           _isLoading = false;
         });
       }
@@ -106,21 +119,17 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
 
               final nav = Navigator.of(ctx);
               try {
-                final response = await Supabase.instance.client.functions
-                    .invoke(
-                      'provision-user',
-                      body: {
-                        'email': emailCtrl.text.trim(),
-                        'fullName': nameCtrl.text.trim(),
-                        'role': 'parent',
-                      },
-                    );
+                final response = await Supabase.instance.client.rpc(
+                  'provision_privileged_user',
+                  params: {
+                    'p_email': emailCtrl.text.trim(),
+                    'p_full_name': nameCtrl.text.trim(),
+                    'p_role': 'parent',
+                  },
+                );
 
-                if (response.status != 200) {
-                  final err = response.data is Map
-                      ? response.data['error']
-                      : 'Provisioning failed';
-                  throw Exception(err ?? 'Status ${response.status}');
+                if (response == null || (response is Map && response['success'] != true)) {
+                  throw Exception('Provisioning failed.');
                 }
 
                 nav.pop();
@@ -310,17 +319,47 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                 separatorBuilder: (ctx, i) => const SizedBox(height: 8),
                 itemBuilder: (ctx, i) {
                   final p = filtered[i];
+                  final linked = _linkedStudents[p.id] ?? [];
+                  final childrenNames = linked.map((s) => s.fullName).join(', ');
+                  
                   return PortalListCard(
                     icon: Icons.family_restroom,
                     accentColor: AppColors.parentRole,
                     title: p.fullName,
-                    subtitle: '${context.tr('Email')}: ${p.email}',
+                    subtitle: '${context.tr('Email')}: ${p.email}'
+                        '${childrenNames.isNotEmpty ? '\n${context.tr('Children')}: $childrenNames' : ''}',
                     trailing: [
                       IconButton(
                         tooltip: context.tr('Login QR'),
                         onPressed: () => _showLoginQr(p),
                         icon: const Icon(Icons.qr_code_2),
                       ),
+                      if (p.status == 'suspended')
+                        IconButton(
+                          tooltip: context.tr('Activate Parent'),
+                          onPressed: () async {
+                            try {
+                              await Supabase.instance.client.rpc('activate_user', params: {'user_uid': p.id});
+                              _loadParents();
+                            } catch (err) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to activate: $err')));
+                            }
+                          },
+                          icon: const Icon(Icons.check_circle, color: Colors.green),
+                        )
+                      else
+                        IconButton(
+                          tooltip: context.tr('Suspend Parent'),
+                          onPressed: () async {
+                            try {
+                              await Supabase.instance.client.from('profiles').update({'status': 'suspended'}).eq('id', p.id);
+                              _loadParents();
+                            } catch (err) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to suspend: $err')));
+                            }
+                          },
+                          icon: const Icon(Icons.block, color: Colors.red),
+                        ),
                       FilledButton.icon(
                         onPressed: () => _showLinkStudentDialog(p),
                         icon: const Icon(Icons.link),

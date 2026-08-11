@@ -206,30 +206,33 @@ class _RolesTabView extends StatelessWidget {
           child: GlassCard(
             color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
             borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16),
-              leading: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.15),
-                  shape: BoxShape.circle,
+            child: Material(
+              color: Colors.transparent,
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                leading: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.admin_panel_settings, color: AppColors.success),
                 ),
-                child: const Icon(Icons.admin_panel_settings, color: AppColors.success),
-              ),
-              title: Text(
-                roleName,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(
-                (r['description'] as String?) ?? 'System Role',
-              ),
-              trailing: FilledButton.tonalIcon(
-                onPressed: () => onAssignPermissions(r),
-                icon: const Icon(Icons.edit_attributes),
-                label: const Text('Permissions'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.adminRole.withOpacity(0.1),
-                  foregroundColor: AppColors.adminRole,
+                title: Text(
+                  roleName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  (r['description'] as String?) ?? 'System Role',
+                ),
+                trailing: FilledButton.tonalIcon(
+                  onPressed: () => onAssignPermissions(r),
+                  icon: const Icon(Icons.edit_attributes),
+                  label: const Text('Permissions'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.adminRole.withOpacity(0.1),
+                    foregroundColor: AppColors.adminRole,
+                  ),
                 ),
               ),
             ),
@@ -299,11 +302,14 @@ class _PermissionsTabView extends StatelessWidget {
                     separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
                     itemBuilder: (context, index) {
                       final p = perms[index];
-                      return ListTile(
-                        leading: const Icon(Icons.lock_open, color: AppColors.adminRole),
-                        title: Text(p['code'] as String? ?? 'permission.code', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text('Action: ${p['action']}'),
-                        trailing: const PortalStatusChip(status: 'enforced'),
+                      return Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          leading: const Icon(Icons.lock_open, color: AppColors.adminRole),
+                          title: Text(p['code'] as String? ?? 'permission.code', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          subtitle: Text('Action: ${p['action']}'),
+                          trailing: const PortalStatusChip(status: 'enforced'),
+                        ),
                       );
                     },
                   ),

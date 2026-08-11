@@ -117,7 +117,7 @@ class SupabaseQuestionBankRepository implements IQuestionBankRepository {
   @override
   Future<void> deleteQuestion(String id) async {
     try {
-      await _wrapper.client.rpc('delete_question', params: {'p_question_id': id});
+      await _wrapper.client.rpc('delete_question', params: {'question_id': id});
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to delete question: ${e.toString()}');
     }
@@ -214,7 +214,7 @@ class SupabaseHomeworkRepository implements IHomeworkRepository {
   @override
   Future<void> deleteHomework(String id) async {
     try {
-      await _wrapper.client.rpc('delete_homework', params: {'p_homework_id': id});
+      await _wrapper.client.rpc('delete_homework', params: {'homework_id': id});
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to delete homework: ${e.toString()}');
     }
@@ -373,7 +373,7 @@ class SupabaseExamRepository implements IExamRepository {
   @override
   Future<void> deleteExam(String id) async {
     try {
-      await _wrapper.client.rpc('delete_exam', params: {'p_exam_id': id});
+      await _wrapper.client.rpc('delete_exam', params: {'exam_id': id});
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to delete exam: ${e.toString()}');
     }
