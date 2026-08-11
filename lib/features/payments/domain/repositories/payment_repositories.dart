@@ -23,6 +23,7 @@ abstract class IPaymentRepository {
     String? notes,
   });
   Future<FinancialSummary> fetchStudentFinancialSummary(String studentId);
+  Future<SystemFinancialSummary> fetchSystemFinancialSummary();
 }
 
 abstract class IReceiptRepository {

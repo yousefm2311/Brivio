@@ -34,6 +34,7 @@ import '../../features/security/presentation/screens/audit_log_screen.dart';
 import '../../features/study_workspace/presentation/screens/study_replay_screen.dart';
 import '../../features/analytics/presentation/screens/admin_analytics_screen.dart';
 import '../../features/helpdesk/presentation/screens/helpdesk_management_screen.dart';
+import '../../features/reports/presentation/screens/reports_dashboard_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -326,6 +327,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const AppSettingsScreen(),
       const AdminAnalyticsScreen(),
       const HelpdeskManagementScreen(),
+      const ReportsDashboardScreen(),
     ];
 
     return PortalScaffold(
@@ -357,6 +359,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         PortalDestination(icon: Icons.settings, label: 'Settings'),
         PortalDestination(icon: Icons.analytics, label: 'Analytics'),
         PortalDestination(icon: Icons.support_agent, label: 'Helpdesk'),
+        PortalDestination(icon: Icons.assessment, label: 'Reports'),
       ],
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
       onRefresh: _loadSummaryData,

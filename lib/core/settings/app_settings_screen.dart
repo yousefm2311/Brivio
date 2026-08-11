@@ -8,6 +8,7 @@ import '../services/settings_service.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/components/glass_card.dart';
 import '../../design_system/widgets/portal_components.dart';
+import '../../features/admin/domain/repositories/i_admin_repository.dart';
 
 class AppSettingsScreen extends StatelessWidget {
   const AppSettingsScreen({super.key});
@@ -24,8 +25,74 @@ class AppSettingsScreen extends StatelessWidget {
   }
 }
 
-class AppSettingsPanel extends StatelessWidget {
+class AppSettingsPanel extends StatefulWidget {
   const AppSettingsPanel({super.key});
+
+  @override
+  State<AppSettingsPanel> createState() => _AppSettingsPanelState();
+}
+
+class _AppSettingsPanelState extends State<AppSettingsPanel> {
+  bool _isLoading = true;
+  bool _emailDigest = false;
+  bool _twoFactorAuth = false;
+  bool _dataCollection = false;
+  bool _biometricLogin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    if (!GetIt.instance.isRegistered<IAdminRepository>()) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    final adminRepo = GetIt.instance<IAdminRepository>();
+    final results = await Future.wait<dynamic>([
+      adminRepo.getSetting('email_digest'),
+      adminRepo.getSetting('two_factor_auth'),
+      adminRepo.getSetting('data_collection'),
+      adminRepo.getSetting('biometric_login'),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _emailDigest = _parseBool(results[0]?.value);
+        _twoFactorAuth = _parseBool(results[1]?.value);
+        _dataCollection = _parseBool(results[2]?.value);
+        _biometricLogin = _parseBool(results[3]?.value);
+        _isLoading = false;
+      });
+    }
+  }
+
+  bool _parseBool(dynamic val) {
+    if (val == null) return false;
+    if (val is bool) return val;
+    if (val is String) return val.toLowerCase() == 'true';
+    return false;
+  }
+
+  Future<void> _updateSetting(String key, bool value, void Function(bool) updateLocalState) async {
+    final originalValue = !value;
+    setState(() => updateLocalState(value));
+
+    try {
+      if (GetIt.instance.isRegistered<IAdminRepository>()) {
+        await GetIt.instance<IAdminRepository>().updateSetting(key, value.toString());
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => updateLocalState(originalValue));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update setting.')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +103,10 @@ class AppSettingsPanel extends StatelessWidget {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return ListenableBuilder(
       listenable: settingsService,
       builder: (context, _) {
@@ -135,8 +206,8 @@ class AppSettingsPanel extends StatelessWidget {
                     subtitle: 'Receive daily summary of activities',
                     icon: Icons.email_outlined,
                     trailing: Switch.adaptive(
-                      value: false,
-                      onChanged: (val) {},
+                      value: _emailDigest,
+                      onChanged: (val) => _updateSetting('email_digest', val, (v) => _emailDigest = v),
                       activeColor: Colors.orange,
                     ),
                   ),
@@ -156,8 +227,8 @@ class AppSettingsPanel extends StatelessWidget {
                     subtitle: 'Require 2FA for all admin logins',
                     icon: Icons.vpn_key_outlined,
                     trailing: Switch.adaptive(
-                      value: true,
-                      onChanged: (val) {},
+                      value: _twoFactorAuth,
+                      onChanged: (val) => _updateSetting('two_factor_auth', val, (v) => _twoFactorAuth = v),
                       activeColor: AppColors.success,
                     ),
                   ),
@@ -166,8 +237,8 @@ class AppSettingsPanel extends StatelessWidget {
                     subtitle: 'Send anonymous usage data to improve the app',
                     icon: Icons.data_usage,
                     trailing: Switch.adaptive(
-                      value: false,
-                      onChanged: (val) {},
+                      value: _dataCollection,
+                      onChanged: (val) => _updateSetting('data_collection', val, (v) => _dataCollection = v),
                       activeColor: AppColors.success,
                     ),
                   ),
@@ -176,8 +247,8 @@ class AppSettingsPanel extends StatelessWidget {
                     subtitle: 'Use FaceID/TouchID for quick access',
                     icon: Icons.fingerprint,
                     trailing: Switch.adaptive(
-                      value: true,
-                      onChanged: (val) {},
+                      value: _biometricLogin,
+                      onChanged: (val) => _updateSetting('biometric_login', val, (v) => _biometricLogin = v),
                       activeColor: AppColors.success,
                     ),
                   ),

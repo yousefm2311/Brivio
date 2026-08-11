@@ -3,9 +3,29 @@ import 'package:flutter/material.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../../design_system/components/glass_card.dart';
+import '../viewmodels/admin_analytics_viewmodel.dart';
 
-class AdminAnalyticsScreen extends StatelessWidget {
+class AdminAnalyticsScreen extends StatefulWidget {
   const AdminAnalyticsScreen({super.key});
+
+  @override
+  State<AdminAnalyticsScreen> createState() => _AdminAnalyticsScreenState();
+}
+
+class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
+  final _viewModel = AdminAnalyticsViewModel();
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel.loadAnalytics();
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,48 +43,63 @@ class AdminAnalyticsScreen extends StatelessWidget {
           onPressed: () {},
         ),
       ],
-      child: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          FadeInSlide(
-            delay: const Duration(milliseconds: 100),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _AnalyticsSummaryCard(
-                    title: 'Total Revenue',
-                    value: '\$124,500',
-                    trend: '+12.5%',
-                    isPositive: true,
-                    icon: Icons.attach_money,
-                    color: Colors.green,
-                  ),
+      child: ListenableBuilder(
+        listenable: _viewModel,
+        builder: (context, _) {
+          if (_viewModel.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (_viewModel.errorMessage != null) {
+            return Center(child: Text(_viewModel.errorMessage!, style: const TextStyle(color: Colors.red)));
+          }
+
+          final analytics = _viewModel.analytics;
+          final revenue = analytics?.totalRevenue ?? 0.0;
+          final students = analytics?.totalStudents ?? 0;
+          final attendance = analytics?.attendanceRate ?? 0.0;
+
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              FadeInSlide(
+                delay: const Duration(milliseconds: 100),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _AnalyticsSummaryCard(
+                        title: 'Total Revenue',
+                        value: '\$${revenue.toStringAsFixed(2)}',
+                        trend: '+0.0%',
+                        isPositive: true,
+                        icon: Icons.attach_money,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _AnalyticsSummaryCard(
+                        title: 'Active Students',
+                        value: '$students',
+                        trend: '+0.0%',
+                        isPositive: true,
+                        icon: Icons.school,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _AnalyticsSummaryCard(
+                        title: 'Avg Attendance',
+                        value: '${attendance.toStringAsFixed(1)}%',
+                        trend: '0.0%',
+                        isPositive: true,
+                        icon: Icons.fact_check,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _AnalyticsSummaryCard(
-                    title: 'Active Students',
-                    value: '1,432',
-                    trend: '+4.2%',
-                    isPositive: true,
-                    icon: Icons.school,
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _AnalyticsSummaryCard(
-                    title: 'Avg Attendance',
-                    value: '94.2%',
-                    trend: '-1.1%',
-                    isPositive: false,
-                    icon: Icons.fact_check,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
           const SizedBox(height: 24),
           FadeInSlide(
             delay: const Duration(milliseconds: 200),
@@ -224,8 +259,10 @@ class AdminAnalyticsScreen extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
+      );
+    },
+  ),
+);
   }
 }
 

@@ -185,3 +185,27 @@ class FinancialSummary {
     );
   }
 }
+
+class SystemFinancialSummary {
+  final int totalOutstandingMinor;
+  final int totalCollectedMinor;
+  final int expectedMonthlyRevenueMinor;
+  final int totalAdjustmentsMinor;
+
+  SystemFinancialSummary({
+    required this.totalOutstandingMinor,
+    required this.totalCollectedMinor,
+    required this.expectedMonthlyRevenueMinor,
+    required this.totalAdjustmentsMinor,
+  });
+
+  factory SystemFinancialSummary.fromJson(Map<String, dynamic> json) {
+    return SystemFinancialSummary(
+      totalOutstandingMinor: json['total_outstanding_minor'] as int? ?? 0,
+      totalCollectedMinor: json['total_collected_minor'] as int? ?? 0,
+      expectedMonthlyRevenueMinor: json['expected_monthly_revenue_minor'] as int? ?? 0,
+      totalAdjustmentsMinor: json['total_adjustments_minor'] as int? ?? 0,
+    );
+  }
+}
+

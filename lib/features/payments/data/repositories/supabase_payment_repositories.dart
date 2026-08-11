@@ -189,6 +189,31 @@ class SupabasePaymentRepository implements IPaymentRepository {
       );
     }
   }
+
+  @override
+  Future<SystemFinancialSummary> fetchSystemFinancialSummary() async {
+    try {
+      final response = await _wrapper.client.rpc('get_financial_summary');
+      final listResponse = response as List;
+      if (listResponse.isEmpty) {
+        return SystemFinancialSummary(
+          totalOutstandingMinor: 0,
+          totalCollectedMinor: 0,
+          expectedMonthlyRevenueMinor: 0,
+          totalAdjustmentsMinor: 0,
+        );
+      }
+      return SystemFinancialSummary.fromJson(
+        Map<String, dynamic>.from(listResponse.first as Map),
+      );
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: e.message);
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Failed to fetch system financial summary: ${e.toString()}',
+      );
+    }
+  }
 }
 
 class SupabaseReceiptRepository implements IReceiptRepository {

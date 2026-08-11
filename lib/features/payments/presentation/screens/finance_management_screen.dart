@@ -32,6 +32,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   List<Invoice> _invoices = [];
   List<Receipt> _receipts = [];
   List<_PaymentAdjustmentRequest> _adjustmentRequests = [];
+  SystemFinancialSummary? _systemSummary;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -76,6 +77,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 .toList()
           : <_PaymentAdjustmentRequest>[];
 
+      final sysSummary = await _paymentRepo.fetchSystemFinancialSummary();
+
       if (mounted) {
         setState(() {
           _students = studentsPage.data;
@@ -84,6 +87,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
           _invoices = inv;
           _receipts = rec;
           _adjustmentRequests = adjustments;
+          _systemSummary = sysSummary;
           _isLoading = false;
         });
       }
@@ -455,7 +459,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: PortalPageShell(
         title: 'Finance & Billing',
         subtitle: 'Plans, subscriptions, invoices, payments, and receipts.',
@@ -484,6 +488,10 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
             TabBar(
               isScrollable: true,
               tabs: [
+                Tab(
+                  icon: const Icon(Icons.analytics),
+                  text: context.tr('Reports'),
+                ),
                 Tab(
                   icon: const Icon(Icons.card_membership),
                   text: context.tr('Plans'),
@@ -518,6 +526,39 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 onRetry: _loadFinanceData,
                 child: TabBarView(
                   children: [
+                    _systemSummary == null
+                        ? const SizedBox.shrink()
+                        : SingleChildScrollView(
+                            padding: const EdgeInsets.all(16),
+                            child: PortalMetricGrid(
+                              children: [
+                                PortalMetricCard(
+                                  label: context.tr('Total Outstanding'),
+                                  value: _money(_systemSummary!.totalOutstandingMinor),
+                                  icon: Icons.money_off,
+                                  accentColor: Colors.red,
+                                ),
+                                PortalMetricCard(
+                                  label: context.tr('Total Collected'),
+                                  value: _money(_systemSummary!.totalCollectedMinor),
+                                  icon: Icons.account_balance_wallet,
+                                  accentColor: Colors.green,
+                                ),
+                                PortalMetricCard(
+                                  label: context.tr('Expected Monthly Rev'),
+                                  value: _money(_systemSummary!.expectedMonthlyRevenueMinor),
+                                  icon: Icons.trending_up,
+                                  accentColor: Colors.blue,
+                                ),
+                                PortalMetricCard(
+                                  label: context.tr('Total Adjustments'),
+                                  value: _money(_systemSummary!.totalAdjustmentsMinor),
+                                  icon: Icons.percent,
+                                  accentColor: Colors.orange,
+                                ),
+                              ],
+                            ),
+                          ),
                     _plans.isEmpty
                         ? Center(
                             child: Text(
@@ -615,45 +656,20 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               final inv = _invoices[i];
                               final isUnpaid = inv.status != 'paid';
 
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: isUnpaid
-                                      ? Colors.orange.shade100
-                                      : Colors.green.shade100,
-                                  child: Icon(
-                                    Icons.receipt_long,
-                                    color: isUnpaid
-                                        ? Colors.orange
-                                        : Colors.green,
-                                  ),
-                                ),
-                                title: Text(
-                                  inv.invoiceNumber,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${context.tr('Total')}: ${(inv.totalMinor / 100).toStringAsFixed(0)} EGP | ${context.tr('Paid')}: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} EGP\n${context.tr('Status')}: ${context.tr(inv.status)}',
-                                ),
-                                trailing: isUnpaid
-                                    ? ElevatedButton(
-                                        onPressed: () =>
-                                            _showRecordPaymentDialog(inv),
-                                        child: Text(
-                                          context.tr('Record Payment'),
-                                        ),
-                                      )
-                                    : Chip(
-                                        label: Text(
-                                          context.tr('settled'),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                        backgroundColor: Colors.green,
-                                      ),
+                              return PortalListCard(
+                                icon: Icons.receipt_long,
+                                accentColor: isUnpaid ? Colors.orange : Colors.green,
+                                title: inv.invoiceNumber,
+                                subtitle: '${context.tr('Total')}: ${(inv.totalMinor / 100).toStringAsFixed(0)} EGP | ${context.tr('Paid')}: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} EGP\n${context.tr('Status')}: ${context.tr(inv.status)}',
+                                trailing: [
+                                  if (isUnpaid)
+                                    ElevatedButton(
+                                      onPressed: () => _showRecordPaymentDialog(inv),
+                                      child: Text(context.tr('Record Payment')),
+                                    )
+                                  else
+                                    PortalStatusChip(status: 'settled')
+                                ],
                               );
                             },
                           ),
@@ -673,19 +689,11 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                 const Divider(height: 1),
                             itemBuilder: (ctx, i) {
                               final rec = _receipts[i];
-                              return ListTile(
-                                leading: const CircleAvatar(
-                                  child: Icon(Icons.receipt),
-                                ),
-                                title: Text(
-                                  '${context.tr('Receipt')} #${rec.id.substring(0, 8)}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${context.tr('Amount Paid')}: ${(rec.amountMinor / 100).toStringAsFixed(0)} ${rec.currency}\n${context.tr('Issued')}: ${rec.issuedAt.year}-${rec.issuedAt.month}-${rec.issuedAt.day}',
-                                ),
+                              return PortalListCard(
+                                icon: Icons.receipt,
+                                accentColor: AppColors.adminRole,
+                                title: '${context.tr('Receipt')} #${rec.id.substring(0, 8)}',
+                                subtitle: '${context.tr('Amount Paid')}: ${(rec.amountMinor / 100).toStringAsFixed(0)} ${rec.currency}\n${context.tr('Issued')}: ${rec.issuedAt.year}-${rec.issuedAt.month}-${rec.issuedAt.day}',
                               );
                             },
                           ),
