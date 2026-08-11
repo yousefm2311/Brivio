@@ -260,7 +260,38 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                           title: h.title,
                           subtitle:
                               'Max Score: ${h.maxScore} | Due: ${h.dueAt.year}-${h.dueAt.month}-${h.dueAt.day} | Status: ${h.status.toUpperCase()}',
-                          trailing: [PortalStatusChip(status: h.status)],
+                          trailing: [
+                            PortalStatusChip(status: h.status),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Delete Homework'),
+                                    content: const Text('Are you sure you want to delete this homework?'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                      ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  try {
+                                    await _homeworkRepo.deleteHomework(h.id);
+                                    _loadHomeworks();
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Failed to delete: $e')),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                              tooltip: 'Delete Homework',
+                            ),
+                          ],
                         );
                       },
                     ),

@@ -3,11 +3,13 @@ import '../models/curriculum_models.dart';
 abstract class ISemesterRepository {
   Future<List<Semester>> fetchSemestersForSubject(String subjectId);
   Future<Semester> createSemester(Semester semester);
+  Future<void> deleteSemester(String id);
 }
 
 abstract class IUnitRepository {
   Future<List<Unit>> fetchUnitsForSemester(String semesterId);
   Future<Unit> createUnit(Unit unit);
+  Future<void> deleteUnit(String id);
 }
 
 abstract class ILessonRepository {
@@ -19,6 +21,7 @@ abstract class ILessonRepository {
     required String unitId,
     required List<String> orderedLessonIds,
   });
+  Future<void> deleteLesson(String id);
 }
 
 abstract class ILessonResourceRepository {

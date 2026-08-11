@@ -254,6 +254,37 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           title: q.prompt,
                           subtitle:
                               'Type: ${q.questionType.name.toUpperCase()} | Points: ${q.defaultPoints}',
+                          trailing: [
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Delete Question'),
+                                    content: const Text('Are you sure you want to delete this question?'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                      ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  try {
+                                    await _questionRepo.deleteQuestion(q.id);
+                                    _loadQuestions();
+                                  } catch (err) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Failed to delete: $err')),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                              tooltip: 'Delete Question',
+                            ),
+                          ],
                         );
                       },
                     ),

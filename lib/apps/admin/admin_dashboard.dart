@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/di/injection.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/settings/app_settings_screen.dart';
+import '../../design_system/components/glass_card.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/admin/presentation/screens/data_import_screen.dart';
@@ -31,6 +32,8 @@ import '../../features/people/presentation/screens/teacher_management_screen.dar
 import '../../features/security/presentation/screens/rbac_management_screen.dart';
 import '../../features/security/presentation/screens/audit_log_screen.dart';
 import '../../features/study_workspace/presentation/screens/study_replay_screen.dart';
+import '../../features/analytics/presentation/screens/admin_analytics_screen.dart';
+import '../../features/helpdesk/presentation/screens/helpdesk_management_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -78,13 +81,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   void _subscribeToNotifications() {
     final notificationRepo = getIt<INotificationRepository>();
-    _notificationSubscription = notificationRepo.subscribeToNotifications().listen((notification) {
-      if (!mounted) return;
-      setState(() {
-        _notifications.insert(0, notification);
-        _unreadCount++;
-      });
-    });
+    _notificationSubscription = notificationRepo.subscribeToNotifications().listen(
+      (notification) {
+        if (!mounted) return;
+        setState(() {
+          _notifications.insert(0, notification);
+          _unreadCount++;
+        });
+      },
+      onError: (e, st) {
+        debugPrint('Notification stream error: $e\n$st');
+      },
+    );
   }
 
   Future<void> _loadSummaryData() async {
@@ -271,7 +279,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     try {
       final result = await query();
       return result is List ? result : <dynamic>[];
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('Admin query failed: $e\n$st');
       return <dynamic>[];
     }
   }
@@ -315,6 +324,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const StudyReplayScreen(),
       const DataImportScreen(),
       const AppSettingsScreen(),
+      const AdminAnalyticsScreen(),
+      const HelpdeskManagementScreen(),
     ];
 
     return PortalScaffold(
@@ -344,6 +355,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         PortalDestination(icon: Icons.video_library, label: 'Replay'),
         PortalDestination(icon: Icons.upload_file, label: 'Import'),
         PortalDestination(icon: Icons.settings, label: 'Settings'),
+        PortalDestination(icon: Icons.analytics, label: 'Analytics'),
+        PortalDestination(icon: Icons.support_agent, label: 'Helpdesk'),
       ],
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
       onRefresh: _loadSummaryData,
@@ -396,35 +409,43 @@ class _AdminOverview extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          PortalHeader(
-            eyebrow: 'Admin Portal',
-            title: 'Welcome, ${user?.fullName ?? "Administrator"}',
-            subtitle:
-                '${authViewModel.userRole?.displayName ?? "Admin"} - ${user?.branchId ?? "Global access"}',
-            icon: Icons.admin_panel_settings,
-            accentColor: AppColors.adminRole,
-            trailing: IconButton.filledTonal(
-              tooltip: 'Refresh',
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
+          FadeInSlide(
+            duration: const Duration(milliseconds: 400),
+            child: PortalHeader(
+              eyebrow: 'Admin Portal',
+              title: 'Welcome, ${user?.fullName ?? "Administrator"}',
+              subtitle:
+                  '${authViewModel.userRole?.displayName ?? "Admin"} - ${user?.branchId ?? "Global access"}',
+              icon: Icons.admin_panel_settings,
+              accentColor: AppColors.adminRole,
+              trailing: IconButton.filledTonal(
+                tooltip: 'Refresh',
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+              ),
             ),
           ),
           if (isLoading) ...[
             const SizedBox(height: 16),
-            const LinearProgressIndicator(),
+            const LinearProgressIndicator(color: AppColors.adminRole),
           ],
           if (errorMessage != null) ...[
             const SizedBox(height: 16),
-            PortalErrorBanner(message: errorMessage!, onRetry: onRetry),
+            FadeInSlide(child: PortalErrorBanner(message: errorMessage!, onRetry: onRetry)),
           ],
           const SizedBox(height: 18),
-          const PortalSectionTitle(
-            title: 'Academy Operations',
-            subtitle: 'Live counts from the production database.',
+          const FadeInSlide(
+            delay: Duration(milliseconds: 100),
+            child: PortalSectionTitle(
+              title: 'Academy Operations',
+              subtitle: 'Live counts from the production database.',
+            ),
           ),
           const SizedBox(height: 12),
-          PortalMetricGrid(
-            children: [
+          FadeInSlide(
+            delay: const Duration(milliseconds: 150),
+            child: PortalMetricGrid(
+              children: [
               PortalMetricCard(
                 label: 'Branches',
                 value: (summary?.activeBranches ?? branches.length).toString(),
@@ -469,14 +490,19 @@ class _AdminOverview extends StatelessWidget {
                 onTap: () => onNavigate(7),
               ),
             ],
+          )),
+          const SizedBox(height: 24),
+          const FadeInSlide(
+            delay: Duration(milliseconds: 200),
+            child: PortalSectionTitle(
+              title: 'Setup Readiness',
+              subtitle: 'Minimum data needed for a usable production rollout.',
+            ),
           ),
-          const SizedBox(height: 18),
-          const PortalSectionTitle(
-            title: 'Setup Readiness',
-            subtitle: 'Minimum data needed for a usable production rollout.',
-          ),
-          const SizedBox(height: 8),
-          _SetupReadinessCard(
+          const SizedBox(height: 12),
+          FadeInSlide(
+            delay: const Duration(milliseconds: 250),
+            child: _SetupReadinessCard(
             items: [
               _SetupCheck(
                 'Branches',
@@ -519,14 +545,19 @@ class _AdminOverview extends StatelessWidget {
                 onTap: () => onNavigate(14),
               ),
             ],
-          ),
-          const SizedBox(height: 18),
-          const PortalSectionTitle(
-            title: 'Runtime Analytics',
-            subtitle: 'Operational workload currently visible to admins.',
+          )),
+          const SizedBox(height: 24),
+          const FadeInSlide(
+            delay: Duration(milliseconds: 300),
+            child: PortalSectionTitle(
+              title: 'Runtime Analytics',
+              subtitle: 'Operational workload currently visible to admins.',
+            ),
           ),
           const SizedBox(height: 12),
-          PortalMetricGrid(
+          FadeInSlide(
+            delay: const Duration(milliseconds: 350),
+            child: PortalMetricGrid(
             children: [
               PortalMetricCard(
                 label: 'Today sessions',
@@ -571,12 +602,14 @@ class _AdminOverview extends StatelessWidget {
                 onTap: () => onNavigate(13),
               ),
             ],
-          ),
-          const SizedBox(height: 18),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const PortalSectionTitle(
+          )),
+          const SizedBox(height: 24),
+          FadeInSlide(
+            delay: const Duration(milliseconds: 400),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const PortalSectionTitle(
                 title: 'Export',
                 subtitle: 'Copy CSV snapshots from the data loaded here.',
               ),
@@ -585,32 +618,38 @@ class _AdminOverview extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  OutlinedButton.icon(
+                  _ExportButton(
                     onPressed: () => _copyStudentsCsv(context),
-                    icon: const Icon(Icons.school),
-                    label: const Text('Students CSV'),
+                    icon: Icons.school_rounded,
+                    label: 'Students CSV',
                   ),
-                  OutlinedButton.icon(
+                  _ExportButton(
                     onPressed: () => _copyGroupsCsv(context),
-                    icon: const Icon(Icons.group_work),
-                    label: const Text('Groups CSV'),
+                    icon: Icons.group_work_rounded,
+                    label: 'Groups CSV',
                   ),
-                  OutlinedButton.icon(
+                  _ExportButton(
                     onPressed: () => _copyTeachersCsv(context),
-                    icon: const Icon(Icons.person),
-                    label: const Text('Teachers CSV'),
+                    icon: Icons.person_rounded,
+                    label: 'Teachers CSV',
                   ),
                 ],
               ),
             ],
+          )),
+          const SizedBox(height: 24),
+          const FadeInSlide(
+            delay: Duration(milliseconds: 450),
+            child: PortalSectionTitle(
+              title: 'Recent Activity',
+              subtitle: 'Latest leave, invoice, and enrollment records.',
+            ),
           ),
-          const SizedBox(height: 18),
-          const PortalSectionTitle(
-            title: 'Recent Activity',
-            subtitle: 'Latest leave, invoice, and enrollment records.',
+          const SizedBox(height: 12),
+          FadeInSlide(
+            delay: const Duration(milliseconds: 500),
+            child: _ActivityList(items: recentActivity),
           ),
-          const SizedBox(height: 8),
-          _ActivityList(items: recentActivity),
         ],
       ),
     );
@@ -745,49 +784,66 @@ class _SetupReadinessCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ready = items.where((item) => item.isReady).length;
     final percent = items.isEmpty ? 0.0 : ready / items.length;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: percent,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return GlassCard(
+      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: percent),
+                  duration: const Duration(milliseconds: 1000),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    value: value,
                     minHeight: 8,
                     borderRadius: BorderRadius.circular(8),
+                    color: AppColors.success,
+                    backgroundColor: AppColors.success.withValues(alpha: 0.15),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  '$ready/${items.length}',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: items
-                  .map(
-                    (item) => ActionChip(
-                      avatar: Icon(
-                        item.isReady ? Icons.check_circle : Icons.error_outline,
-                        color: item.isReady
-                            ? AppColors.success
-                            : AppColors.warning,
-                      ),
-                      label: Text(item.label),
-                      onPressed: item.onTap,
+              ),
+              const SizedBox(width: 16),
+              Text(
+                '$ready/${items.length}',
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: items
+                .map(
+                  (item) => ActionChip(
+                    avatar: Icon(
+                      item.isReady ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                      color: item.isReady
+                          ? AppColors.success
+                          : AppColors.warning,
+                      size: 18,
                     ),
-                  )
-                  .toList(),
-            ),
-          ],
-        ),
+                    label: Text(item.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    onPressed: item.onTap,
+                    backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+                    side: BorderSide(
+                      color: item.isReady
+                          ? AppColors.success.withValues(alpha: 0.3)
+                          : AppColors.warning.withValues(alpha: 0.3),
+                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
       ),
     );
   }
@@ -801,16 +857,32 @@ class _ActivityList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Icon(Icons.history),
-              SizedBox(width: 10),
-              Expanded(child: Text('No recent activity visible yet.')),
-            ],
-          ),
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return GlassCard(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.adminRole.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.history, color: AppColors.adminRole),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                'No recent activity visible yet.',
+                style: TextStyle(
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -846,5 +918,30 @@ class _ActivityList extends StatelessWidget {
       'overdue' || 'rejected' || 'failed' => AppColors.error,
       _ => AppColors.info,
     };
+  }
+}
+
+class _ExportButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String label;
+
+  const _ExportButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ActionChip(
+      onPressed: onPressed,
+      avatar: Icon(icon, color: AppColors.adminRole, size: 18),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      side: BorderSide(color: AppColors.adminRole.withValues(alpha: 0.4)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
   }
 }

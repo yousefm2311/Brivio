@@ -12,6 +12,8 @@ import '../../features/communication/domain/repositories/i_chat_attachment_repos
 import '../../features/communication/domain/repositories/i_conversation_repository.dart';
 import '../../features/communication/domain/repositories/i_message_repository.dart';
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
+import '../../features/admin/domain/repositories/i_admin_repository.dart';
+import '../../features/admin/data/repositories/supabase_admin_repository.dart';
 import '../config/app_config.dart';
 import '../localization/app_locale_controller.dart';
 import '../network/supabase_client_wrapper.dart';
@@ -29,6 +31,7 @@ Future<void> setupDependencyInjection({
   IChatAttachmentRepository? chatAttachmentRepository,
   INotificationRepository? notificationRepository,
   IAnnouncementRepository? announcementRepository,
+  IAdminRepository? adminRepository,
 }) async {
   if (supabaseClientWrapper != null) {
     if (getIt.isRegistered<SupabaseClientWrapper>()) {
@@ -125,6 +128,14 @@ Future<void> setupDependencyInjection({
         () =>
             announcementRepository ??
             SupabaseAnnouncementRepository(getIt<SupabaseClientWrapper>()),
+      );
+    }
+
+    if (!getIt.isRegistered<IAdminRepository>()) {
+      getIt.registerLazySingleton<IAdminRepository>(
+        () =>
+            adminRepository ??
+            SupabaseAdminRepository(getIt<SupabaseClientWrapper>()),
       );
     }
   }

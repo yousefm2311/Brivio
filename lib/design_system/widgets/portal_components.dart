@@ -395,7 +395,7 @@ class PortalHeader extends StatelessWidget {
               Expanded(child: headerInfo),
               if (trailing != null) ...[
                 const SizedBox(width: 14),
-                trailing!,
+                Flexible(child: trailing!),
               ],
             ],
           );

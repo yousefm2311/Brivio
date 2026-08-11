@@ -57,12 +57,14 @@ abstract class IBranchRepository {
   Future<Branch> getBranchById(String id);
   Future<Branch> createBranch(Branch branch);
   Future<Branch> updateBranch(Branch branch);
+  Future<void> deleteBranch(String id);
 }
 
 abstract class ISubjectRepository {
   Future<List<SubjectEntity>> fetchSubjects({String? search, String? status});
   Future<SubjectEntity> createSubject(SubjectEntity subject);
   Future<SubjectEntity> updateSubject(SubjectEntity subject);
+  Future<void> deleteSubject(String id);
 }
 
 abstract class IGroupRepository {
@@ -74,6 +76,7 @@ abstract class IGroupRepository {
   Future<GroupEntity> getGroupById(String id);
   Future<GroupEntity> createGroup(GroupEntity group);
   Future<GroupEntity> updateGroup(GroupEntity group);
+  Future<void> deleteGroup(String id);
 }
 
 abstract class IEnrollmentRepository {

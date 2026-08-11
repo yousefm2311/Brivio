@@ -516,13 +516,36 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                             subtitle: Text(
                               '${context.tr('Code')}: ${sem.code} | ${context.tr('Units')}: ${sem.units.length}',
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(
-                                Icons.add_circle,
-                                color: Colors.blue,
-                              ),
-                              onPressed: () => _showCreateUnitDialog(sem),
-                              tooltip: context.tr('Add Unit'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.add_circle, color: Colors.blue),
+                                  onPressed: () => _showCreateUnitDialog(sem),
+                                  tooltip: context.tr('Add Unit'),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Delete Semester'),
+                                        content: const Text('Are you sure?'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) {
+                                      await _semesterRepo.deleteSemester(sem.id);
+                                      _loadCurriculum();
+                                    }
+                                  },
+                                  tooltip: context.tr('Delete Semester'),
+                                ),
+                              ],
                             ),
                             children: sem.units.map((unit) {
                               return Padding(
@@ -541,14 +564,36 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                   subtitle: Text(
                                     '${context.tr('Lessons')}: ${unit.lessons.length}',
                                   ),
-                                  trailing: IconButton(
-                                    icon: const Icon(
-                                      Icons.add_circle_outline,
-                                      color: Colors.orange,
-                                    ),
-                                    onPressed: () =>
-                                        _showCreateLessonDialog(unit),
-                                    tooltip: context.tr('Add Lesson'),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.add_circle_outline, color: Colors.orange),
+                                        onPressed: () => _showCreateLessonDialog(unit),
+                                        tooltip: context.tr('Add Lesson'),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        onPressed: () async {
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              title: const Text('Delete Unit'),
+                                              content: const Text('Are you sure?'),
+                                              actions: [
+                                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                                ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                              ],
+                                            ),
+                                          );
+                                          if (confirm == true) {
+                                            await _unitRepo.deleteUnit(unit.id);
+                                            _loadCurriculum();
+                                          }
+                                        },
+                                        tooltip: context.tr('Delete Unit'),
+                                      ),
+                                    ],
                                   ),
                                   children: unit.lessons.map((lesson) {
                                     final isPublished =
@@ -598,6 +643,27 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                             tooltip: context.tr(
                                               'Toggle Publish',
                                             ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete, color: Colors.red),
+                                            onPressed: () async {
+                                              final confirm = await showDialog<bool>(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  title: const Text('Delete Lesson'),
+                                                  content: const Text('Are you sure?'),
+                                                  actions: [
+                                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                                    ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                                  ],
+                                                ),
+                                              );
+                                              if (confirm == true) {
+                                                await _lessonRepo.deleteLesson(lesson.id);
+                                                _loadCurriculum();
+                                              }
+                                            },
+                                            tooltip: context.tr('Delete Lesson'),
                                           ),
                                         ],
                                       ),

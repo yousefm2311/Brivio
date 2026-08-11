@@ -53,6 +53,15 @@ class SupabaseSemesterRepository implements ISemesterRepository {
       );
     }
   }
+
+  @override
+  Future<void> deleteSemester(String id) async {
+    try {
+      await _wrapper.client.rpc('delete_semester', params: {'p_semester_id': id});
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to delete semester: ${e.toString()}');
+    }
+  }
 }
 
 class SupabaseUnitRepository implements IUnitRepository {
@@ -92,6 +101,15 @@ class SupabaseUnitRepository implements IUnitRepository {
       return Unit.fromJson(response);
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to create unit: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> deleteUnit(String id) async {
+    try {
+      await _wrapper.client.rpc('delete_unit', params: {'p_unit_id': id});
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to delete unit: ${e.toString()}');
     }
   }
 }
@@ -209,6 +227,15 @@ class SupabaseLessonRepository implements ILessonRepository {
       throw DatabaseFailure(
         message: 'Lesson reordering failed: ${e.toString()}',
       );
+    }
+  }
+
+  @override
+  Future<void> deleteLesson(String id) async {
+    try {
+      await _wrapper.client.rpc('delete_lesson', params: {'p_lesson_id': id});
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to delete lesson: ${e.toString()}');
     }
   }
 }

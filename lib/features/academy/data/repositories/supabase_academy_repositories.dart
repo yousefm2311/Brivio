@@ -487,6 +487,15 @@ class SupabaseBranchRepository implements IBranchRepository {
       );
     }
   }
+
+  @override
+  Future<void> deleteBranch(String id) async {
+    try {
+      await _wrapper.client.rpc('delete_branch', params: {'p_branch_id': id});
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to delete branch: ${e.toString()}');
+    }
+  }
 }
 
 class SupabaseSubjectRepository implements ISubjectRepository {
@@ -547,6 +556,15 @@ class SupabaseSubjectRepository implements ISubjectRepository {
       throw DatabaseFailure(
         message: 'Failed to update subject: ${e.toString()}',
       );
+    }
+  }
+
+  @override
+  Future<void> deleteSubject(String id) async {
+    try {
+      await _wrapper.client.rpc('delete_subject', params: {'p_subject_id': id});
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to delete subject: ${e.toString()}');
     }
   }
 }
@@ -616,6 +634,15 @@ class SupabaseGroupRepository implements IGroupRepository {
       return GroupEntity.fromJson(response);
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to update group: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> deleteGroup(String id) async {
+    try {
+      await _wrapper.client.rpc('delete_group', params: {'p_group_id': id});
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to delete group: ${e.toString()}');
     }
   }
 }
