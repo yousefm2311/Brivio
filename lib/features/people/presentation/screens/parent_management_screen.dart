@@ -403,7 +403,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                           tooltip: context.tr('Activate Parent'),
                           onPressed: () async {
                             try {
-                              await Supabase.instance.client.rpc('activate_user', params: {'user_uid': p.id});
+                              await Supabase.instance.client.rpc('activate_user', params: {'user_uid': p.profileId});
                               _loadParents();
                             } catch (err) {
                               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to activate: $err')));
@@ -431,7 +431,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                             );
                             if (confirm == true) {
                               try {
-                                await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': p.id});
+                                await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': p.profileId});
                                 _loadParents();
                               } catch (err) {
                                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to suspend: $err')));
@@ -464,7 +464,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                           );
                           if (confirm == true) {
                             try {
-                              await Supabase.instance.client.rpc('hard_delete_user', params: {'target_user_id': p.id});
+                              await Supabase.instance.client.rpc('hard_delete_user', params: {'target_user_id': p.profileId});
                               _loadParents();
                             } catch (e) {
                               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
