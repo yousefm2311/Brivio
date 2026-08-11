@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import '../localization/app_locale_controller.dart';
 import '../localization/app_localizations.dart';
 import '../notifications/push_notification_service.dart';
+import '../services/settings_service.dart';
 
 class AppSettingsScreen extends StatelessWidget {
   const AppSettingsScreen({super.key});
@@ -22,13 +23,13 @@ class AppSettingsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final localeController = GetIt.instance<AppLocaleController>();
+    final settingsService = GetIt.instance<SettingsService>();
     final pushService = GetIt.instance.isRegistered<PushNotificationService>()
         ? GetIt.instance<PushNotificationService>()
         : null;
 
     return ListenableBuilder(
-      listenable: localeController,
+      listenable: settingsService,
       builder: (context, _) {
         return ListView(
           shrinkWrap: true,
@@ -51,15 +52,41 @@ class AppSettingsPanel extends StatelessWidget {
                   label: Text(context.tr('arabic')),
                 ),
               ],
-              selected: {localeController.language},
+              selected: {settingsService.language},
               onSelectionChanged: (selection) {
-                localeController.setLanguage(selection.first);
+                settingsService.updateLanguage(selection.first);
               },
             ),
             const SizedBox(height: 8),
             Text(
               context.tr('display_language_subtitle'),
               style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const Divider(height: 32),
+            Text(
+              'Theme', // Could be context.tr('theme') but hardcoded for now or if l10n is there
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  label: Text('System'),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  label: Text('Light'),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  label: Text('Dark'),
+                ),
+              ],
+              selected: {settingsService.themeMode},
+              onSelectionChanged: (selection) {
+                settingsService.updateThemeMode(selection.first);
+              },
             ),
             const Divider(height: 32),
             ListTile(

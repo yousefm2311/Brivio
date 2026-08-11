@@ -145,8 +145,9 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     if (_codeController.text.isEmpty && _viewModel.codeText.isNotEmpty) {
       _codeController.text = _viewModel.codeText;
     }
-    if (_boardStrokes.isEmpty && _viewModel.boardData.isNotEmpty) {
-      setState(() => _boardStrokes = _decodeBoard(_viewModel.boardData));
+    final newBoardStrokes = _decodeBoard(_viewModel.boardData);
+    if (newBoardStrokes.length != _boardStrokes.length) {
+      setState(() => _boardStrokes = newBoardStrokes);
     }
     if (!_pdfAnnotationsLoaded) {
       _pdfAnnotationsLoaded = true;
@@ -587,35 +588,38 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                           ],
                         ),
                       ),
-                      if (hasPdf) ...[
-                        const SizedBox(width: 16),
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _ToggleButton(
-                                title: 'PDF',
-                                isSelected: !_showBoard,
-                                onTap: () => setState(() => _showBoard = false),
-                              ),
-                              _ToggleButton(
-                                title: 'Board',
-                                isSelected: _showBoard,
-                                onTap: () => setState(() => _showBoard = true),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
               ),
+
+              if (hasPdf)
+                Positioned(
+                  bottom: MediaQuery.of(context).padding.bottom + 24,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: GlassCard(
+                      padding: const EdgeInsets.all(4),
+                      borderRadius: BorderRadius.circular(28),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _ToggleButton(
+                            title: 'PDF',
+                            isSelected: !_showBoard,
+                            onTap: () => setState(() => _showBoard = false),
+                          ),
+                          _ToggleButton(
+                            title: 'Board',
+                            isSelected: _showBoard,
+                            onTap: () => setState(() => _showBoard = true),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
 
               Positioned(
                 bottom: MediaQuery.of(context).padding.bottom + 24,
@@ -993,6 +997,7 @@ class _PdfPaneState extends State<_PdfPane> {
           padding: const EdgeInsets.all(12),
           child: _SignedPdfViewer(
             url: lesson.pdfUrl!,
+            localPath: viewModel.localPdfPath,
             pageNumber: viewModel.currentPage,
             pageOverlaysBuilder: (context, pageRect, page) {
               final pageNum = page.pageNumber;
@@ -1431,11 +1436,13 @@ List<_PdfAnnotation> _decodePdfAnnotations(String raw) {
 
 class _SignedPdfViewer extends StatefulWidget {
   final String url;
+  final String? localPath;
   final int pageNumber;
   final PdfPageOverlaysBuilder? pageOverlaysBuilder;
 
   const _SignedPdfViewer({
     required this.url,
+    this.localPath,
     required this.pageNumber,
     this.pageOverlaysBuilder,
   });
@@ -1474,67 +1481,129 @@ class _SignedPdfViewerState extends State<_SignedPdfViewer> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
-        child: PdfViewer.uri(
-          Uri.parse(widget.url),
-          controller: _controller,
-          initialPageNumber: widget.pageNumber,
-          params: PdfViewerParams(
-            pageOverlaysBuilder: widget.pageOverlaysBuilder,
-            onViewerReady: (document, controller) {
-              controller.goToPage(
-                pageNumber: widget.pageNumber,
-                duration: Duration.zero,
-              );
-            },
-            loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
-              final progress = totalBytes == null || totalBytes == 0
-                  ? null
-                  : bytesDownloaded / totalBytes;
-              return Center(
-                child: SizedBox(
-                  width: 260,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      LinearProgressIndicator(value: progress),
-                      const SizedBox(height: 12),
-                      Text(context.tr('Loading PDF...')),
-                    ],
-                  ),
-                ),
-              );
-            },
-            errorBannerBuilder: (context, error, stackTrace, documentRef) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.picture_as_pdf_outlined,
-                        color: AppColors.error,
-                        size: 48,
+        child: widget.localPath != null
+          ? PdfViewer.file(
+              widget.localPath!,
+              controller: _controller,
+              initialPageNumber: widget.pageNumber,
+              params: PdfViewerParams(
+                pageOverlaysBuilder: widget.pageOverlaysBuilder,
+                onViewerReady: (document, controller) {
+                  controller.goToPage(
+                    pageNumber: widget.pageNumber,
+                    duration: Duration.zero,
+                  );
+                },
+                loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
+                  final progress = totalBytes == null || totalBytes == 0
+                      ? null
+                      : bytesDownloaded / totalBytes;
+                  return Center(
+                    child: SizedBox(
+                      width: 260,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          LinearProgressIndicator(value: progress),
+                          const SizedBox(height: 12),
+                          Text(context.tr('Loading PDF...')),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        context.tr('PDF failed to load'),
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w900),
+                    ),
+                  );
+                },
+                errorBannerBuilder: (context, error, stackTrace, documentRef) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.picture_as_pdf_outlined,
+                            color: AppColors.error,
+                            size: 48,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            context.tr('PDF failed to load'),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            error.toString(),
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        error.toString(),
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  );
+                },
+              ),
+            )
+          : PdfViewer.uri(
+              Uri.parse(widget.url),
+              controller: _controller,
+              initialPageNumber: widget.pageNumber,
+              params: PdfViewerParams(
+                pageOverlaysBuilder: widget.pageOverlaysBuilder,
+                onViewerReady: (document, controller) {
+                  controller.goToPage(
+                    pageNumber: widget.pageNumber,
+                    duration: Duration.zero,
+                  );
+                },
+                loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
+                  final progress = totalBytes == null || totalBytes == 0
+                      ? null
+                      : bytesDownloaded / totalBytes;
+                  return Center(
+                    child: SizedBox(
+                      width: 260,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          LinearProgressIndicator(value: progress),
+                          const SizedBox(height: 12),
+                          Text(context.tr('Loading PDF...')),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
+                    ),
+                  );
+                },
+                errorBannerBuilder: (context, error, stackTrace, documentRef) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.picture_as_pdf_outlined,
+                            color: AppColors.error,
+                            size: 48,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            context.tr('PDF failed to load'),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            error.toString(),
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
       ),
     );
   }

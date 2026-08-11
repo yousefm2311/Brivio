@@ -112,8 +112,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (stateCtx, setStateDialog) => AlertDialog(
           title: Text(
             '${context.tr('Roll Call')}: ${session.location ?? context.tr('Session')}',
           ),
@@ -122,7 +122,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             child: ListView.builder(
               shrinkWrap: true,
               itemCount: roster.length,
-              itemBuilder: (context, index) {
+              itemBuilder: (listCtx, index) {
                 final student = roster[index];
                 return DropdownButtonFormField<AttendanceStatus>(
                   initialValue: statuses[student.id],
@@ -145,12 +145,12 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(dialogCtx),
               child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
-                final nav = Navigator.of(ctx);
+                final nav = Navigator.of(dialogCtx);
                 try {
                   await _attendanceRepo.markSessionAttendance(
                     sessionId: session.id,
@@ -357,7 +357,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) {
+        builder: (stateCtx, setState) {
           return AlertDialog(
             title: Text(context.tr('Create Session')),
             content: Column(
@@ -377,7 +377,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
                     final date = await showDatePicker(
-                      context: context,
+                      context: stateCtx,
                       initialDate: selectedDate!,
                       firstDate: DateTime(2020),
                       lastDate: DateTime(2100),
@@ -570,10 +570,11 @@ class _TeacherAttendanceQrDialogState
       title: Text(context.tr('Attendance QR')),
       content: SizedBox(
         width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
               context.tr(
                 'Students scan this QR to mark themselves present. It rotates every minute.',
               ),
@@ -659,6 +660,7 @@ class _TeacherAttendanceQrDialogState
                     ),
             ),
           ],
+        ),
         ),
       ),
       actions: [

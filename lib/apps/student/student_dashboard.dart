@@ -54,7 +54,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<Receipt> _receipts = [];
   List<Announcement> _announcements = [];
   List<AppNotification> _notifications = [];
-  List<StudyLessonSummary> _sessionBoards = [];
+  List<PublishedSessionBoard> _sessionBoards = [];
   List<StudentHomeworkItem> _homeworkItems = [];
   List<StudentExamItem> _examItems = [];
   List<StudentAttendanceItem> _attendanceItems = [];
@@ -134,7 +134,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _announcements = results[5] as List<Announcement>;
         _notifications = results[6] as List<AppNotification>;
         _unreadCount = results[7] as int;
-        _sessionBoards = results[8] as List<StudyLessonSummary>;
+        _sessionBoards = results[8] as List<PublishedSessionBoard>;
         _homeworkItems = results[9] as List<StudentHomeworkItem>;
         _examItems = results[10] as List<StudentExamItem>;
         _attendanceItems = results[11] as List<StudentAttendanceItem>;
@@ -171,11 +171,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return (rows as List).whereType<Map>().map((r) => StudentLeaveItem.fromJson(r)).toList();
   }
 
-  Future<List<StudyLessonSummary>> _fetchSessionBoards() async {
+  Future<List<PublishedSessionBoard>> _fetchSessionBoards() async {
     try {
-      final rows = await Supabase.instance.client.rpc('get_student_teacher_study_boards');
-      print('=== DEBUG: get_student_teacher_study_boards returned: $rows ===');
-      return (rows as List).whereType<Map>().map((r) => StudyLessonSummary.fromJson(r)).toList();
+      final rows = await Supabase.instance.client.rpc('get_student_published_session_boards');
+      print('=== DEBUG: get_student_published_session_boards returned: $rows ===');
+      return (rows as List).whereType<Map>().map((r) => PublishedSessionBoard.fromJson(r)).toList();
     } catch (e, st) {
       print('=== DEBUG ERROR in _fetchSessionBoards: $e\n$st ===');
       rethrow;
@@ -196,8 +196,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
     ));
   }
 
-  void _openSessionBoard(StudyLessonSummary board) {
-    _openWorkspace(board);
+  void _openSessionBoard(PublishedSessionBoard board) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _SessionBoardScreen(board: board),
+    ));
   }
 
   Future<void> _openGroupDetails(GroupEntity group) async {
@@ -573,3 +575,54 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 }
 
+// ── Session Board screen ──
+
+class _SessionBoardScreen extends StatelessWidget {
+  final PublishedSessionBoard board;
+
+  const _SessionBoardScreen({required this.board});
+
+  @override
+  Widget build(BuildContext context) {
+    final strokes = decodeSessionBoard(board.boardData);
+    return Scaffold(
+      appBar: AppBar(title: Text(board.title)),
+      body: CustomPaint(
+        painter: _BoardPainter(strokes),
+        child: Container(),
+      ),
+    );
+  }
+}
+
+List<BoardStroke> decodeSessionBoard(Map<String, dynamic> data) {
+  final strokesData = data['strokes'] as List?;
+  if (strokesData == null) return [];
+  return strokesData.map((s) => BoardStroke.fromJson(s as Map<String, dynamic>)).toList();
+}
+
+class _BoardPainter extends CustomPainter {
+  final List<BoardStroke> strokes;
+  _BoardPainter(this.strokes);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final stroke in strokes) {
+      final paint = Paint()
+        ..color = stroke.color
+        ..strokeWidth = stroke.width
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+      if (stroke.points.isNotEmpty) {
+        final path = Path()..moveTo(stroke.points.first.dx, stroke.points.first.dy);
+        for (int i = 1; i < stroke.points.length; i++) {
+          path.lineTo(stroke.points[i].dx, stroke.points[i].dy);
+        }
+        canvas.drawPath(path, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BoardPainter oldDelegate) => true;
+}

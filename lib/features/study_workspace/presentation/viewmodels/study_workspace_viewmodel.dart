@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:hive/hive.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../domain/models/study_workspace_models.dart';
@@ -28,6 +31,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   int _currentPage;
   bool _isRunningCode = false;
   CodeRunResult? _lastRunResult;
+  String? _localPdfPath;
   StreamSubscription? _teacherDraftSubscription;
   bool _isDisposed = false;
 
@@ -46,6 +50,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   int get currentPage => _currentPage;
   bool get isRunningCode => _isRunningCode;
   CodeRunResult? get lastRunResult => _lastRunResult;
+  String? get localPdfPath => _localPdfPath;
 
   Future<void> load() async {
     final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
@@ -55,6 +60,27 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     _boardData = preferences.getString('$_boardPrefix${lesson.id}_$userSuffix') ?? '';
     _currentPage =
         preferences.getInt('$_pagePrefix${lesson.id}_$userSuffix') ?? lesson.lastPage;
+
+    // Use Hive for fallback or migration
+    final boxName = 'study_workspace_cache';
+    final box = Hive.isBoxOpen(boxName) ? Hive.box(boxName) : await Hive.openBox(boxName);
+    _boardData = box.get('$_boardPrefix${lesson.id}_$userSuffix') ?? _boardData;
+    
+    // Check for cached PDF
+    final appDir = await getApplicationDocumentsDirectory();
+    final pdfFile = File('${appDir.path}/pdf_${lesson.id}.pdf');
+    if (await pdfFile.exists()) {
+      _localPdfPath = pdfFile.path;
+    } else if (lesson.pdfUrl != null) {
+      // Download PDF if not cached
+      try {
+        final response = await http.get(Uri.parse(lesson.pdfUrl!));
+        if (response.statusCode == 200) {
+          await pdfFile.writeAsBytes(response.bodyBytes);
+          _localPdfPath = pdfFile.path;
+        }
+      } catch (_) {}
+    }
 
     final draft = await _fetchCloudDraft();
     if (draft != null) {
@@ -74,6 +100,8 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
         ).listen((draft) async {
           await _mergeTeacherDraft();
           if (!_isDisposed) notifyListeners();
+        }, onError: (error) {
+          print('Error listening to teacher draft: $error');
         });
       }
 
@@ -163,6 +191,11 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       final preferences = await SharedPreferences.getInstance();
       final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
       await preferences.setString('$_boardPrefix${lesson.id}_$userSuffix', value);
+      
+      final boxName = 'study_workspace_cache';
+      final box = Hive.isBoxOpen(boxName) ? Hive.box(boxName) : await Hive.openBox(boxName);
+      await box.put('$_boardPrefix${lesson.id}_$userSuffix', value);
+      
       final currentStudentId = studentId;
       final currentTeacherId = teacherId;
       if (repository != null) {

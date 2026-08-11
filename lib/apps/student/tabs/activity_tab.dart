@@ -46,12 +46,12 @@ class ActivityTab extends StatefulWidget {
   final List<StudentExamItem> examItems;
   final List<StudentAttendanceItem> attendanceItems;
   final List<StudentLeaveItem> leaveItems;
-  final List<StudyLessonSummary> sessionBoards;
+  final List<PublishedSessionBoard> sessionBoards;
   final ValueChanged<StudentHomeworkItem> onSubmitHomework;
   final ValueChanged<StudentExamItem> onStartExam;
   final VoidCallback onCreateLeaveRequest;
   final VoidCallback onScanQr;
-  final ValueChanged<StudyLessonSummary> onOpenBoard;
+  final ValueChanged<PublishedSessionBoard> onOpenBoard;
 
   const ActivityTab({
     super.key,
@@ -170,7 +170,7 @@ class _ActivityTabState extends State<ActivityTab> with SingleTickerProviderStat
                 onCreateLeaveRequest: widget.onCreateLeaveRequest,
                 onScanQr: widget.onScanQr,
               ),
-              _BoardsView(
+              _SessionBoardsSection(
                 isLoading: widget.isLoading,
                 boards: widget.sessionBoards,
                 onOpenBoard: widget.onOpenBoard,
@@ -708,12 +708,12 @@ class _AttendanceView extends StatelessWidget {
   }
 }
 
-class _BoardsView extends StatelessWidget {
+class _SessionBoardsSection extends StatelessWidget {
   final bool isLoading;
-  final List<StudyLessonSummary> boards;
-  final ValueChanged<StudyLessonSummary> onOpenBoard;
+  final List<PublishedSessionBoard> boards;
+  final ValueChanged<PublishedSessionBoard> onOpenBoard;
 
-  const _BoardsView({required this.isLoading, required this.boards, required this.onOpenBoard});
+  const _SessionBoardsSection({required this.isLoading, required this.boards, required this.onOpenBoard});
 
   @override
   Widget build(BuildContext context) {
@@ -764,7 +764,7 @@ class _BoardsView extends StatelessWidget {
                           children: [
                             Text(board.title, style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 4),
-                            Text('${board.pathName}  ·  ${_formatDate(board.publishedAt)}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500)),
+                            Text('${board.groupName}  ·  ${_formatDate(board.sessionDate)}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),

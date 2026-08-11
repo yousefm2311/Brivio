@@ -16,6 +16,7 @@ import '../config/app_config.dart';
 import '../localization/app_locale_controller.dart';
 import '../network/supabase_client_wrapper.dart';
 import '../notifications/push_notification_service.dart';
+import '../services/settings_service.dart';
 
 final getIt = GetIt.instance;
 
@@ -41,6 +42,12 @@ Future<void> setupDependencyInjection({
       anonKey: AppConfig.effectiveSupabaseAnonKey,
     );
     getIt.registerSingleton<SupabaseClientWrapper>(wrapper);
+  }
+
+  if (!getIt.isRegistered<SettingsService>()) {
+    final settingsService = SettingsService();
+    await settingsService.init();
+    getIt.registerSingleton<SettingsService>(settingsService);
   }
 
   if (!getIt.isRegistered<AppLocaleController>()) {

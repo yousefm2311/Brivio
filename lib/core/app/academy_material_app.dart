@@ -3,34 +3,32 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../design_system/theme/app_theme.dart';
-import '../localization/app_locale_controller.dart';
 import '../localization/app_localizations.dart';
 import '../notifications/push_notification_service.dart';
+import '../services/settings_service.dart';
 
 import '../../main.dart';
 
 class AcademyMaterialApp extends StatelessWidget {
   final String titleKey;
   final Widget home;
-  final ThemeMode themeMode;
   final GlobalKey<NavigatorState>? navigatorKey;
 
   const AcademyMaterialApp({
     super.key,
     required this.titleKey,
     required this.home,
-    this.themeMode = ThemeMode.system,
     this.navigatorKey,
   });
 
   @override
   Widget build(BuildContext context) {
-    final localeController = GetIt.instance<AppLocaleController>();
+    final settingsService = GetIt.instance<SettingsService>();
 
     return ListenableBuilder(
-      listenable: localeController,
+      listenable: settingsService,
       builder: (context, _) {
-        final locale = localeController.locale;
+        final locale = settingsService.locale;
         final textDirection = locale.languageCode == 'ar'
             ? TextDirection.rtl
             : TextDirection.ltr;
@@ -41,7 +39,7 @@ class AcademyMaterialApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme(),
           darkTheme: AppTheme.darkTheme(),
-          themeMode: themeMode,
+          themeMode: settingsService.themeMode,
           locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: const [

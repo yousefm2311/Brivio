@@ -148,10 +148,14 @@ class _TeacherSessionBoardScreenState extends State<TeacherSessionBoardScreen> {
             onPressed: _isSaving ? null : _saveBoard,
             icon: const Icon(Icons.save),
           ),
-          FilledButton.icon(
-            onPressed: _isSaving ? null : () => _saveBoard(publish: true),
-            icon: const Icon(Icons.publish),
-            label: Text(context.tr(_isPublished ? 'Published' : 'Publish')),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(minimumSize: Size.zero),
+              onPressed: _isSaving ? null : () => _saveBoard(publish: true),
+              icon: const Icon(Icons.publish, size: 18),
+              label: Text(context.tr(_isPublished ? 'Published' : 'Publish')),
+            ),
           ),
           const SizedBox(width: 8),
         ],

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../domain/models/study_workspace_models.dart';
@@ -15,33 +17,58 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
     required String studentId,
     required String lessonId,
   }) async {
-    final notebook = await _wrapper.client
-        .from('study_notebooks')
-        .select('content')
-        .eq('student_id', studentId)
-        .eq('lesson_id', lessonId)
-        .maybeSingle();
-    final codeDraft = await _wrapper.client
-        .from('study_code_drafts')
-        .select('code')
-        .eq('student_id', studentId)
-        .eq('lesson_id', lessonId)
-        .eq('language', 'python')
-        .maybeSingle();
-    final board = await _wrapper.client
-        .from('study_annotations')
-        .select('geometry')
-        .eq('student_id', studentId)
-        .eq('lesson_id', lessonId)
-        .eq('page_number', 1)
-        .eq('annotation_type', 'freehand')
-        .maybeSingle();
+    try {
+      final notebook = await _wrapper.client
+          .from('study_notebooks')
+          .select('content')
+          .eq('student_id', studentId)
+          .eq('lesson_id', lessonId)
+          .maybeSingle();
+      final codeDraft = await _wrapper.client
+          .from('study_code_drafts')
+          .select('code')
+          .eq('student_id', studentId)
+          .eq('lesson_id', lessonId)
+          .eq('language', 'python')
+          .maybeSingle();
+      final board = await _wrapper.client
+          .from('study_annotations')
+          .select('geometry')
+          .eq('student_id', studentId)
+          .eq('lesson_id', lessonId)
+          .eq('page_number', 1)
+          .eq('annotation_type', 'freehand')
+          .maybeSingle();
 
-    return StudyWorkspaceDraft(
-      notebookContent: notebook?['content'] as String? ?? '',
-      code: codeDraft?['code'] as String? ?? '',
-      boardData: board?['geometry']?['board_data'] as String? ?? '',
-    );
+      final draft = StudyWorkspaceDraft(
+        notebookContent: notebook?['content'] as String? ?? '',
+        code: codeDraft?['code'] as String? ?? '',
+        boardData: board?['geometry']?['board_data'] as String? ?? '',
+      );
+
+      final boxName = 'study_workspace_cache';
+      final box = Hive.isBoxOpen(boxName) ? Hive.box(boxName) : await Hive.openBox(boxName);
+      await box.put('draft_${lessonId}_$studentId', jsonEncode({
+        'notebookContent': draft.notebookContent,
+        'code': draft.code,
+        'boardData': draft.boardData,
+      }));
+
+      return draft;
+    } catch (_) {
+      final boxName = 'study_workspace_cache';
+      final box = Hive.isBoxOpen(boxName) ? Hive.box(boxName) : await Hive.openBox(boxName);
+      final cached = box.get('draft_${lessonId}_$studentId');
+      if (cached != null) {
+        final data = jsonDecode(cached) as Map<String, dynamic>;
+        return StudyWorkspaceDraft(
+          notebookContent: data['notebookContent'] ?? '',
+          code: data['code'] ?? '',
+          boardData: data['boardData'] ?? '',
+        );
+      }
+      return const StudyWorkspaceDraft(notebookContent: '', code: '', boardData: '');
+    }
   }
 
   @override
@@ -77,33 +104,37 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
     required String studentId,
     required String lessonId,
   }) {
-    final controller = StreamController<StudyWorkspaceDraft>();
-    final channel = _wrapper.client.channel('public:teacher_study_annotations:lesson_$lessonId');
-    
-    channel.onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'teacher_study_annotations',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'lesson_id',
-        value: lessonId,
-      ),
-      callback: (payload) async {
-        final draft = await fetchTeacherDraftForStudent(
-          studentId: studentId,
-          lessonId: lessonId,
-        );
-        if (!controller.isClosed) {
-          controller.add(draft);
-        }
-      },
-    ).subscribe();
+    late final StreamController<StudyWorkspaceDraft> controller;
+    RealtimeChannel? channel;
 
-    controller.onCancel = () {
-      channel.unsubscribe();
-      controller.close();
-    };
+    controller = StreamController<StudyWorkspaceDraft>(
+      onListen: () {
+        channel = _wrapper.client.channel('public:teacher_study_annotations:lesson_$lessonId');
+        channel!.onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'teacher_study_annotations',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'lesson_id',
+            value: lessonId,
+          ),
+          callback: (payload) async {
+            final draft = await fetchTeacherDraftForStudent(
+              studentId: studentId,
+              lessonId: lessonId,
+            );
+            if (!controller.isClosed) {
+              controller.add(draft);
+            }
+          },
+        ).subscribe();
+      },
+      onCancel: () {
+        channel?.unsubscribe();
+        controller.close();
+      },
+    );
 
     return controller.stream;
   }
@@ -216,57 +247,74 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
     required String studentId,
     required String lessonId,
   }) async {
-    final bookmarks = await _wrapper.client
-        .from('study_bookmarks')
-        .select('id, page_number, title, note, created_at')
-        .eq('student_id', studentId)
-        .eq('lesson_id', lessonId)
-        .order('page_number');
+    try {
+      final bookmarks = await _wrapper.client
+          .from('study_bookmarks')
+          .select('id, page_number, title, note, created_at')
+          .eq('student_id', studentId)
+          .eq('lesson_id', lessonId)
+          .order('page_number');
 
-    final annotations = await _wrapper.client
-        .from('study_annotations')
-        .select('id, page_number, annotation_type, content, created_at')
-        .eq('student_id', studentId)
-        .eq('lesson_id', lessonId)
-        .inFilter('annotation_type', ['highlight', 'sticky_note'])
-        .order('page_number');
+      final annotations = await _wrapper.client
+          .from('study_annotations')
+          .select('id, page_number, annotation_type, content, created_at')
+          .eq('student_id', studentId)
+          .eq('lesson_id', lessonId)
+          .inFilter('annotation_type', ['highlight', 'sticky_note'])
+          .order('page_number');
 
-    final drawings = await _wrapper.client
-        .from('study_pdf_drawings')
-        .select('id, page_number, strokes, updated_at')
-        .eq('student_id', studentId)
-        .eq('lesson_id', lessonId)
-        .order('page_number');
+      final drawings = await _wrapper.client
+          .from('study_pdf_drawings')
+          .select('id, page_number, strokes, updated_at')
+          .eq('student_id', studentId)
+          .eq('lesson_id', lessonId)
+          .order('page_number');
 
-    return [
-      for (final row in bookmarks as List)
-        {
-          'id': (row as Map)['id'],
-          'page': row['page_number'],
-          'type': 'bookmark',
-          'text': row['note'] ?? row['title'] ?? 'Bookmarked page',
-          'created_at': row['created_at'],
-        },
-      for (final row in annotations as List)
-        {
-          'id': (row as Map)['id'],
-          'page': row['page_number'],
-          'type': row['annotation_type'] == 'sticky_note'
-              ? 'note'
-              : 'highlight',
-          'text': row['content'] ?? '',
-          'created_at': row['created_at'],
-        },
-      for (final row in drawings as List)
-        {
-          'id': (row as Map)['id'],
-          'page': row['page_number'],
-          'type': 'freehand',
-          'text': 'Freehand drawing',
-          'strokes': row['strokes'] ?? const [],
-          'created_at': row['updated_at'],
-        },
-    ];
+      final result = [
+        for (final row in bookmarks as List)
+          {
+            'id': (row as Map)['id'],
+            'page': row['page_number'],
+            'type': 'bookmark',
+            'text': row['note'] ?? row['title'] ?? 'Bookmarked page',
+            'created_at': row['created_at'],
+          },
+        for (final row in annotations as List)
+          {
+            'id': (row as Map)['id'],
+            'page': row['page_number'],
+            'type': row['annotation_type'] == 'sticky_note'
+                ? 'note'
+                : 'highlight',
+            'text': row['content'] ?? '',
+            'created_at': row['created_at'],
+          },
+        for (final row in drawings as List)
+          {
+            'id': (row as Map)['id'],
+            'page': row['page_number'],
+            'type': 'freehand',
+            'text': 'Freehand drawing',
+            'strokes': row['strokes'] ?? const [],
+            'created_at': row['updated_at'],
+          },
+      ];
+
+      final boxName = 'study_workspace_cache';
+      final box = Hive.isBoxOpen(boxName) ? Hive.box(boxName) : await Hive.openBox(boxName);
+      await box.put('pdf_annotations_${lessonId}_$studentId', jsonEncode(result));
+
+      return result;
+    } catch (_) {
+      final boxName = 'study_workspace_cache';
+      final box = Hive.isBoxOpen(boxName) ? Hive.box(boxName) : await Hive.openBox(boxName);
+      final cached = box.get('pdf_annotations_${lessonId}_$studentId');
+      if (cached != null) {
+        final List<dynamic> data = jsonDecode(cached);
+        return data.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+      return [];
+    }
   }
 
   @override

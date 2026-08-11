@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:hive/hive.dart';
+import 'package:path_provider/path_provider.dart';
+import 'core/services/notification_service.dart';
+
 import 'apps/admin/admin_dashboard.dart';
 import 'apps/parent/parent_dashboard.dart';
 import 'apps/staff/staff_dashboard.dart';
@@ -19,6 +24,13 @@ final GlobalKey<NavigatorState> globalNavigatorKey =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
+    await Firebase.initializeApp();
+    await NotificationService().init();
+    
+    final appDir = await getApplicationDocumentsDirectory();
+    Hive.init(appDir.path);
+    await Hive.openBox('study_workspace_cache');
+    
     await setupDependencyInjection().timeout(const Duration(seconds: 20));
     runApp(const MainAppSelector());
   } catch (error, stackTrace) {
