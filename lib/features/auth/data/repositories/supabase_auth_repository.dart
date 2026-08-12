@@ -94,6 +94,40 @@ class SupabaseAuthRepository implements IAuthRepository {
   }
 
   @override
+  Future<UserProfile> signInWithMagicQr({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      final response = await _client.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: supabase.OtpType.magiclink,
+      );
+
+      final user = response.user;
+      if (user == null) {
+        throw const AuthFailure(
+          message: 'Invalid or expired QR code.',
+        );
+      }
+
+      final profile = await getCurrentUser();
+      if (profile == null) {
+        throw const AuthFailure(
+          message: 'User profile not found after sign in.',
+        );
+      }
+
+      return profile;
+    } on supabase.AuthException catch (e) {
+      throw AuthFailure(message: e.message);
+    } catch (e) {
+      throw UnexpectedFailure(message: 'QR Sign in failed: ${e.toString()}');
+    }
+  }
+
+  @override
   Future<UserProfile> signUpWithEmail({
     required String email,
     required String password,

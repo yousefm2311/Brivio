@@ -27,6 +27,14 @@ class MockFailingAuthRepository implements IAuthRepository {
   }
 
   @override
+  Future<UserProfile> signInWithMagicQr({
+    required String email,
+    required String token,
+  }) async {
+    throw failureToThrow;
+  }
+
+  @override
   Future<UserProfile> signUpWithEmail({
     required String email,
     required String password,
@@ -88,6 +96,12 @@ class MockSuspendedAuthRepository implements IAuthRepository {
   Future<UserProfile> signInWithEmail({
     required String email,
     required String password,
+  }) async => _user;
+
+  @override
+  Future<UserProfile> signInWithMagicQr({
+    required String email,
+    required String token,
   }) async => _user;
 
   @override

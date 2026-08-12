@@ -137,6 +137,26 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> signInWithMagicQr({required String email, required String token}) async {
+    _state = AuthState.loading();
+    notifyListeners();
+
+    try {
+      await _authRepository.signInWithMagicQr(
+        email: email.trim(),
+        token: token,
+      );
+      final bootstrap = await _authRepository.fetchUserBootstrap();
+      _state = AuthState.authenticated(bootstrap);
+      unawaited(pushNotificationService?.syncCurrentToken());
+    } on Failure catch (f) {
+      _state = AuthState.error(f);
+    } catch (e) {
+      _state = AuthState.error(UnexpectedFailure(message: e.toString()));
+    }
+    notifyListeners();
+  }
+
   Future<void> signUp({
     required String email,
     required String password,

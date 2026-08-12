@@ -129,19 +129,19 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
             FadeInSlide(
               delay: const Duration(milliseconds: 100),
               child: _SettingsSection(
-                title: 'Appearance',
+                title: context.tr('Appearance'),
                 icon: Icons.palette_outlined,
                 accentColor: Colors.purple,
                 children: [
                   _SettingsTile(
-                    title: 'Theme Mode',
-                    subtitle: 'Choose between Light, Dark, or System theme.',
+                    title: context.tr('Theme Mode'),
+                    subtitle: context.tr('Choose between Light, Dark, or System theme.'),
                     icon: Icons.brightness_6_outlined,
                     trailing: SegmentedButton<ThemeMode>(
-                      segments: const [
-                        ButtonSegment(value: ThemeMode.system, label: Text('Auto')),
-                        ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                        ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                      segments: [
+                        ButtonSegment(value: ThemeMode.system, label: Text(context.tr('Auto'))),
+                        ButtonSegment(value: ThemeMode.light, label: Text(context.tr('Light'))),
+                        ButtonSegment(value: ThemeMode.dark, label: Text(context.tr('Dark'))),
                       ],
                       selected: {settingsService.themeMode},
                       onSelectionChanged: (selection) => settingsService.updateThemeMode(selection.first),
@@ -151,8 +151,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     ),
                   ),
                   _SettingsTile(
-                    title: 'Animation Quality',
-                    subtitle: 'Use 120fps fluid animations',
+                    title: context.tr('Animation Quality'),
+                    subtitle: context.tr('Use 120fps fluid animations'),
                     icon: Icons.animation,
                     trailing: Switch.adaptive(
                       value: _animationQuality,
@@ -167,7 +167,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
             FadeInSlide(
               delay: const Duration(milliseconds: 200),
               child: _SettingsSection(
-                title: 'Localization',
+                title: context.tr('Localization'),
                 icon: Icons.language,
                 accentColor: Colors.blue,
                 children: [
@@ -188,8 +188,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     ),
                   ),
                   _SettingsTile(
-                    title: 'Time Zone',
-                    subtitle: 'Automatic ($_timeZone)',
+                    title: context.tr('Time Zone'),
+                    subtitle: '${context.tr('Automatic')} ($_timeZone)',
                     icon: Icons.access_time,
                     trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                     onTap: () {
@@ -232,7 +232,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
             FadeInSlide(
               delay: const Duration(milliseconds: 300),
               child: _SettingsSection(
-                title: 'Notifications & Alerts',
+                title: context.tr('Notifications & Alerts'),
                 icon: Icons.notifications_active_outlined,
                 accentColor: Colors.orange,
                 children: [
@@ -254,8 +254,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     ),
                   ),
                   _SettingsTile(
-                    title: 'Email Digest',
-                    subtitle: 'Receive daily summary of activities',
+                    title: context.tr('Email Digest'),
+                    subtitle: context.tr('Receive daily summary of activities'),
                     icon: Icons.email_outlined,
                     trailing: Switch.adaptive(
                       value: _emailDigest,
@@ -270,13 +270,13 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
             FadeInSlide(
               delay: const Duration(milliseconds: 400),
               child: _SettingsSection(
-                title: 'Security & Privacy',
+                title: context.tr('Security & Privacy'),
                 icon: Icons.security,
                 accentColor: AppColors.success,
                 children: [
                   _SettingsTile(
-                    title: 'Two-Factor Authentication',
-                    subtitle: 'Require 2FA for all admin logins',
+                    title: context.tr('Two-Factor Authentication'),
+                    subtitle: context.tr('Require 2FA for all admin logins'),
                     icon: Icons.vpn_key_outlined,
                     trailing: Switch.adaptive(
                       value: _twoFactorAuth,
@@ -285,7 +285,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     ),
                   ),
                   _SettingsTile(
-                    title: 'Data Collection',
+                    title: context.tr('Data Collection'),
                     titleTrailing: GestureDetector(
                       onTap: () {
                         showDialog(
@@ -306,18 +306,18 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                                       const Icon(Icons.info_outline, size: 48, color: Colors.blue),
                                       const SizedBox(height: 16),
                                       Text(
-                                        'Data Collection',
+                                        context.tr('Data Collection'),
                                         style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                                       ),
                                       const SizedBox(height: 12),
-                                      const Text(
-                                        'Data collection helps us identify crashes and UI usage anonymously to improve the app. No personal data is collected.',
+                                      Text(
+                                        context.tr('Send anonymous usage data to improve the app'),
                                         textAlign: TextAlign.center,
                                       ),
                                       const SizedBox(height: 24),
                                       ElevatedButton(
                                         onPressed: () => Navigator.of(context).pop(),
-                                        child: const Text('Got it'),
+                                        child: Text(context.tr('Got it') == 'Got it' ? 'Got it' : 'موافق'),
                                       ),
                                     ],
                                   ),
@@ -329,7 +329,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                       },
                       child: const Icon(Icons.info_outline, size: 16, color: Colors.grey),
                     ),
-                    subtitle: 'Send anonymous usage data to improve the app',
+                    subtitle: context.tr('Send anonymous usage data to improve the app'),
                     icon: Icons.data_usage,
                     trailing: Switch.adaptive(
                       value: _dataCollection,
@@ -338,8 +338,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     ),
                   ),
                   _SettingsTile(
-                    title: 'Biometric Login',
-                    subtitle: 'Use FaceID/TouchID for quick access',
+                    title: context.tr('Biometric Login'),
+                    subtitle: context.tr('Use FaceID/TouchID for quick access'),
                     icon: Icons.fingerprint,
                     trailing: Switch.adaptive(
                       value: _biometricLogin,

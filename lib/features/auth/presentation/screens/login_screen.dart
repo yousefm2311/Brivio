@@ -116,12 +116,31 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
     if (result == null || !mounted) return;
 
-    setState(() {
-      _emailController.text = result.email;
-      _pendingQrToken = result.token;
-      _qrMessage =
-          'QR code verified for ${result.fullName}. Enter your account password to sign in.';
-    });
+    if (result.isMagicQr) {
+      // Auto-login flow
+      setState(() {
+        _qrMessage = 'Logging in automatically for ${result.email}...';
+      });
+      await widget.viewModel.signInWithMagicQr(
+        email: result.email,
+        token: result.token,
+      );
+      if (widget.viewModel.state.status == AuthStatus.authenticated) {
+        widget.onLoginSuccess?.call();
+      } else {
+        setState(() {
+          _qrMessage = null; // Error will be shown via AuthStatus.error
+        });
+      }
+    } else {
+      // Fallback manual password flow
+      setState(() {
+        _emailController.text = result.email;
+        _pendingQrToken = result.token;
+        _qrMessage =
+            'QR code verified for ${result.fullName}. Enter your account password to sign in.';
+      });
+    }
   }
 
   @override
@@ -426,12 +445,14 @@ class _QrLoginResult {
   final String email;
   final String fullName;
   final String role;
+  final bool isMagicQr;
 
   const _QrLoginResult({
     required this.token,
     required this.email,
     required this.fullName,
     required this.role,
+    this.isMagicQr = false,
   });
 }
 
@@ -461,6 +482,28 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
         .where((raw) => raw.trim().isNotEmpty)
         .firstOrNull;
     if (value == null) return;
+
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map && decoded['type'] == 'magic_qr') {
+        setState(() {
+          _isResolving = true;
+          _errorMessage = null;
+        });
+        if (!mounted) return;
+        Navigator.pop(
+          context,
+          _QrLoginResult(
+            token: decoded['token']?.toString() ?? '',
+            email: decoded['email']?.toString() ?? '',
+            fullName: 'Account',
+            role: '',
+            isMagicQr: true,
+          ),
+        );
+        return;
+      }
+    } catch (_) {}
 
     final token = _extractAccountQrToken(value);
     if (token == null) {

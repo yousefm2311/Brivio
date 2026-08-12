@@ -9,6 +9,12 @@ abstract class IAuthRepository {
     required String email,
     required String password,
   });
+
+  Future<UserProfile> signInWithMagicQr({
+    required String email,
+    required String token,
+  });
+
   Future<UserProfile> signUpWithEmail({
     required String email,
     required String password,

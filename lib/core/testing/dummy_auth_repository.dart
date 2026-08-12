@@ -68,6 +68,23 @@ class DummyAuthRepository implements IAuthRepository {
   }
 
   @override
+  Future<UserProfile> signInWithMagicQr({
+    required String email,
+    required String token,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    _currentUser = UserProfile(
+      id: 'dummy-student-123',
+      email: email,
+      fullName: 'Student User',
+      role: UserRole.student,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    return _currentUser!;
+  }
+
+  @override
   Future<UserProfile> signUpWithEmail({
     required String email,
     required String password,
