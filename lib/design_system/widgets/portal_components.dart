@@ -75,16 +75,16 @@ class PortalScaffold extends StatelessWidget {
           ? null
           : AppBar(
               centerTitle: true,
-              backgroundColor: (isDark ? AppColors.darkSurface : AppColors.lightSurface)
-                  .withValues(alpha: 0.9),
+              backgroundColor:
+                  (isDark ? AppColors.darkSurface : AppColors.lightSurface)
+                      .withValues(alpha: 0.9),
               elevation: 0,
               scrolledUnderElevation: 0.5,
               title: Text(
                 context.l10n.t(destinations[selectedIndex].label),
-                style: AppTypography.titleMedium(textPrimary).copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 17,
-                ),
+                style: AppTypography.titleMedium(
+                  textPrimary,
+                ).copyWith(fontWeight: FontWeight.w700, fontSize: 17),
               ),
               actions: [
                 if (onRefresh != null)
@@ -175,10 +175,9 @@ class _PortalNavigation extends StatelessWidget {
                           context.l10n.t(title),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTypography.titleMedium(textPrimary).copyWith(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
+                          style: AppTypography.titleMedium(
+                            textPrimary,
+                          ).copyWith(fontWeight: FontWeight.w700, fontSize: 16),
                         ),
                         Text(
                           context.l10n.t(subtitle),
@@ -206,7 +205,9 @@ class _PortalNavigation extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 2),
                     child: Material(
-                      color: Colors.transparent,
+                      color: selected
+                          ? accentColor.withValues(alpha: .14)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                       child: ListTile(
                         selected: selected,
@@ -214,7 +215,6 @@ class _PortalNavigation extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        selectedTileColor: accentColor.withValues(alpha: .14),
                         leading: Icon(
                           item.icon,
                           size: 20,
@@ -224,12 +224,14 @@ class _PortalNavigation extends StatelessWidget {
                           context.l10n.t(item.label),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTypography.bodyMedium(
-                            selected ? accentColor : textPrimary,
-                          ).copyWith(
-                            fontWeight:
-                                selected ? FontWeight.w700 : FontWeight.w500,
-                          ),
+                          style:
+                              AppTypography.bodyMedium(
+                                selected ? accentColor : textPrimary,
+                              ).copyWith(
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
                         ),
                         onTap: () => onDestinationSelected(index),
                       ),
@@ -261,9 +263,9 @@ class _PortalNavigation extends StatelessWidget {
                     icon: const Icon(Icons.logout_rounded, size: 18),
                     label: Text(
                       context.tr('sign_out'),
-                      style: AppTypography.labelLarge(textPrimary).copyWith(
-                        fontSize: 13,
-                      ),
+                      style: AppTypography.labelLarge(
+                        textPrimary,
+                      ).copyWith(fontSize: 13),
                     ),
                   ),
                 ),
@@ -452,8 +454,12 @@ class _PortalMetricCardState extends State<PortalMetricCard>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
     final cardBg = isDark ? AppColors.darkCard : AppColors.lightCard;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
@@ -500,7 +506,11 @@ class _PortalMetricCardState extends State<PortalMetricCard>
                       borderRadius: BorderRadius.circular(11),
                     ),
                     alignment: Alignment.center,
-                    child: Icon(widget.icon, color: widget.accentColor, size: 20),
+                    child: Icon(
+                      widget.icon,
+                      color: widget.accentColor,
+                      size: 20,
+                    ),
                   ),
                   const Spacer(),
                   if (widget.onTap != null)
@@ -606,10 +616,9 @@ class PortalSectionTitle extends StatelessWidget {
       children: [
         Text(
           context.l10n.t(title),
-          style: AppTypography.titleLarge(textPrimary).copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
+          style: AppTypography.titleLarge(
+            textPrimary,
+          ).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.3),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 3),
@@ -639,7 +648,10 @@ class PortalErrorBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.errorSubtle,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.25), width: 0.8),
+        border: Border.all(
+          color: AppColors.error.withValues(alpha: 0.25),
+          width: 0.8,
+        ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -651,7 +663,11 @@ class PortalErrorBanner extends StatelessWidget {
               color: AppColors.errorSubtle,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+            child: const Icon(
+              Icons.error_outline_rounded,
+              color: AppColors.error,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -919,9 +935,9 @@ class PortalStateView extends StatelessWidget {
                 Text(
                   context.l10n.t(emptyTitle),
                   textAlign: TextAlign.center,
-                  style: AppTypography.titleMedium(textPrimary).copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: AppTypography.titleMedium(
+                    textPrimary,
+                  ).copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -1004,9 +1020,9 @@ class PortalListCard extends StatelessWidget {
                         context.l10n.t(title),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTypography.titleSmall(textPrimary).copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: AppTypography.titleSmall(
+                          textPrimary,
+                        ).copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -1044,17 +1060,17 @@ class PortalStatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized = status.toLowerCase();
     final (Color color, IconData icon) = switch (normalized) {
-      'active'    => (AppColors.success, Icons.check_circle_rounded),
-      'paid'      => (AppColors.success, Icons.check_circle_rounded),
+      'active' => (AppColors.success, Icons.check_circle_rounded),
+      'paid' => (AppColors.success, Icons.check_circle_rounded),
       'published' => (AppColors.success, Icons.check_circle_rounded),
       'submitted' => (AppColors.success, Icons.upload_rounded),
-      'graded'    => (AppColors.primary, Icons.grade_rounded),
-      'pending'   => (AppColors.warning, Icons.schedule_rounded),
-      'archived'  => (AppColors.darkTextSecondary, Icons.archive_rounded),
+      'graded' => (AppColors.primary, Icons.grade_rounded),
+      'pending' => (AppColors.warning, Icons.schedule_rounded),
+      'archived' => (AppColors.darkTextSecondary, Icons.archive_rounded),
       'suspended' => (AppColors.error, Icons.block_rounded),
-      'rejected'  => (AppColors.error, Icons.cancel_rounded),
-      'failed'    => (AppColors.error, Icons.close_rounded),
-      _           => (AppColors.primary, Icons.info_rounded),
+      'rejected' => (AppColors.error, Icons.cancel_rounded),
+      'failed' => (AppColors.error, Icons.close_rounded),
+      _ => (AppColors.primary, Icons.info_rounded),
     };
 
     return Container(
@@ -1083,4 +1099,3 @@ class PortalStatusChip extends StatelessWidget {
     );
   }
 }
-

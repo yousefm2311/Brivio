@@ -17,22 +17,27 @@ class StudentSubmissionsScreen extends StatefulWidget {
   });
 
   @override
-  State<StudentSubmissionsScreen> createState() => _StudentSubmissionsScreenState();
+  State<StudentSubmissionsScreen> createState() =>
+      _StudentSubmissionsScreenState();
 }
 
 class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _allAttempts = [];
   Map<String, List<Map<String, dynamic>>> _answersByAttempt = {};
-  
+
   late TextEditingController _scoreCtrl;
   late TextEditingController _feedbackCtrl;
 
   @override
   void initState() {
     super.initState();
-    _scoreCtrl = TextEditingController(text: widget.initialSubmission['score']?.toString() ?? '95');
-    _feedbackCtrl = TextEditingController(text: 'Excellent solution!');
+    _scoreCtrl = TextEditingController(
+      text: widget.initialSubmission['score']?.toString() ?? '0',
+    );
+    _feedbackCtrl = TextEditingController(
+      text: widget.initialSubmission['teacher_feedback']?.toString() ?? '',
+    );
     _fetchAllAttemptsAndAnswers();
   }
 
@@ -48,7 +53,7 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
       final isExam = widget.initialSubmission['assessment_type'] == 'exam';
       final table = isExam ? 'exam_attempts' : 'homework_submissions';
       final foreignKeyAssess = isExam ? 'exam_id' : 'homework_id';
-      
+
       final assessmentId = widget.initialSubmission['assessment_id'];
       final studentId = widget.initialSubmission['student_id'];
 
@@ -58,16 +63,16 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
           .select('*')
           .eq(foreignKeyAssess, assessmentId)
           .eq('student_id', studentId)
-          .order('created_at', ascending: true);
-          
+          .order(isExam ? 'attempt_number' : 'created_at', ascending: true);
+
       final attemptsList = List<Map<String, dynamic>>.from(attemptsRes);
-      
+
       // Fetch answers for all these attempts
-      final ansTable = isExam ? 'attempt_answers' : 'homework_answers';
+      final ansTable = isExam ? 'exam_answers' : 'homework_answers';
       final ansForeignKey = isExam ? 'attempt_id' : 'submission_id';
-      
+
       final attemptIds = attemptsList.map((a) => a['id']).toList();
-      
+
       if (attemptIds.isEmpty) {
         if (mounted) {
           setState(() {
@@ -76,16 +81,16 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
         }
         return;
       }
-      
+
       // We also need question options for the questions to see correct answers
       // We will join questions and question_options
       final answersRes = await Supabase.instance.client
           .from(ansTable)
           .select('*, questions(*, question_options(*)), question_options(*)')
           .inFilter(ansForeignKey, attemptIds);
-          
+
       final allAnswers = List<Map<String, dynamic>>.from(answersRes);
-      
+
       final Map<String, List<Map<String, dynamic>>> groupedAnswers = {};
       for (var ans in allAnswers) {
         final aId = ans[ansForeignKey].toString();
@@ -97,12 +102,23 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
         setState(() {
           _allAttempts = attemptsList;
           _answersByAttempt = groupedAnswers;
-          
-          // Update score field based on the most recent attempt if not manually edited
+
           if (_allAttempts.isNotEmpty) {
-             _scoreCtrl.text = _allAttempts.last['score']?.toString() ?? '0';
+            final openedSubmissionId = widget.initialSubmission['id']
+                ?.toString();
+            final openedAttempt = _allAttempts
+                .cast<Map<String, dynamic>>()
+                .firstWhere(
+                  (attempt) => attempt['id']?.toString() == openedSubmissionId,
+                  orElse: () => _allAttempts.last,
+                );
+            _scoreCtrl.text = openedAttempt['score']?.toString() ?? '0';
+            _feedbackCtrl.text =
+                openedAttempt['teacher_feedback']?.toString() ??
+                widget.initialSubmission['teacher_feedback']?.toString() ??
+                '';
           }
-          
+
           _isLoading = false;
         });
       }
@@ -116,9 +132,16 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
     }
   }
 
-  void _manualOverrideGrade(String attemptId, String questionId, bool currentCorrect, num currentPoints) {
+  void _manualOverrideGrade(
+    String attemptId,
+    String questionId,
+    bool currentCorrect,
+    num currentPoints,
+  ) {
     bool isCorrect = currentCorrect;
-    TextEditingController pointsCtrl = TextEditingController(text: currentPoints.toString());
+    TextEditingController pointsCtrl = TextEditingController(
+      text: currentPoints.toString(),
+    );
 
     showDialog(
       context: context,
@@ -141,7 +164,9 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                   ),
                   TextField(
                     controller: pointsCtrl,
-                    decoration: InputDecoration(labelText: context.tr('Points Awarded')),
+                    decoration: InputDecoration(
+                      labelText: context.tr('Points Awarded'),
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                 ],
@@ -154,7 +179,7 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                 ElevatedButton(
                   onPressed: () async {
                     Navigator.pop(dialogCtx);
-                    
+
                     try {
                       final newPoints = double.tryParse(pointsCtrl.text) ?? 0.0;
                       final res = await Supabase.instance.client.rpc(
@@ -166,13 +191,20 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                           'p_points': newPoints,
                         },
                       );
-                      
+
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(context.tr('Override applied successfully! New Score: ') + res['new_score'].toString()),
-                          backgroundColor: Colors.green,
-                        ));
-                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              context.tr(
+                                    'Override applied successfully! New Score: ',
+                                  ) +
+                                  res['new_score'].toString(),
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+
                         setState(() {
                           _isLoading = true;
                         });
@@ -180,10 +212,15 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                       }
                     } catch (e) {
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(context.tr('Failed to override grade: ') + e.toString()),
-                          backgroundColor: Colors.red,
-                        ));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              context.tr('Failed to override grade: ') +
+                                  e.toString(),
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
                       }
                     }
                   },
@@ -197,14 +234,21 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
     );
   }
 
-  Widget _buildAnswersList(List<Map<String, dynamic>> answers, Color textColor, String attemptId) {
+  Widget _buildAnswersList(
+    List<Map<String, dynamic>> answers,
+    Color textColor,
+    String attemptId,
+  ) {
     if (answers.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Text(context.tr('No answers provided.'), style: TextStyle(color: textColor, fontStyle: FontStyle.italic)),
+        child: Text(
+          context.tr('No answers provided.'),
+          style: TextStyle(color: textColor, fontStyle: FontStyle.italic),
+        ),
       );
     }
-    
+
     final isExam = widget.initialSubmission['assessment_type'] == 'exam';
 
     return ListView.builder(
@@ -215,20 +259,27 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
         final ans = answers[idx];
         final q = ans['questions'] ?? {};
         final opt = ans['question_options'];
-        
+
         final allOptions = q['question_options'] as List<dynamic>? ?? [];
-        final correctOption = allOptions.cast<Map<String,dynamic>>().firstWhere((o) => o['is_correct'] == true, orElse: () => {});
-        
+        final correctOption = allOptions
+            .cast<Map<String, dynamic>>()
+            .firstWhere((o) => o['is_correct'] == true, orElse: () => {});
+
         final isCorrect = ans['is_correct'] ?? false;
         final pointsAwarded = ans['points_awarded'] ?? 0;
-        
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isCorrect ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+            color: isCorrect
+                ? Colors.green.withValues(alpha: 0.1)
+                : Colors.red.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isCorrect ? Colors.green : Colors.red, width: 1),
+            border: Border.all(
+              color: isCorrect ? Colors.green : Colors.red,
+              width: 1,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,28 +288,57 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Text('Q: ${q['prompt'] ?? 'Unknown'}', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'Q: ${q['prompt'] ?? 'Unknown'}',
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                   if (isExam)
                     ElevatedButton.icon(
                       icon: const Icon(Icons.edit, size: 16),
                       label: Text(context.tr('Override')),
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         textStyle: const TextStyle(fontSize: 12),
                       ),
                       onPressed: () {
-                        _manualOverrideGrade(attemptId, q['id'], isCorrect, pointsAwarded);
+                        final questionId = (q['id'] ?? ans['question_id'])
+                            ?.toString();
+                        if (questionId == null) return;
+                        _manualOverrideGrade(
+                          attemptId,
+                          questionId,
+                          isCorrect,
+                          pointsAwarded,
+                        );
                       },
                     ),
                 ],
               ),
               const SizedBox(height: 8),
-              Text('${context.tr('Student Answer')}: ${opt != null ? opt['text'] : (ans['text_answer'] ?? 'No Answer')}', style: TextStyle(color: textColor)),
+              Text(
+                '${context.tr('Student Answer')}: ${opt != null ? opt['text'] : (ans['text_answer'] ?? 'No Answer')}',
+                style: TextStyle(color: textColor),
+              ),
               const SizedBox(height: 4),
-              Text('${context.tr('Correct Answer')}: ${correctOption['text'] ?? 'N/A'}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+              Text(
+                '${context.tr('Correct Answer')}: ${correctOption['text'] ?? 'N/A'}',
+                style: const TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('${context.tr('Points')}: $pointsAwarded', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+              Text(
+                '${context.tr('Points')}: $pointsAwarded',
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+              ),
             ],
           ),
         );
@@ -269,8 +349,12 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final subtitleColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return Scaffold(
       appBar: AppBar(
@@ -293,9 +377,14 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                       style: AppTypography.displaySmall(textColor),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     if (_allAttempts.length > 1) ...[
-                      Text(context.tr('Student Attempts History'), style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold)),
+                      Text(
+                        context.tr('Student Attempts History'),
+                        style: AppTypography.titleMedium(
+                          textColor,
+                        ).copyWith(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 8),
                       DefaultTabController(
                         length: _allAttempts.length,
@@ -307,8 +396,12 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                               labelColor: AppColors.primary,
                               unselectedLabelColor: subtitleColor,
                               tabs: List.generate(_allAttempts.length, (idx) {
-                                final attemptNum = _allAttempts[idx]['attempt_number'] ?? (idx + 1);
-                                return Tab(text: '${context.tr("Attempt")} $attemptNum');
+                                final attemptNum =
+                                    _allAttempts[idx]['attempt_number'] ??
+                                    (idx + 1);
+                                return Tab(
+                                  text: '${context.tr("Attempt")} $attemptNum',
+                                );
                               }),
                             ),
                             const SizedBox(height: 16),
@@ -319,7 +412,11 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                                   final aId = attempt['id'].toString();
                                   final answers = _answersByAttempt[aId] ?? [];
                                   return SingleChildScrollView(
-                                    child: _buildAnswersList(answers, textColor, aId),
+                                    child: _buildAnswersList(
+                                      answers,
+                                      textColor,
+                                      aId,
+                                    ),
                                   );
                                 }).toList(),
                               ),
@@ -328,18 +425,31 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                         ),
                       ),
                     ] else if (_allAttempts.isNotEmpty) ...[
-                      Text(context.tr('Student Answers:'), style: AppTypography.titleMedium(textColor).copyWith(fontWeight: FontWeight.bold)),
+                      Text(
+                        context.tr('Student Answers:'),
+                        style: AppTypography.titleMedium(
+                          textColor,
+                        ).copyWith(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 8),
-                      _buildAnswersList(_answersByAttempt[_allAttempts.first['id'].toString()] ?? [], textColor, _allAttempts.first['id'].toString()),
+                      _buildAnswersList(
+                        _answersByAttempt[_allAttempts.first['id']
+                                .toString()] ??
+                            [],
+                        textColor,
+                        _allAttempts.first['id'].toString(),
+                      ),
                     ],
-                    
+
                     const SizedBox(height: 24),
                     TextField(
                       controller: _scoreCtrl,
                       style: TextStyle(color: textColor),
                       decoration: InputDecoration(
                         labelText: context.tr('Final Score'),
-                        helperText: context.tr('Auto-calculated but can be manually changed.'),
+                        helperText: context.tr(
+                          'Auto-calculated but can be manually changed.',
+                        ),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -347,7 +457,9 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                     TextField(
                       controller: _feedbackCtrl,
                       style: TextStyle(color: textColor),
-                      decoration: InputDecoration(labelText: context.tr('Teacher Feedback')),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Teacher Feedback'),
+                      ),
                       maxLines: 3,
                     ),
                     const SizedBox(height: 24),
@@ -356,29 +468,45 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                       children: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: Text(context.tr('Cancel'), style: TextStyle(color: textColor)),
+                          child: Text(
+                            context.tr('Cancel'),
+                            style: TextStyle(color: textColor),
+                          ),
                         ),
                         const SizedBox(width: 16),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
                           ),
                           onPressed: () async {
                             final nav = Navigator.of(context);
-                            final score = double.tryParse(_scoreCtrl.text) ?? 90.0;
+                            final score =
+                                double.tryParse(_scoreCtrl.text) ?? 0.0;
                             try {
-                              final isExam = widget.initialSubmission['assessment_type'] == 'exam';
-                              final rpcName = isExam ? 'grade_exam_attempt_with_feedback' : 'grade_homework_submission';
-                              final paramIdName = isExam ? 'p_attempt_id' : 'p_submission_id';
-                              
+                              final isExam =
+                                  widget.initialSubmission['assessment_type'] ==
+                                  'exam';
+                              final rpcName = isExam
+                                  ? 'grade_exam_attempt_with_feedback'
+                                  : 'grade_homework_submission';
+                              final paramIdName = isExam
+                                  ? 'p_attempt_id'
+                                  : 'p_submission_id';
+
                               await Supabase.instance.client.rpc(
                                 rpcName,
                                 params: {
                                   paramIdName: widget.initialSubmission['id'],
                                   'p_score': score,
-                                  'p_feedback': _feedbackCtrl.text.trim().isEmpty ? null : _feedbackCtrl.text.trim(),
+                                  'p_feedback':
+                                      _feedbackCtrl.text.trim().isEmpty
+                                      ? null
+                                      : _feedbackCtrl.text.trim(),
                                 },
                               );
 
@@ -388,7 +516,9 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('${context.tr('Grading failed')}: $e'),
+                                    content: Text(
+                                      '${context.tr('Grading failed')}: $e',
+                                    ),
                                     backgroundColor: Colors.red,
                                   ),
                                 );

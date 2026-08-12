@@ -266,8 +266,6 @@ class AppTheme {
 
       // ── List Tile ───────────────────────────────────────────────────────────
       listTileTheme: ListTileThemeData(
-        tileColor: Colors.transparent,
-        selectedTileColor: AppColors.primarySubtle,
         iconColor: AppColors.darkTextSecondary,
         textColor: AppColors.darkTextPrimary,
         subtitleTextStyle: AppTypography.bodySmall(AppColors.darkTextSecondary),

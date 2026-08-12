@@ -32,6 +32,22 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  String _attemptStatusLabel(BuildContext context, String? status) {
+    switch (status) {
+      case 'in_progress':
+        return context.tr('In progress');
+      case 'submitted':
+        return context.tr('Submitted');
+      case 'graded':
+        return context.tr('Graded');
+      case 'expired':
+        return context.tr('Expired');
+      default:
+        final value = status?.trim();
+        return value == null || value.isEmpty ? context.tr('Unknown') : value;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -390,8 +406,9 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                       );
                                     }
                                   } finally {
-                                    if (ctx.mounted)
+                                    if (ctx.mounted) {
                                       setModalState(() => isSaving = false);
+                                    }
                                   }
                                 },
                           child: isSaving
@@ -437,10 +454,10 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
 
     List<Map<String, dynamic>> attempts = [];
     try {
-      final res = await Supabase.instance.client
-          .from('exam_attempts')
-          .select('*, students(id, profiles(full_name))')
-          .eq('exam_id', exam.id);
+      final res = await Supabase.instance.client.rpc(
+        'get_teacher_exam_attempts',
+        params: {'p_exam_id': exam.id},
+      );
       attempts = List<Map<String, dynamic>>.from(res);
     } catch (e) {
       debugPrint('Error fetching attempts: $e');
@@ -482,9 +499,16 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                     itemBuilder: (ctx, i) {
                       final att = attempts[i];
                       final studentName =
-                          att['students']?['profiles']?['full_name'] ??
-                          'Unknown Student';
-                      final studentId = att['students']?['id'];
+                          att['student_name']?.toString().trim().isNotEmpty ==
+                              true
+                          ? att['student_name'].toString()
+                          : context.tr('Unknown Student');
+                      final studentCode = att['student_code']?.toString();
+                      final statusLabel = _attemptStatusLabel(
+                        context,
+                        att['status']?.toString(),
+                      );
+                      final studentId = att['student_id']?.toString();
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(
@@ -492,7 +516,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                           style: AppTypography.bodyMedium(textColor),
                         ),
                         subtitle: Text(
-                          '${context.tr('Score')}: ${att['score']} | ${context.tr('Status')}: ${att['status']}',
+                          '${studentCode == null || studentCode.isEmpty ? '' : '$studentCode | '}${context.tr('Score')}: ${att['score'] ?? 0} / ${att['max_score'] ?? 0} | ${context.tr('Status')}: $statusLabel',
                           style: AppTypography.caption(subtitleColor),
                         ),
                         onTap: () {
@@ -507,6 +531,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                   'assessment_id': exam.id,
                                   'student_id': att['student_id'],
                                   'score': att['score'],
+                                  'teacher_feedback': att['teacher_feedback'],
                                 },
                                 onGraded: () {
                                   _loadGroupsAndExams();
@@ -564,10 +589,11 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                   );
                                 }
                               } catch (e) {
-                                if (context.mounted)
+                                if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(content: Text('Reset failed: $e')),
                                   );
+                                }
                               }
                             }
                           },

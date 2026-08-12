@@ -6,37 +6,51 @@ import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../design_system/widgets/portal_components.dart';
-import '../../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../student_dashboard_models.dart';
 
-String _formatDate(DateTime? dt) => dt == null ? '' : DateFormat.yMMMd().format(dt);
-String _formatTime(DateTime? dt) => dt == null ? '' : DateFormat.jm().format(dt);
+String _formatDate(DateTime? dt) =>
+    dt == null ? '' : DateFormat.yMMMd().format(dt);
+String _formatTime(DateTime? dt) =>
+    dt == null ? '' : DateFormat.jm().format(dt);
 
 Color _attendanceColor(String status) {
   switch (status) {
-    case 'present': return AppColors.success;
-    case 'late': return AppColors.warning;
-    case 'absent': return AppColors.error;
-    case 'excused': return AppColors.info;
-    default: return AppColors.darkBorder;
+    case 'present':
+      return AppColors.success;
+    case 'late':
+      return AppColors.warning;
+    case 'absent':
+      return AppColors.error;
+    case 'excused':
+      return AppColors.info;
+    default:
+      return AppColors.darkBorder;
   }
 }
 
 IconData _attendanceIcon(String status) {
   switch (status) {
-    case 'present': return Icons.check_circle_rounded;
-    case 'late': return Icons.schedule_rounded;
-    case 'absent': return Icons.cancel_rounded;
-    case 'excused': return Icons.event_available_rounded;
-    default: return Icons.help_outline_rounded;
+    case 'present':
+      return Icons.check_circle_rounded;
+    case 'late':
+      return Icons.schedule_rounded;
+    case 'absent':
+      return Icons.cancel_rounded;
+    case 'excused':
+      return Icons.event_available_rounded;
+    default:
+      return Icons.help_outline_rounded;
   }
 }
 
 Color _leaveColor(String status) {
   switch (status) {
-    case 'approved': return AppColors.success;
-    case 'rejected': return AppColors.error;
-    default: return AppColors.warning;
+    case 'approved':
+      return AppColors.success;
+    case 'rejected':
+      return AppColors.error;
+    default:
+      return AppColors.warning;
   }
 }
 
@@ -72,7 +86,8 @@ class ActivityTab extends StatefulWidget {
   State<ActivityTab> createState() => _ActivityTabState();
 }
 
-class _ActivityTabState extends State<ActivityTab> with SingleTickerProviderStateMixin {
+class _ActivityTabState extends State<ActivityTab>
+    with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
 
   @override
@@ -90,8 +105,12 @@ class _ActivityTabState extends State<ActivityTab> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
     final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
 
     return Column(
@@ -107,7 +126,11 @@ class _ActivityTabState extends State<ActivityTab> with SingleTickerProviderStat
                 duration: const Duration(milliseconds: 400),
                 child: Text(
                   context.tr('Activity'),
-                  style: AppTypography.displaySmall(textPrimary).copyWith(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                  style: AppTypography.displaySmall(textPrimary).copyWith(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -119,7 +142,9 @@ class _ActivityTabState extends State<ActivityTab> with SingleTickerProviderStat
                   height: 44,
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : Colors.black.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TabBar(
@@ -129,17 +154,36 @@ class _ActivityTabState extends State<ActivityTab> with SingleTickerProviderStat
                       color: surfaceColor,
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 2)),
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4)),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
                       ],
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
                     labelColor: textPrimary,
                     unselectedLabelColor: textPrimary.withValues(alpha: 0.5),
-                    labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -0.2),
-                    unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -0.2),
+                    labelStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
                     tabs: [
-                      Tab(text: '${context.tr('Homework')} & ${context.tr('Exams')}'),
+                      Tab(
+                        text:
+                            '${context.tr('Homework')} & ${context.tr('Exams')}',
+                      ),
                       Tab(text: context.tr('Attendance')),
                       Tab(text: context.tr('Boards')),
                     ],
@@ -195,7 +239,9 @@ class _SectionLabel extends StatelessWidget {
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         text,
-        style: AppTypography.titleMedium(color).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.3),
+        style: AppTypography.titleMedium(
+          color,
+        ).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.3),
       ),
     );
   }
@@ -209,7 +255,9 @@ class _AppleGroupedList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return GlassCard(
@@ -221,7 +269,8 @@ class _AppleGroupedList extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.zero,
         itemCount: children.length,
-        separatorBuilder: (_, __) => Divider(height: 1, color: borderColor, indent: 64),
+        separatorBuilder: (_, __) =>
+            Divider(height: 1, color: borderColor, indent: 64),
         itemBuilder: (_, i) => children[i],
       ),
     );
@@ -240,11 +289,230 @@ class _InlinePlaceholder extends StatelessWidget {
       child: Center(
         child: Text(
           text,
-          style: AppTypography.bodyMedium(isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+          style: AppTypography.bodyMedium(
+            isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+          ),
         ),
       ),
     );
   }
+}
+
+Future<void> _showAssessmentReviewDialog(
+  BuildContext context, {
+  required String rpcName,
+  required Map<String, dynamic> params,
+}) async {
+  var loaderVisible = true;
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  late final dynamic raw;
+  try {
+    raw = await Supabase.instance.client.rpc(rpcName, params: params);
+  } catch (_) {
+    if (context.mounted && loaderVisible) {
+      Navigator.of(context).pop();
+    }
+    rethrow;
+  }
+
+  if (!context.mounted) return;
+  Navigator.of(context).pop();
+  loaderVisible = false;
+
+  final review = Map<String, dynamic>.from(raw as Map);
+  final released = review['released'] == true;
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final textPrimary = isDark
+      ? AppColors.darkTextPrimary
+      : AppColors.lightTextPrimary;
+  final textSecondary = isDark
+      ? AppColors.darkTextSecondary
+      : AppColors.lightTextSecondary;
+  final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
+  final answers = (review['answers'] as List<dynamic>? ?? [])
+      .whereType<Map>()
+      .map((e) => Map<String, dynamic>.from(e))
+      .toList();
+
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: surfaceColor,
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640, maxHeight: 760),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: released
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      review['title']?.toString() ?? context.tr('Review'),
+                      style: AppTypography.titleLarge(
+                        textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${context.tr('Score')}: ${review['score'] ?? 0} / ${review['max_score'] ?? 0}',
+                      style: AppTypography.titleMedium(
+                        AppColors.primary,
+                      ).copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    if ((review['teacher_feedback']?.toString() ?? '')
+                        .trim()
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '${context.tr('Teacher Feedback')}: ${review['teacher_feedback']}',
+                        style: AppTypography.bodyMedium(textSecondary),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: MediaQuery.sizeOf(context).height * 0.48,
+                      child: answers.isEmpty
+                          ? Center(
+                              child: Text(
+                                context.tr('No answers provided.'),
+                                style: AppTypography.bodyMedium(textSecondary),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: answers.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (_, index) {
+                                final answer = answers[index];
+                                final isCorrect = answer['is_correct'] == true;
+                                final color = isCorrect
+                                    ? AppColors.success
+                                    : AppColors.error;
+                                return DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: color.withValues(alpha: 0.08),
+                                    border: Border.all(
+                                      color: color.withValues(alpha: 0.5),
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              isCorrect
+                                                  ? Icons.check_circle
+                                                  : Icons.cancel,
+                                              color: color,
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                answer['prompt']?.toString() ??
+                                                    '',
+                                                style:
+                                                    AppTypography.bodyMedium(
+                                                      textPrimary,
+                                                    ).copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          '${context.tr('Your Answer')}: ${answer['student_answer'] ?? context.tr('No Answer')}',
+                                          style: AppTypography.bodyMedium(
+                                            textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${context.tr('Correct Answer')}: ${answer['correct_answer'] ?? 'N/A'}',
+                                          style:
+                                              AppTypography.bodyMedium(
+                                                AppColors.success,
+                                              ).copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                        if ((answer['explanation']
+                                                    ?.toString() ??
+                                                '')
+                                            .trim()
+                                            .isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${context.tr('Explanation')}: ${answer['explanation']}',
+                                            style: AppTypography.caption(
+                                              textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '${context.tr('Points')}: ${answer['points_awarded'] ?? 0} / ${answer['max_points'] ?? 0}',
+                                          style:
+                                              AppTypography.caption(
+                                                textSecondary,
+                                              ).copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(context.tr('Close')),
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.lock_clock, size: 44),
+                    const SizedBox(height: 12),
+                    Text(
+                      review['message']?.toString() ??
+                          context.tr('Results are not released yet'),
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodyMedium(textPrimary),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(context.tr('Close')),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _HomeworkAndExamsView extends StatelessWidget {
@@ -265,19 +533,41 @@ class _HomeworkAndExamsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
 
-    if (isLoading) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
     if (homeworkItems.isEmpty && examItems.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.assignment_turned_in_rounded, size: 64, color: AppColors.success.withValues(alpha: 0.5)),
+            Icon(
+              Icons.assignment_turned_in_rounded,
+              size: 64,
+              color: AppColors.success.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
-            Text(context.tr('All clear!'), style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              context.tr('All clear!'),
+              style: AppTypography.titleLarge(
+                textPrimary,
+              ).copyWith(fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 8),
-            Text(context.tr('Published homework and exams will appear here.'), style: AppTypography.bodyMedium(isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+            Text(
+              context.tr('Published homework and exams will appear here.'),
+              style: AppTypography.bodyMedium(
+                isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
+              ),
+            ),
           ],
         ),
       );
@@ -290,13 +580,23 @@ class _HomeworkAndExamsView extends StatelessWidget {
         if (homeworkItems.isNotEmpty) ...[
           FadeInSlide(
             duration: const Duration(milliseconds: 500),
-            child: _SectionLabel(text: context.tr('Homework'), color: textPrimary),
+            child: _SectionLabel(
+              text: context.tr('Homework'),
+              color: textPrimary,
+            ),
           ),
           FadeInSlide(
             duration: const Duration(milliseconds: 600),
             delay: const Duration(milliseconds: 100),
             child: _AppleGroupedList(
-              children: homeworkItems.map((item) => _HomeworkTile(item: item, onSubmit: () => onSubmitHomework(item))).toList(),
+              children: homeworkItems
+                  .map(
+                    (item) => _HomeworkTile(
+                      item: item,
+                      onSubmit: () => onSubmitHomework(item),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
           const SizedBox(height: 24),
@@ -305,13 +605,21 @@ class _HomeworkAndExamsView extends StatelessWidget {
           FadeInSlide(
             duration: const Duration(milliseconds: 500),
             delay: const Duration(milliseconds: 200),
-            child: _SectionLabel(text: context.tr('Exams & Quizzes'), color: textPrimary),
+            child: _SectionLabel(
+              text: context.tr('Exams & Quizzes'),
+              color: textPrimary,
+            ),
           ),
           FadeInSlide(
             duration: const Duration(milliseconds: 600),
             delay: const Duration(milliseconds: 300),
             child: _AppleGroupedList(
-              children: examItems.map((item) => _ExamTile(item: item, onStart: () => onStartExam(item))).toList(),
+              children: examItems
+                  .map(
+                    (item) =>
+                        _ExamTile(item: item, onStart: () => onStartExam(item)),
+                  )
+                  .toList(),
             ),
           ),
         ],
@@ -326,124 +634,45 @@ class _HomeworkTile extends StatelessWidget {
 
   const _HomeworkTile({required this.item, required this.onSubmit});
 
-  void _showGradedDetailsDialog(BuildContext context, StudentHomeworkItem item) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
-    );
-
-    List<Map<String, dynamic>> answers = [];
+  void _showGradedDetailsDialog(
+    BuildContext context,
+    StudentHomeworkItem item,
+  ) async {
     try {
-      final subRes = await Supabase.instance.client
-          .from('homework_submissions')
-          .select('id')
-          .eq('homework_id', item.homework.id)
-          .eq('student_id', Supabase.instance.client.auth.currentUser!.id)
-          .maybeSingle();
-
-      if (subRes != null) {
-        final res = await Supabase.instance.client
-            .from('homework_answers')
-            .select('*, questions(*), question_options(*)')
-            .eq('submission_id', subRes['id']);
-        answers = List<Map<String, dynamic>>.from(res);
-      }
+      await _showAssessmentReviewDialog(
+        context,
+        rpcName: 'get_my_homework_review',
+        params: {'p_homework_id': item.homework.id},
+      );
     } catch (e) {
-      debugPrint('Failed to fetch answers: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${context.tr('Failed to load review')}: $e')),
+      );
     }
-
-    if (!context.mounted) return;
-    Navigator.pop(context); // Dismiss loading indicator
-
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: GlassCard(
-          padding: const EdgeInsets.all(24),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Text(
-                    context.tr('Grading Details'),
-                    style: AppTypography.displaySmall(textPrimary),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text('${context.tr("Your Score")}: ${item.submissionScore} / ${item.homework.maxScore}', style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                if (item.teacherFeedback != null && item.teacherFeedback!.isNotEmpty) ...[
-                  Text('${context.tr("Teacher Feedback")}:', style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(item.teacherFeedback!, style: TextStyle(color: textPrimary)),
-                  const SizedBox(height: 16),
-                ],
-                if (answers.isNotEmpty) ...[
-                  Text(context.tr('Your Answers:'), style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Container(
-                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: answers.length,
-                      itemBuilder: (ctx, idx) {
-                        final ans = answers[idx];
-                        final q = ans['questions'] ?? {};
-                        final opt = ans['question_options'];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Q: ${q['prompt'] ?? 'Unknown'}', style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 4),
-                              Text('A: ${opt != null ? opt['text'] : (ans['text_answer'] ?? 'No Answer')}', style: TextStyle(color: textPrimary)),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                Center(
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text(context.tr('Close')),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final statusColor = item.isGraded ? AppColors.success : item.isSubmitted ? AppColors.info : AppColors.warning;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    final statusColor = item.isGraded
+        ? AppColors.success
+        : item.isSubmitted
+        ? AppColors.info
+        : AppColors.warning;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: item.isGraded ? () => _showGradedDetailsDialog(context, item) : onSubmit,
+        onTap: item.isSubmitted || item.isGraded
+            ? () => _showGradedDetailsDialog(context, item)
+            : onSubmit,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -451,17 +680,38 @@ class _HomeworkTile extends StatelessWidget {
               Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-                child: Icon(item.isGraded ? Icons.assignment_turned_in_rounded : Icons.assignment_rounded, color: statusColor, size: 22),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  item.isGraded
+                      ? Icons.assignment_turned_in_rounded
+                      : Icons.assignment_rounded,
+                  color: statusColor,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.homework.title, style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      item.homework.title,
+                      style: AppTypography.bodyMedium(
+                        textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 4),
-                    Text('${item.groupName}  ·  Due ${_formatDate(item.homework.dueAt)}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500)),
+                    Text(
+                      '${item.groupName}  ·  Due ${_formatDate(item.homework.dueAt)}',
+                      style: AppTypography.caption(
+                        textSecondary,
+                      ).copyWith(fontWeight: FontWeight.w500),
+                    ),
                   ],
                 ),
               ),
@@ -470,9 +720,22 @@ class _HomeworkTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   PortalStatusChip(status: item.submissionStatus ?? 'pending'),
-                  if (!item.isGraded) ...[
+                  if (item.isSubmitted || item.isGraded) ...[
                     const SizedBox(height: 6),
-                    Text(context.tr('Submit'), style: AppTypography.caption(AppColors.primary).copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      context.tr('Review'),
+                      style: AppTypography.caption(
+                        AppColors.primary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      context.tr('Submit'),
+                      style: AppTypography.caption(
+                        AppColors.primary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
                   ],
                 ],
               ),
@@ -490,17 +753,40 @@ class _ExamTile extends StatelessWidget {
 
   const _ExamTile({required this.item, required this.onStart});
 
+  Future<void> _showExamReview(BuildContext context) async {
+    try {
+      await _showAssessmentReviewDialog(
+        context,
+        rpcName: 'get_my_exam_review',
+        params: {'p_exam_id': item.exam.id},
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${context.tr('Failed to load review')}: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
     final accentColor = item.canStart ? AppColors.studentRole : AppColors.info;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: item.canStart ? onStart : null,
+        onTap: item.canStart
+            ? onStart
+            : item.canReview
+            ? () => _showExamReview(context)
+            : null,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -508,7 +794,10 @@ class _ExamTile extends StatelessWidget {
               Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Icon(Icons.quiz_rounded, color: accentColor, size: 22),
               ),
               const SizedBox(width: 16),
@@ -516,9 +805,21 @@ class _ExamTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.exam.title, style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      item.exam.title,
+                      style: AppTypography.bodyMedium(
+                        textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 4),
-                    Text('${item.groupName}  ·  ${item.exam.durationMinutes} min  ·  ${item.attemptCount}/${item.exam.maxAttempts} attempts', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500)),
+                    Text(
+                      '${item.groupName}  ·  ${item.exam.durationMinutes} min  ·  ${item.attemptCount}/${item.exam.maxAttempts} attempts',
+                      style: AppTypography.caption(
+                        textSecondary,
+                      ).copyWith(fontWeight: FontWeight.w500),
+                    ),
                   ],
                 ),
               ),
@@ -526,10 +827,25 @@ class _ExamTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  PortalStatusChip(status: item.lastAttemptStatus ?? item.exam.status),
+                  PortalStatusChip(
+                    status: item.lastAttemptStatus ?? item.exam.status,
+                  ),
                   if (item.canStart) ...[
                     const SizedBox(height: 6),
-                    Text(context.tr('Start'), style: AppTypography.caption(AppColors.primary).copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      context.tr('Start'),
+                      style: AppTypography.caption(
+                        AppColors.primary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ] else if (item.canReview) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      context.tr('Review'),
+                      style: AppTypography.caption(
+                        AppColors.primary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
                   ],
                 ],
               ),
@@ -559,17 +875,27 @@ class _AttendanceView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
-    if (isLoading) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
 
     final total = attendanceItems.length;
     final present = attendanceItems.where((i) => i.status == 'present').length;
     final late = attendanceItems.where((i) => i.status == 'late').length;
     final absent = attendanceItems.where((i) => i.status == 'absent').length;
     final excused = attendanceItems.where((i) => i.status == 'excused').length;
-    final rate = total == 0 ? 100 : (((present + late + excused) / total) * 100).round();
+    final rate = total == 0
+        ? 100
+        : (((present + late + excused) / total) * 100).round();
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -584,10 +910,15 @@ class _AttendanceView extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onScanQr,
                   icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                  label: Text(context.tr('Scan QR'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  label: Text(
+                    context.tr('Scan QR'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -596,10 +927,15 @@ class _AttendanceView extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onCreateLeaveRequest,
                   icon: const Icon(Icons.event_busy_rounded, size: 20),
-                  label: Text(context.tr('Request Leave'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  label: Text(
+                    context.tr('Request Leave'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -614,10 +950,30 @@ class _AttendanceView extends StatelessWidget {
           delay: const Duration(milliseconds: 100),
           child: PortalMetricGrid(
             children: [
-              PortalMetricCard(label: context.tr('Rate'), value: '$rate%', icon: Icons.insights_rounded, accentColor: AppColors.studentRole),
-              PortalMetricCard(label: context.tr('Present'), value: '$present', icon: Icons.check_circle_rounded, accentColor: AppColors.success),
-              PortalMetricCard(label: context.tr('Late'), value: '$late', icon: Icons.schedule_rounded, accentColor: AppColors.warning),
-              PortalMetricCard(label: context.tr('Absent'), value: '$absent', icon: Icons.cancel_rounded, accentColor: AppColors.error),
+              PortalMetricCard(
+                label: context.tr('Rate'),
+                value: '$rate%',
+                icon: Icons.insights_rounded,
+                accentColor: AppColors.studentRole,
+              ),
+              PortalMetricCard(
+                label: context.tr('Present'),
+                value: '$present',
+                icon: Icons.check_circle_rounded,
+                accentColor: AppColors.success,
+              ),
+              PortalMetricCard(
+                label: context.tr('Late'),
+                value: '$late',
+                icon: Icons.schedule_rounded,
+                accentColor: AppColors.warning,
+              ),
+              PortalMetricCard(
+                label: context.tr('Absent'),
+                value: '$absent',
+                icon: Icons.cancel_rounded,
+                accentColor: AppColors.error,
+              ),
             ],
           ),
         ),
@@ -628,38 +984,69 @@ class _AttendanceView extends StatelessWidget {
           FadeInSlide(
             duration: const Duration(milliseconds: 500),
             delay: const Duration(milliseconds: 200),
-            child: _SectionLabel(text: context.tr('Attendance History'), color: textPrimary),
+            child: _SectionLabel(
+              text: context.tr('Attendance History'),
+              color: textPrimary,
+            ),
           ),
           FadeInSlide(
             duration: const Duration(milliseconds: 600),
             delay: const Duration(milliseconds: 300),
             child: _AppleGroupedList(
-              children: attendanceItems.map((item) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(color: _attendanceColor(item.status).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-                      child: Icon(_attendanceIcon(item.status), color: _attendanceColor(item.status), size: 22),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              children: attendanceItems
+                  .map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Row(
                         children: [
-                          Text('${_formatDate(item.sessionDate)}  ·  ${item.groupName}', style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
-                          const SizedBox(height: 4),
-                          Text('${_formatTime(item.scheduledStartAt)} – ${_formatTime(item.scheduledEndAt)}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500)),
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: _attendanceColor(
+                                item.status,
+                              ).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              _attendanceIcon(item.status),
+                              color: _attendanceColor(item.status),
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_formatDate(item.sessionDate)}  ·  ${item.groupName}',
+                                  style: AppTypography.bodyMedium(
+                                    textPrimary,
+                                  ).copyWith(fontWeight: FontWeight.w700),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${_formatTime(item.scheduledStartAt)} – ${_formatTime(item.scheduledEndAt)}',
+                                  style: AppTypography.caption(
+                                    textSecondary,
+                                  ).copyWith(fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          PortalStatusChip(status: item.status),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    PortalStatusChip(status: item.status),
-                  ],
-                ),
-              )).toList(),
+                  )
+                  .toList(),
             ),
           ),
           const SizedBox(height: 28),
@@ -669,40 +1056,78 @@ class _AttendanceView extends StatelessWidget {
         FadeInSlide(
           duration: const Duration(milliseconds: 500),
           delay: const Duration(milliseconds: 400),
-          child: _SectionLabel(text: '${context.tr("Leave Requests")}  ·  $excused ${context.tr("Excused")}', color: textPrimary),
+          child: _SectionLabel(
+            text:
+                '${context.tr("Leave Requests")}  ·  $excused ${context.tr("Excused")}',
+            color: textPrimary,
+          ),
         ),
         FadeInSlide(
           duration: const Duration(milliseconds: 600),
           delay: const Duration(milliseconds: 500),
           child: leaveItems.isEmpty
-              ? _InlinePlaceholder(text: context.tr('No leave requests submitted yet.'))
+              ? _InlinePlaceholder(
+                  text: context.tr('No leave requests submitted yet.'),
+                )
               : _AppleGroupedList(
-                  children: leaveItems.map((item) => Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(color: _leaveColor(item.status).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-                          child: Icon(Icons.event_busy_rounded, color: _leaveColor(item.status), size: 22),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  children: leaveItems
+                      .map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
                             children: [
-                              Text(item.classSessionId == null ? context.tr('General leave request') : '${_formatDate(item.sessionDate ?? item.submittedAt)}  ·  ${item.groupName}', style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 4),
-                              Text(item.reason, style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: _leaveColor(
+                                    item.status,
+                                  ).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.event_busy_rounded,
+                                  color: _leaveColor(item.status),
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.classSessionId == null
+                                          ? context.tr('General leave request')
+                                          : '${_formatDate(item.sessionDate ?? item.submittedAt)}  ·  ${item.groupName}',
+                                      style: AppTypography.bodyMedium(
+                                        textPrimary,
+                                      ).copyWith(fontWeight: FontWeight.w700),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      item.reason,
+                                      style: AppTypography.caption(
+                                        textSecondary,
+                                      ).copyWith(fontWeight: FontWeight.w500),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              PortalStatusChip(status: item.status),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        PortalStatusChip(status: item.status),
-                      ],
-                    ),
-                  )).toList(),
+                      )
+                      .toList(),
                 ),
         ),
       ],
@@ -715,25 +1140,56 @@ class _SessionBoardsSection extends StatelessWidget {
   final List<PublishedSessionBoard> boards;
   final ValueChanged<PublishedSessionBoard> onOpenBoard;
 
-  const _SessionBoardsSection({required this.isLoading, required this.boards, required this.onOpenBoard});
+  const _SessionBoardsSection({
+    required this.isLoading,
+    required this.boards,
+    required this.onOpenBoard,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
-    if (isLoading) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
     if (boards.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.draw_rounded, size: 64, color: AppColors.primary.withValues(alpha: 0.4)),
+            Icon(
+              Icons.draw_rounded,
+              size: 64,
+              color: AppColors.primary.withValues(alpha: 0.4),
+            ),
             const SizedBox(height: 16),
-            Text(context.tr('No boards yet'), style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              context.tr('No boards yet'),
+              style: AppTypography.titleLarge(
+                textPrimary,
+              ).copyWith(fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 8),
-            Text(context.tr('Boards appear after your teacher publishes a session board.'), style: AppTypography.bodyMedium(isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary), textAlign: TextAlign.center),
+            Text(
+              context.tr(
+                'Boards appear after your teacher publishes a session board.',
+              ),
+              style: AppTypography.bodyMedium(
+                isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       );
@@ -746,46 +1202,78 @@ class _SessionBoardsSection extends StatelessWidget {
         FadeInSlide(
           duration: const Duration(milliseconds: 600),
           child: _AppleGroupedList(
-            children: boards.map((board) => Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => onOpenBoard(board),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-                        child: const Icon(Icons.draw_rounded, color: AppColors.primary, size: 22),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+            children: boards
+                .map(
+                  (board) => Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => onOpenBoard(board),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Row(
                           children: [
-                            Text(board.title, style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 4),
-                            Text('${board.groupName}  ·  ${_formatDate(board.sessionDate)}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500)),
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.15,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.draw_rounded,
+                                color: AppColors.primary,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    board.title,
+                                    style: AppTypography.bodyMedium(
+                                      textPrimary,
+                                    ).copyWith(fontWeight: FontWeight.w700),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${board.groupName}  ·  ${_formatDate(board.sessionDate)}',
+                                    style: AppTypography.caption(
+                                      textSecondary,
+                                    ).copyWith(fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: AppColors.primary,
+                                size: 14,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.arrow_forward_rounded, color: AppColors.primary, size: 14),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            )).toList(),
+                )
+                .toList(),
           ),
         ),
       ],
