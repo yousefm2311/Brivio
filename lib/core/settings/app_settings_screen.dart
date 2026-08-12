@@ -349,11 +349,31 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                           final bool canAuthenticateWithBiometrics = await localAuth.canCheckBiometrics;
                           final bool canAuthenticate = canAuthenticateWithBiometrics || await localAuth.isDeviceSupported();
                           if (canAuthenticate) {
-                            final didAuthenticate = await localAuth.authenticate(
-                              localizedReason: 'Please authenticate to enable Biometric Login',
-                            );
-                            if (didAuthenticate) {
-                              _updateSetting('biometric_login', val, (v) => _biometricLogin = v);
+                            try {
+                              final didAuthenticate = await localAuth.authenticate(
+                                localizedReason: 'Please authenticate to enable Biometric Login',
+                              );
+                              if (didAuthenticate) {
+                                _updateSetting('biometric_login', val, (v) => _biometricLogin = v);
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Biometrics/PIN not set up. Please configure device security first.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          } else {
+                            if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Device does not support biometric authentication.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
                             }
                           }
                         } else {
