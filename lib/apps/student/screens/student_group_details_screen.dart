@@ -20,11 +20,17 @@ import '../student_dashboard_models.dart';
 
 class StudentGroupDetailsScreen extends StatefulWidget {
   final GroupEntity group;
+  final String? studentId;
 
-  const StudentGroupDetailsScreen({super.key, required this.group});
+  const StudentGroupDetailsScreen({
+    super.key,
+    required this.group,
+    this.studentId,
+  });
 
   @override
-  State<StudentGroupDetailsScreen> createState() => _StudentGroupDetailsScreenState();
+  State<StudentGroupDetailsScreen> createState() =>
+      _StudentGroupDetailsScreenState();
 }
 
 class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
@@ -35,40 +41,56 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   List<ClassSession> _sessionList = [];
   List<Lesson> _lessonList = [];
   bool _isLoading = false;
+  String? _studentId;
 
   @override
   void initState() {
     super.initState();
     final wrapper = SupabaseClientWrapper(Supabase.instance.client);
     _sessionRepo = SupabaseClassSessionRepository(wrapper);
+    _studentId = widget.studentId;
     _loadData();
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final hwResData = await Supabase.instance.client.rpc('get_student_homework_feed');
-      final examResData = await Supabase.instance.client.rpc('get_student_exam_feed');
-      
+      if (_studentId == null) {
+        try {
+          _studentId = (await Supabase.instance.client.rpc(
+            'current_student_id',
+          ))?.toString();
+        } catch (_) {}
+      }
+
+      final hwResData = await Supabase.instance.client.rpc(
+        'get_student_homework_feed',
+      );
+      final examResData = await Supabase.instance.client.rpc(
+        'get_student_exam_feed',
+      );
+
       final hwRes = (hwResData as List)
           .map((e) => StudentHomeworkItem.fromJson(e as Map<dynamic, dynamic>))
           .where((h) => h.homework.groupId == widget.group.id)
           .toList();
-          
+
       final examRes = (examResData as List)
           .map((e) => StudentExamItem.fromJson(e as Map<dynamic, dynamic>))
           .where((x) => x.exam.groupId == widget.group.id)
           .toList();
-          
-      final sessionRes = await _sessionRepo.fetchSessionsForGroup(widget.group.id);
-      
+
+      final sessionRes = await _sessionRepo.fetchSessionsForGroup(
+        widget.group.id,
+      );
+
       List<Lesson> lessonRes = [];
       try {
         final semesters = await Supabase.instance.client
             .from('semesters')
             .select('id, units(id)')
             .eq('subject_id', widget.group.subjectId);
-            
+
         final unitIds = semesters
             .expand((s) => (s['units'] as List? ?? []))
             .map((u) => u['id'].toString())
@@ -81,18 +103,21 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
               .inFilter('unit_id', unitIds)
               .eq('status', 'published')
               .order('order_number');
-              
+
           lessonRes = (lessonsData as List).map((e) {
             final jsonMap = e as Map<String, dynamic>;
-            final resourcesList = jsonMap['lesson_resources'] as List<dynamic>? ?? [];
-            final resources = resourcesList.map((r) => LessonResource.fromJson(r as Map<String, dynamic>)).toList();
+            final resourcesList =
+                jsonMap['lesson_resources'] as List<dynamic>? ?? [];
+            final resources = resourcesList
+                .map((r) => LessonResource.fromJson(r as Map<String, dynamic>))
+                .toList();
             return Lesson.fromJson(jsonMap, resources);
           }).toList();
         }
       } catch (e) {
         debugPrint('Error fetching curriculum: $e');
       }
-      
+
       if (mounted) {
         setState(() {
           _homeworkList = hwRes;
@@ -112,16 +137,29 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        backgroundColor: isDark
+            ? AppColors.darkBackground
+            : AppColors.lightBackground,
         appBar: AppBar(
-          backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          title: Text(widget.group.name, style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800)),
+          backgroundColor: isDark
+              ? AppColors.darkSurface
+              : AppColors.lightSurface,
+          title: Text(
+            widget.group.name,
+            style: AppTypography.titleLarge(
+              textPrimary,
+            ).copyWith(fontWeight: FontWeight.w800),
+          ),
           bottom: TabBar(
             isScrollable: true,
             indicatorColor: AppColors.primary,
@@ -137,7 +175,9 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
           ),
         ),
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
             : TabBarView(
                 children: [
                   _buildFilesTab(isDark, textPrimary, textSecondary),
@@ -153,31 +193,37 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   Future<void> _submitHomework(StudentHomeworkItem item) async {
     if (item.homework.questions.isNotEmpty) {
       final Map<String, String> currentAnswers = {};
-      await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => HomeworkRunnerScreen(
-          homework: item.homework,
-          onOptionSelected: (qId, oId) => currentAnswers[qId] = oId,
-          onSubmit: () async {
-            try {
-              await Supabase.instance.client.rpc(
-                'submit_homework_mcq',
-                params: {
-                  'p_homework_id': item.homework.id,
-                  'p_answers': currentAnswers,
-                },
-              );
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Homework submitted.'))));
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => HomeworkRunnerScreen(
+            homework: item.homework,
+            onOptionSelected: (qId, oId) => currentAnswers[qId] = oId,
+            onSubmit: () async {
+              try {
+                await Supabase.instance.client.rpc(
+                  'submit_homework_mcq',
+                  params: {
+                    'p_homework_id': item.homework.id,
+                    'p_answers': currentAnswers,
+                  },
+                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(context.tr('Homework submitted.'))),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Submission failed: $e')),
+                  );
+                }
               }
-            } catch (e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
-              }
-            }
-          },
+            },
+          ),
         ),
-      ));
+      );
       await _loadData();
       return;
     }
@@ -192,48 +238,99 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: textCtrl, decoration: InputDecoration(labelText: context.tr('Answer / notes'), alignLabelWithHint: true), minLines: 4, maxLines: 8),
+              TextField(
+                controller: textCtrl,
+                decoration: InputDecoration(
+                  labelText: context.tr('Answer / notes'),
+                  alignLabelWithHint: true,
+                ),
+                minLines: 4,
+                maxLines: 8,
+              ),
               const SizedBox(height: 12),
-              TextField(controller: attachCtrl, decoration: InputDecoration(labelText: context.tr('Attachment URL'), prefixIcon: const Icon(Icons.link)), keyboardType: TextInputType.url),
+              TextField(
+                controller: attachCtrl,
+                decoration: InputDecoration(
+                  labelText: context.tr('Attachment URL'),
+                  prefixIcon: const Icon(Icons.link),
+                ),
+                keyboardType: TextInputType.url,
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('Cancel'))),
-          FilledButton.icon(onPressed: () => Navigator.pop(ctx, true), icon: const Icon(Icons.upload_file), label: Text(context.tr('Submit'))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('Cancel')),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.upload_file),
+            label: Text(context.tr('Submit')),
+          ),
         ],
       ),
     );
-    if (submitted != true) { textCtrl.dispose(); attachCtrl.dispose(); return; }
+    if (submitted != true) {
+      textCtrl.dispose();
+      attachCtrl.dispose();
+      return;
+    }
     try {
-      await Supabase.instance.client.rpc('submit_homework_text', params: {
-        'p_homework_id': item.homework.id,
-        'p_submission_text': textCtrl.text.trim(),
-        'p_attachment_url': attachCtrl.text.trim().isEmpty ? null : attachCtrl.text.trim(),
-      });
+      await Supabase.instance.client.rpc(
+        'submit_homework_text',
+        params: {
+          'p_homework_id': item.homework.id,
+          'p_submission_text': textCtrl.text.trim(),
+          'p_attachment_url': attachCtrl.text.trim().isEmpty
+              ? null
+              : attachCtrl.text.trim(),
+        },
+      );
       await _loadData();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Homework submitted.'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('Homework submitted.'))),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
     } finally {
       textCtrl.dispose();
       attachCtrl.dispose();
     }
   }
 
-  Widget _buildHomeworkTab(bool isDark, Color textPrimary, Color textSecondary) {
+  Widget _buildHomeworkTab(
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     if (_homeworkList.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.assignment_turned_in_rounded, size: 64, color: AppColors.primary.withValues(alpha: 0.5)),
+            Icon(
+              Icons.assignment_turned_in_rounded,
+              size: 64,
+              color: AppColors.primary.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
-            Text(context.tr('No Homework'), style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              context.tr('No Homework'),
+              style: AppTypography.titleLarge(
+                textPrimary,
+              ).copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
-            Text(context.tr('You have no pending assignments here.'), style: AppTypography.bodyMedium(textSecondary)),
+            Text(
+              context.tr('You have no pending assignments here.'),
+              style: AppTypography.bodyMedium(textSecondary),
+            ),
           ],
         ),
       );
@@ -257,23 +354,39 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.assignment_rounded, color: AppColors.primary, size: 22),
+                child: const Icon(
+                  Icons.assignment_rounded,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(hw.homework.title, style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      hw.homework.title,
+                      style: AppTypography.titleMedium(
+                        textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
                     const SizedBox(height: 4),
-                    Text('${context.tr("Max Score")}: ${hw.homework.maxScore}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      '${context.tr("Max Score")}: ${hw.homework.maxScore}',
+                      style: AppTypography.caption(
+                        textSecondary,
+                      ).copyWith(fontWeight: FontWeight.w600),
+                    ),
                   ],
                 ),
               ),
               SizedBox(
                 width: 120,
                 child: PrimaryButton(
-                  text: hw.isSubmitted ? context.tr('Retry / Edit') : context.tr('Start'),
+                  text: hw.isSubmitted
+                      ? context.tr('Retry / Edit')
+                      : context.tr('Start'),
                   color: hw.isSubmitted ? AppColors.info : AppColors.primary,
                   onPressed: () => _submitHomework(hw),
                 ),
@@ -291,11 +404,23 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.folder_open_rounded, size: 64, color: AppColors.info.withValues(alpha: 0.5)),
+            Icon(
+              Icons.folder_open_rounded,
+              size: 64,
+              color: AppColors.info.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
-            Text(context.tr('No Group Files'), style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              context.tr('No Group Files'),
+              style: AppTypography.titleLarge(
+                textPrimary,
+              ).copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
-            Text(context.tr('Lectures and materials will appear here.'), style: AppTypography.bodyMedium(textSecondary)),
+            Text(
+              context.tr('Lectures and materials will appear here.'),
+              style: AppTypography.bodyMedium(textSecondary),
+            ),
           ],
         ),
       );
@@ -319,17 +444,31 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   color: AppColors.info.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.play_lesson_rounded, color: AppColors.info, size: 22),
+                child: const Icon(
+                  Icons.play_lesson_rounded,
+                  color: AppColors.info,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(lesson.title, style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      lesson.title,
+                      style: AppTypography.titleMedium(
+                        textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
                     if (lesson.estimatedDurationMinutes != null) ...[
                       const SizedBox(height: 4),
-                      Text('${lesson.estimatedDurationMinutes} mins', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
+                      Text(
+                        '${lesson.estimatedDurationMinutes} mins',
+                        style: AppTypography.caption(
+                          textSecondary,
+                        ).copyWith(fontWeight: FontWeight.w600),
+                      ),
                     ],
                     if (lesson.resources.isNotEmpty) ...[
                       const SizedBox(height: 12),
@@ -338,7 +477,10 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                         runSpacing: 8,
                         children: lesson.resources.map((res) {
                           return ActionChip(
-                            avatar: const Icon(Icons.insert_drive_file, size: 16),
+                            avatar: const Icon(
+                              Icons.insert_drive_file,
+                              size: 16,
+                            ),
                             label: Text(res.title),
                             onPressed: () async {
                               final url = await Supabase.instance.client.storage
@@ -352,7 +494,8 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                                   pathName: widget.group.name,
                                   unitName: '',
                                   progressPercentage: 0,
-                                  estimatedMinutes: lesson.estimatedDurationMinutes ?? 30,
+                                  estimatedMinutes:
+                                      lesson.estimatedDurationMinutes ?? 30,
                                   lastPage: 1,
                                   totalPages: 0,
                                   xp: 0,
@@ -361,21 +504,36 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                                   pdfUrl: url,
                                 );
                                 if (context.mounted) {
-                                  Navigator.of(context).push(MaterialPageRoute(
-                                    builder: (_) => StudyWorkspaceScreen(
-                                      lesson: summary,
-                                      repository: SupabaseStudyWorkspaceRepository(
-                                        SupabaseClientWrapper(Supabase.instance.client),
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => StudyWorkspaceScreen(
+                                        lesson: summary,
+                                        studentId: _studentId,
+                                        repository:
+                                            SupabaseStudyWorkspaceRepository(
+                                              SupabaseClientWrapper(
+                                                Supabase.instance.client,
+                                              ),
+                                            ),
                                       ),
                                     ),
-                                  ));
+                                  );
                                 }
                               } else {
                                 try {
-                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                  await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  );
                                 } catch (e) {
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open file: $e')));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Could not open file: $e',
+                                        ),
+                                      ),
+                                    );
                                   }
                                 }
                               }
@@ -404,24 +562,32 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       final exam = exams.firstWhere((e) => e.id == item.exam.id);
       final attempt = await repo.startExam(exam.id);
       if (!mounted) return;
-      
+
       // We push the ExamRunnerScreen from assessment_screens.dart
       // Import missing? We need to import assessment_screens.dart at top.
-      await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => ExamRunnerScreen(
-          exam: exam,
-          attempt: attempt,
-          onOptionSelected: (qId, oId) => repo.saveExamAnswer(attemptId: attempt.id, questionId: qId, selectedOptionId: oId),
-          onSubmit: () async {
-            await repo.submitExamAttempt(attempt.id);
-            if (context.mounted) Navigator.pop(context);
-          },
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ExamRunnerScreen(
+            exam: exam,
+            attempt: attempt,
+            onOptionSelected: (qId, oId) => repo.saveExamAnswer(
+              attemptId: attempt.id,
+              questionId: qId,
+              selectedOptionId: oId,
+            ),
+            onSubmit: () async {
+              await repo.submitExamAttempt(attempt.id);
+              if (context.mounted) Navigator.pop(context);
+            },
+          ),
         ),
-      ));
+      );
       await _loadData();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exam failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Exam failed: $e')));
     }
   }
 
@@ -434,14 +600,28 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(context.tr('If you encountered an issue, explain why you need a reset.')),
+            Text(
+              context.tr(
+                'If you encountered an issue, explain why you need a reset.',
+              ),
+            ),
             const SizedBox(height: 12),
-            TextField(controller: reasonCtrl, decoration: InputDecoration(labelText: context.tr('Reason')), maxLines: 3),
+            TextField(
+              controller: reasonCtrl,
+              decoration: InputDecoration(labelText: context.tr('Reason')),
+              maxLines: 3,
+            ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('Cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.tr('Submit Request'))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(context.tr('Submit Request')),
+          ),
         ],
       ),
     );
@@ -449,16 +629,26 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     if (submitted != true) return;
 
     try {
-      await Supabase.instance.client.rpc('request_exam_reset', params: {
-        'p_exam_id': item.exam.id,
-        'p_reason': reasonCtrl.text.trim(),
-      });
+      await Supabase.instance.client.rpc(
+        'request_exam_reset',
+        params: {'p_exam_id': item.exam.id, 'p_reason': reasonCtrl.text.trim()},
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Reset request submitted.')), backgroundColor: Colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr('Reset request submitted.')),
+          backgroundColor: Colors.green,
+        ),
+      );
       _loadData();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${context.tr("Failed to submit request")}: $e'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${context.tr("Failed to submit request")}: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -468,11 +658,23 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.quiz_rounded, size: 64, color: AppColors.error.withValues(alpha: 0.5)),
+            Icon(
+              Icons.quiz_rounded,
+              size: 64,
+              color: AppColors.error.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
-            Text(context.tr('No Exams'), style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              context.tr('No Exams'),
+              style: AppTypography.titleLarge(
+                textPrimary,
+              ).copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
-            Text(context.tr('No exams are currently active for this group.'), style: AppTypography.bodyMedium(textSecondary)),
+            Text(
+              context.tr('No exams are currently active for this group.'),
+              style: AppTypography.bodyMedium(textSecondary),
+            ),
           ],
         ),
       );
@@ -496,84 +698,128 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   color: AppColors.error.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.timer_outlined, color: AppColors.error, size: 22),
+                child: const Icon(
+                  Icons.timer_outlined,
+                  color: AppColors.error,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(exam.exam.title, style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      exam.exam.title,
+                      style: AppTypography.titleMedium(
+                        textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
                     const SizedBox(height: 4),
-                    Text('${context.tr("Duration")}: ${exam.exam.durationMinutes} ${context.tr("min")}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      '${context.tr("Duration")}: ${exam.exam.durationMinutes} ${context.tr("min")}',
+                      style: AppTypography.caption(
+                        textSecondary,
+                      ).copyWith(fontWeight: FontWeight.w600),
+                    ),
                   ],
                 ),
               ),
               SizedBox(
                 width: 140,
-                child: Builder(builder: (context) {
-                  if (exam.canStart) {
-                    return PrimaryButton(
-                      text: context.tr('Start Exam'),
-                      onPressed: () => _startExam(exam),
-                      color: AppColors.primary,
-                    );
-                  } else if (exam.resetRequestStatus == 'pending') {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
-                      ),
-                      child: Center(
-                        child: Text(
-                          context.tr('Waiting for Approval'),
-                          style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
+                child: Builder(
+                  builder: (context) {
+                    if (exam.canStart) {
+                      return PrimaryButton(
+                        text: context.tr('Start Exam'),
+                        onPressed: () => _startExam(exam),
+                        color: AppColors.primary,
+                      );
+                    } else if (exam.resetRequestStatus == 'pending') {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
-                      ),
-                    );
-                  } else if (exam.resetRequestStatus == 'rejected') {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
-                      ),
-                      child: Center(
-                        child: Text(
-                          context.tr('Reset Rejected'),
-                          style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.orange.withValues(alpha: 0.5),
+                          ),
                         ),
-                      ),
-                    );
-                  } else if (exam.resetRequestStatus == 'approved' && !exam.canStart) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
-                      ),
-                      child: Center(
-                        child: Text(
-                          context.tr('Attempts Exhausted'),
-                          style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
+                        child: Center(
+                          child: Text(
+                            context.tr('Waiting for Approval'),
+                            style: const TextStyle(
+                              color: Colors.orange,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                      ),
-                    );
-                  } else {
-                    return PrimaryButton(
-                      text: context.tr('Request Reset'),
-                      onPressed: () => _requestExamReset(exam),
-                      color: AppColors.error,
-                    );
-                  }
-                }),
+                      );
+                    } else if (exam.resetRequestStatus == 'rejected') {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.red.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            context.tr('Reset Rejected'),
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    } else if (exam.resetRequestStatus == 'approved' &&
+                        !exam.canStart) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            context.tr('Attempts Exhausted'),
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    } else {
+                      return PrimaryButton(
+                        text: context.tr('Request Reset'),
+                        onPressed: () => _requestExamReset(exam),
+                        color: AppColors.error,
+                      );
+                    }
+                  },
+                ),
               ),
             ],
           ),
@@ -582,17 +828,33 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     );
   }
 
-  Widget _buildAttendanceTab(bool isDark, Color textPrimary, Color textSecondary) {
+  Widget _buildAttendanceTab(
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     if (_sessionList.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.event_available_rounded, size: 64, color: AppColors.warning.withValues(alpha: 0.5)),
+            Icon(
+              Icons.event_available_rounded,
+              size: 64,
+              color: AppColors.warning.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
-            Text(context.tr('No Sessions'), style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              context.tr('No Sessions'),
+              style: AppTypography.titleLarge(
+                textPrimary,
+              ).copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
-            Text(context.tr('No attendance records found.'), style: AppTypography.bodyMedium(textSecondary)),
+            Text(
+              context.tr('No attendance records found.'),
+              style: AppTypography.bodyMedium(textSecondary),
+            ),
           ],
         ),
       );
@@ -616,28 +878,53 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   color: AppColors.warning.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.event_note_rounded, color: AppColors.warning, size: 22),
+                child: const Icon(
+                  Icons.event_note_rounded,
+                  color: AppColors.warning,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${context.tr("Session")} - ${session.location ?? ""}', style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      '${context.tr("Session")} - ${session.location ?? ""}',
+                      style: AppTypography.titleMedium(
+                        textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
                     const SizedBox(height: 4),
-                    Text(session.sessionDate.toLocal().toString().split(" ")[0], style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      session.sessionDate.toLocal().toString().split(" ")[0],
+                      style: AppTypography.caption(
+                        textSecondary,
+                      ).copyWith(fontWeight: FontWeight.w600),
+                    ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: (session.status == SessionStatus.completed ? AppColors.success : AppColors.info).withValues(alpha: 0.1),
+                  color:
+                      (session.status == SessionStatus.completed
+                              ? AppColors.success
+                              : AppColors.info)
+                          .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   session.status.name.toUpperCase(),
-                  style: AppTypography.caption(session.status == SessionStatus.completed ? AppColors.success : AppColors.info).copyWith(fontWeight: FontWeight.bold),
+                  style: AppTypography.caption(
+                    session.status == SessionStatus.completed
+                        ? AppColors.success
+                        : AppColors.info,
+                  ).copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
             ],

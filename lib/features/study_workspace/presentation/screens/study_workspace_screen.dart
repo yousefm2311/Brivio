@@ -1389,7 +1389,8 @@ class _PdfAnnotation {
           DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
       strokes: _decodeStrokeList(json['strokes']),
-      isTeacher: json['isTeacher'] as bool? ?? false,
+      isTeacher:
+          json['isTeacher'] as bool? ?? json['is_teacher'] as bool? ?? false,
     );
   }
 
@@ -1924,7 +1925,8 @@ class _BoardStroke {
           (point['y'] as num? ?? 0).toDouble(),
         );
       }).toList(),
-      isTeacher: json['isTeacher'] as bool? ?? false,
+      isTeacher:
+          json['isTeacher'] as bool? ?? json['is_teacher'] as bool? ?? false,
     );
   }
 }

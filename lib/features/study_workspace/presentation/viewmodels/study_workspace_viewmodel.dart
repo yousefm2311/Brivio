@@ -55,19 +55,52 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   Future<void> load() async {
     final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
     final preferences = await SharedPreferences.getInstance();
-    _notebookText = preferences.getString('$_notebookPrefix${lesson.id}_$userSuffix') ?? '';
-    _codeText = preferences.getString('$_codePrefix${lesson.id}_$userSuffix') ?? '';
-    _boardData = preferences.getString('$_boardPrefix${lesson.id}_$userSuffix') ?? '';
+    _notebookText =
+        preferences.getString('$_notebookPrefix${lesson.id}_$userSuffix') ?? '';
+    _codeText =
+        preferences.getString('$_codePrefix${lesson.id}_$userSuffix') ?? '';
+    _boardData =
+        preferences.getString('$_boardPrefix${lesson.id}_$userSuffix') ?? '';
     _currentPage =
-        preferences.getInt('$_pagePrefix${lesson.id}_$userSuffix') ?? lesson.lastPage;
+        preferences.getInt('$_pagePrefix${lesson.id}_$userSuffix') ??
+        lesson.lastPage;
+
+    Directory? appDir;
+    try {
+      appDir = await getApplicationDocumentsDirectory();
+    } catch (_) {}
 
     // Use Hive for fallback or migration
     final boxName = 'study_workspace_cache';
-    final box = Hive.isBoxOpen(boxName) ? Hive.box(boxName) : await Hive.openBox(boxName);
-    _boardData = box.get('$_boardPrefix${lesson.id}_$userSuffix') ?? _boardData;
-    
+    if (appDir != null) {
+      try {
+        final box = Hive.isBoxOpen(boxName)
+            ? Hive.box(boxName)
+            : await Hive.openBox(boxName, path: appDir.path);
+        _boardData =
+            box.get('$_boardPrefix${lesson.id}_$userSuffix') ?? _boardData;
+      } catch (_) {}
+    }
+
     // Check for cached PDF
-    final appDir = await getApplicationDocumentsDirectory();
+    if (appDir == null) {
+      final draft = await _fetchCloudDraft();
+      if (draft != null) {
+        _notebookText = draft.notebookContent;
+        _codeText = draft.code;
+        _boardData = draft.boardData;
+      }
+
+      if (studentId != null && repository != null) {
+        await _mergeTeacherDraft();
+        _subscribeToTeacherDraft();
+      }
+
+      _isLoaded = true;
+      if (!_isDisposed) notifyListeners();
+      return;
+    }
+
     final pdfFile = File('${appDir.path}/pdf_${lesson.id}.pdf');
     if (await pdfFile.exists()) {
       _localPdfPath = pdfFile.path;
@@ -87,59 +120,95 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       _notebookText = draft.notebookContent;
       _codeText = draft.code;
       _boardData = draft.boardData;
-      
-      if (studentId != null && repository != null) {
-        // Fetch initial state
-        await _mergeTeacherDraft();
-
-        _teacherDraftSubscription?.cancel();
-        // Subscribe to real-time updates
-        _teacherDraftSubscription = repository!.listenToTeacherDraftForStudent(
-          studentId: studentId!,
-          lessonId: lesson.id,
-        ).listen((draft) async {
-          await _mergeTeacherDraft();
-          if (!_isDisposed) notifyListeners();
-        }, onError: (error) {
-          print('Error listening to teacher draft: $error');
-        });
-      }
 
       final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
       await preferences.setString(
         '$_notebookPrefix${lesson.id}_$userSuffix',
         _notebookText,
       );
-      await preferences.setString('$_codePrefix${lesson.id}_$userSuffix', _codeText);
-      await preferences.setString('$_boardPrefix${lesson.id}_$userSuffix', _boardData);
+      await preferences.setString(
+        '$_codePrefix${lesson.id}_$userSuffix',
+        _codeText,
+      );
+      await preferences.setString(
+        '$_boardPrefix${lesson.id}_$userSuffix',
+        _boardData,
+      );
+    }
+
+    if (studentId != null && repository != null) {
+      await _mergeTeacherDraft();
+      _subscribeToTeacherDraft();
     }
 
     _isLoaded = true;
     if (!_isDisposed) notifyListeners();
   }
 
-  Future<void> _mergeTeacherDraft() async {
+  void _subscribeToTeacherDraft() {
+    final currentStudentId = studentId;
+    final currentRepository = repository;
+    if (currentStudentId == null || currentRepository == null) return;
+
+    _teacherDraftSubscription?.cancel();
+    _teacherDraftSubscription = currentRepository
+        .listenToTeacherDraftForStudent(
+          studentId: currentStudentId,
+          lessonId: lesson.id,
+        )
+        .listen(
+          (draft) async {
+            await _mergeTeacherDraft(teacherDraft: draft);
+            if (!_isDisposed) notifyListeners();
+          },
+          onError: (error) {
+            print('Error listening to teacher draft: $error');
+          },
+        );
+  }
+
+  Future<void> _mergeTeacherDraft({StudyWorkspaceDraft? teacherDraft}) async {
     if (studentId == null || repository == null) return;
     try {
-      final teacherDraft = await repository!.fetchTeacherDraftForStudent(
+      teacherDraft ??= await repository!.fetchTeacherDraftForStudent(
         studentId: studentId!,
         lessonId: lesson.id,
       );
+      List<dynamic> studentStrokes = [];
+      if (_boardData.isNotEmpty) {
+        final std = jsonDecode(_boardData);
+        if (std is Map && std['strokes'] is List) {
+          studentStrokes = std['strokes']
+              .where(
+                (s) =>
+                    s is Map &&
+                    s['is_teacher'] != true &&
+                    s['isTeacher'] != true,
+              )
+              .toList();
+        }
+      }
+
+      if (teacherDraft.boardData.isEmpty) {
+        _boardData = jsonEncode({'strokes': studentStrokes});
+        return;
+      }
+
       if (teacherDraft.boardData.isNotEmpty) {
         final decoded = jsonDecode(teacherDraft.boardData);
         if (decoded is Map && decoded['strokes'] is List) {
-          final strokes = (decoded['strokes'] as List).whereType<Map>().map((s) {
+          final strokes = (decoded['strokes'] as List).whereType<Map>().map((
+            s,
+          ) {
             final st = Map<String, dynamic>.from(s);
+            st['isTeacher'] = true;
             st['is_teacher'] = true;
             return st;
           }).toList();
-          
-          List<dynamic> studentStrokes = [];
-          if (_boardData.isNotEmpty) {
-            final std = jsonDecode(_boardData);
-            if (std is Map && std['strokes'] is List) studentStrokes = std['strokes'].where((s) => s is Map && s['is_teacher'] != true).toList();
-          }
-          _boardData = jsonEncode({'strokes': [...strokes, ...studentStrokes]});
+
+          _boardData = jsonEncode({
+            'strokes': [...strokes, ...studentStrokes],
+          });
         }
       }
     } catch (_) {}
@@ -150,7 +219,10 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
       final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
-      await preferences.setString('$_notebookPrefix${lesson.id}_$userSuffix', value);
+      await preferences.setString(
+        '$_notebookPrefix${lesson.id}_$userSuffix',
+        value,
+      );
       final currentStudentId = studentId;
       if (repository != null && currentStudentId != null) {
         try {
@@ -169,7 +241,10 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
       final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
-      await preferences.setString('$_codePrefix${lesson.id}_$userSuffix', value);
+      await preferences.setString(
+        '$_codePrefix${lesson.id}_$userSuffix',
+        value,
+      );
       final currentStudentId = studentId;
       if (repository != null && currentStudentId != null) {
         try {
@@ -190,12 +265,22 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
       final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
-      await preferences.setString('$_boardPrefix${lesson.id}_$userSuffix', value);
-      
+      await preferences.setString(
+        '$_boardPrefix${lesson.id}_$userSuffix',
+        value,
+      );
+
       final boxName = 'study_workspace_cache';
-      final box = Hive.isBoxOpen(boxName) ? Hive.box(boxName) : await Hive.openBox(boxName);
-      await box.put('$_boardPrefix${lesson.id}_$userSuffix', value);
-      
+      try {
+        final box = Hive.isBoxOpen(boxName)
+            ? Hive.box(boxName)
+            : await Hive.openBox(
+                boxName,
+                path: (await getApplicationDocumentsDirectory()).path,
+              );
+        await box.put('$_boardPrefix${lesson.id}_$userSuffix', value);
+      } catch (_) {}
+
       final currentStudentId = studentId;
       final currentTeacherId = teacherId;
       if (repository != null) {
@@ -226,7 +311,10 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
       final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
-      await preferences.setInt('$_pagePrefix${lesson.id}_$userSuffix', normalized);
+      await preferences.setInt(
+        '$_pagePrefix${lesson.id}_$userSuffix',
+        normalized,
+      );
       if (repository != null && studentId != null) {
         final progress = lesson.totalPages <= 0
             ? 0
@@ -334,7 +422,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     final currentStudentId = studentId;
     final currentTeacherId = teacherId;
     if (repository == null) return null;
-    
+
     try {
       if (currentTeacherId != null) {
         return await repository!.fetchTeacherDraft(

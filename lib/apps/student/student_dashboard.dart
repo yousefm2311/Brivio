@@ -79,13 +79,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   void _subscribeToNotifications() {
     final notificationRepo = getIt<INotificationRepository>();
-    _notificationSubscription = notificationRepo.subscribeToNotifications().listen((notification) {
-      if (!mounted) return;
-      setState(() {
-        _notifications.insert(0, notification);
-        _unreadCount++;
-      });
-    });
+    _notificationSubscription = notificationRepo
+        .subscribeToNotifications()
+        .listen((notification) {
+          if (!mounted) return;
+          setState(() {
+            _notifications.insert(0, notification);
+            _unreadCount++;
+          });
+        });
   }
 
   // ── data loading ──
@@ -112,8 +114,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
       final notificationRepo = getIt<INotificationRepository>();
       final results = await Future.wait([
         SupabaseEnrollmentRepository(wrapper).fetchGroupsForStudent(studentId),
-        SupabaseStudentLearningRepository(wrapper).fetchSnapshotForStudent(studentId),
-        SupabasePaymentRepository(wrapper).fetchStudentFinancialSummary(studentId),
+        SupabaseStudentLearningRepository(
+          wrapper,
+        ).fetchSnapshotForStudent(studentId),
+        SupabasePaymentRepository(
+          wrapper,
+        ).fetchStudentFinancialSummary(studentId),
         SupabaseInvoiceRepository(wrapper).fetchInvoicesForStudent(studentId),
         SupabaseReceiptRepository(wrapper).fetchReceiptsForStudent(studentId),
         SupabaseAnnouncementRepository(wrapper).getTargetedAnnouncements(),
@@ -153,13 +159,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Future<List<StudentHomeworkItem>> _fetchHomeworkFeed() async {
-    final rows = await Supabase.instance.client.rpc('get_student_homework_feed');
-    return (rows as List).whereType<Map>().map((r) => StudentHomeworkItem.fromJson(r)).toList();
+    final rows = await Supabase.instance.client.rpc(
+      'get_student_homework_feed',
+    );
+    return (rows as List)
+        .whereType<Map>()
+        .map((r) => StudentHomeworkItem.fromJson(r))
+        .toList();
   }
 
   Future<List<StudentExamItem>> _fetchExamFeed() async {
     final rows = await Supabase.instance.client.rpc('get_student_exam_feed');
-    final items = (rows as List).whereType<Map>().map((r) => StudentExamItem.fromJson(r)).toList();
+    final items = (rows as List)
+        .whereType<Map>()
+        .map((r) => StudentExamItem.fromJson(r))
+        .toList();
     for (var item in items) {
       print('=== EXAM ${item.exam.title} ===');
       print('  attemptCount: ${item.attemptCount}');
@@ -170,21 +184,38 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Future<List<StudentAttendanceItem>> _fetchAttendanceHistory() async {
-    final rows = await Supabase.instance.client
-        .rpc('get_current_student_attendance_history', params: {'p_limit': 120});
-    return (rows as List).whereType<Map>().map((r) => StudentAttendanceItem.fromJson(r)).toList();
+    final rows = await Supabase.instance.client.rpc(
+      'get_current_student_attendance_history',
+      params: {'p_limit': 120},
+    );
+    return (rows as List)
+        .whereType<Map>()
+        .map((r) => StudentAttendanceItem.fromJson(r))
+        .toList();
   }
 
   Future<List<StudentLeaveItem>> _fetchLeaveRequests() async {
-    final rows = await Supabase.instance.client.rpc('get_current_student_leave_requests');
-    return (rows as List).whereType<Map>().map((r) => StudentLeaveItem.fromJson(r)).toList();
+    final rows = await Supabase.instance.client.rpc(
+      'get_current_student_leave_requests',
+    );
+    return (rows as List)
+        .whereType<Map>()
+        .map((r) => StudentLeaveItem.fromJson(r))
+        .toList();
   }
 
   Future<List<PublishedSessionBoard>> _fetchSessionBoards() async {
     try {
-      final rows = await Supabase.instance.client.rpc('get_student_published_session_boards');
-      print('=== DEBUG: get_student_published_session_boards returned: $rows ===');
-      return (rows as List).whereType<Map>().map((r) => PublishedSessionBoard.fromJson(r)).toList();
+      final rows = await Supabase.instance.client.rpc(
+        'get_student_published_session_boards',
+      );
+      print(
+        '=== DEBUG: get_student_published_session_boards returned: $rows ===',
+      );
+      return (rows as List)
+          .whereType<Map>()
+          .map((r) => PublishedSessionBoard.fromJson(r))
+          .toList();
     } catch (e, st) {
       print('=== DEBUG ERROR in _fetchSessionBoards: $e\n$st ===');
       rethrow;
@@ -196,39 +227,48 @@ class _StudentDashboardState extends State<StudentDashboard> {
   void _openWorkspace(StudyLessonSummary lesson) {
     final studentId = widget.authViewModel.bootstrap?.studentId;
     final wrapper = SupabaseClientWrapper(Supabase.instance.client);
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => StudyWorkspaceScreen(
-        lesson: lesson,
-        studentId: studentId,
-        repository: SupabaseStudyWorkspaceRepository(wrapper),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => StudyWorkspaceScreen(
+          lesson: lesson,
+          studentId: studentId,
+          repository: SupabaseStudyWorkspaceRepository(wrapper),
+        ),
       ),
-    ));
+    );
   }
 
   void _openSessionBoard(PublishedSessionBoard board) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => _SessionBoardScreen(board: board),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => _SessionBoardScreen(board: board)),
+    );
   }
 
   Future<void> _openGroupDetails(GroupEntity group) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => StudentGroupDetailsScreen(group: group),
+        builder: (_) => StudentGroupDetailsScreen(
+          group: group,
+          studentId: widget.authViewModel.bootstrap?.studentId,
+        ),
       ),
     );
     await _loadAll();
   }
 
   Future<void> _scanAttendanceQr() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StudentQrAttendanceScreen()));
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const StudentQrAttendanceScreen()),
+    );
     await _loadAll();
   }
 
   Future<void> _createLeaveRequest() async {
     final reasonController = TextEditingController();
-    String? selectedSessionId = _attendanceItems.isEmpty ? null : _attendanceItems.first.classSessionId;
+    String? selectedSessionId = _attendanceItems.isEmpty
+        ? null
+        : _attendanceItems.first.classSessionId;
 
     final submitted = await showDialog<bool>(
       context: context,
@@ -242,13 +282,22 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 DropdownButtonFormField<String?>(
                   isExpanded: true,
                   initialValue: selectedSessionId,
-                  decoration: InputDecoration(labelText: context.tr('Session'), prefixIcon: const Icon(Icons.event)),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Session'),
+                    prefixIcon: const Icon(Icons.event),
+                  ),
                   items: [
-                    DropdownMenuItem<String?>(value: null, child: Text(context.tr('General leave request'))),
+                    DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text(context.tr('General leave request')),
+                    ),
                     for (final item in _attendanceItems.take(30))
                       DropdownMenuItem<String?>(
                         value: item.classSessionId,
-                        child: Text('${DateFormat.yMMMd().format(item.sessionDate)} - ${item.groupName}', overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          '${DateFormat.yMMMd().format(item.sessionDate)} - ${item.groupName}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                   ],
                   onChanged: (v) => setDialogState(() => selectedSessionId = v),
@@ -256,7 +305,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: reasonController,
-                  decoration: InputDecoration(labelText: context.tr('Reason'), alignLabelWithHint: true),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Reason'),
+                    alignLabelWithHint: true,
+                  ),
                   minLines: 3,
                   maxLines: 6,
                 ),
@@ -264,7 +316,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('Cancel'))),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(context.tr('Cancel')),
+            ),
             FilledButton.icon(
               onPressed: () => Navigator.pop(ctx, true),
               icon: const Icon(Icons.send),
@@ -275,19 +330,29 @@ class _StudentDashboardState extends State<StudentDashboard> {
       ),
     );
 
-    if (submitted != true) { reasonController.dispose(); return; }
+    if (submitted != true) {
+      reasonController.dispose();
+      return;
+    }
 
     try {
-      await Supabase.instance.client.rpc('create_student_leave_request', params: {
-        'p_class_session_id': selectedSessionId,
-        'p_reason': reasonController.text.trim(),
-      });
+      await Supabase.instance.client.rpc(
+        'create_student_leave_request',
+        params: {
+          'p_class_session_id': selectedSessionId,
+          'p_reason': reasonController.text.trim(),
+        },
+      );
       await _loadAll();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Leave request sent.'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('Leave request sent.'))),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Leave request failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Leave request failed: $e')));
     } finally {
       reasonController.dispose();
     }
@@ -304,31 +369,66 @@ class _StudentDashboardState extends State<StudentDashboard> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: textCtrl, decoration: InputDecoration(labelText: context.tr('Answer / notes'), alignLabelWithHint: true), minLines: 4, maxLines: 8),
+              TextField(
+                controller: textCtrl,
+                decoration: InputDecoration(
+                  labelText: context.tr('Answer / notes'),
+                  alignLabelWithHint: true,
+                ),
+                minLines: 4,
+                maxLines: 8,
+              ),
               const SizedBox(height: 12),
-              TextField(controller: attachCtrl, decoration: InputDecoration(labelText: context.tr('Attachment URL'), prefixIcon: const Icon(Icons.link)), keyboardType: TextInputType.url),
+              TextField(
+                controller: attachCtrl,
+                decoration: InputDecoration(
+                  labelText: context.tr('Attachment URL'),
+                  prefixIcon: const Icon(Icons.link),
+                ),
+                keyboardType: TextInputType.url,
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('Cancel'))),
-          FilledButton.icon(onPressed: () => Navigator.pop(ctx, true), icon: const Icon(Icons.upload_file), label: Text(context.tr('Submit'))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('Cancel')),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.upload_file),
+            label: Text(context.tr('Submit')),
+          ),
         ],
       ),
     );
-    if (submitted != true) { textCtrl.dispose(); attachCtrl.dispose(); return; }
+    if (submitted != true) {
+      textCtrl.dispose();
+      attachCtrl.dispose();
+      return;
+    }
     try {
-      await Supabase.instance.client.rpc('submit_homework_text', params: {
-        'p_homework_id': item.homework.id,
-        'p_submission_text': textCtrl.text.trim(),
-        'p_attachment_url': attachCtrl.text.trim().isEmpty ? null : attachCtrl.text.trim(),
-      });
+      await Supabase.instance.client.rpc(
+        'submit_homework_text',
+        params: {
+          'p_homework_id': item.homework.id,
+          'p_submission_text': textCtrl.text.trim(),
+          'p_attachment_url': attachCtrl.text.trim().isEmpty
+              ? null
+              : attachCtrl.text.trim(),
+        },
+      );
       await _loadAll();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Homework submitted.'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('Homework submitted.'))),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
     } finally {
       textCtrl.dispose();
       attachCtrl.dispose();
@@ -345,21 +445,29 @@ class _StudentDashboardState extends State<StudentDashboard> {
       final exam = exams.firstWhere((e) => e.id == item.exam.id);
       final attempt = await repo.startExam(exam.id);
       if (!mounted) return;
-      await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => ExamRunnerScreen(
-          exam: exam,
-          attempt: attempt,
-          onOptionSelected: (qId, oId) => repo.saveExamAnswer(attemptId: attempt.id, questionId: qId, selectedOptionId: oId),
-          onSubmit: () async {
-            await repo.submitExamAttempt(attempt.id);
-            if (context.mounted) Navigator.pop(context);
-          },
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ExamRunnerScreen(
+            exam: exam,
+            attempt: attempt,
+            onOptionSelected: (qId, oId) => repo.saveExamAnswer(
+              attemptId: attempt.id,
+              questionId: qId,
+              selectedOptionId: oId,
+            ),
+            onSubmit: () async {
+              await repo.submitExamAttempt(attempt.id);
+              if (context.mounted) Navigator.pop(context);
+            },
+          ),
         ),
-      ));
+      );
       await _loadAll();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exam failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Exam failed: $e')));
     }
   }
 
@@ -370,12 +478,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
       await SupabaseNotificationRepository(wrapper).markRead(notification.id);
       if (!mounted) return;
       setState(() {
-        _notifications = _notifications.map((n) => n.id == notification.id ? n.copyWith(isRead: true) : n).toList();
+        _notifications = _notifications
+            .map((n) => n.id == notification.id ? n.copyWith(isRead: true) : n)
+            .toList();
         if (_unreadCount > 0) _unreadCount--;
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Notification update failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Notification update failed: $e')));
     }
   }
 
@@ -385,12 +497,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
       await SupabaseNotificationRepository(wrapper).markAllRead();
       if (!mounted) return;
       setState(() {
-        _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
+        _notifications = _notifications
+            .map((n) => n.copyWith(isRead: true))
+            .toList();
         _unreadCount = 0;
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Notification update failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Notification update failed: $e')));
     }
   }
 
@@ -398,14 +514,27 @@ class _StudentDashboardState extends State<StudentDashboard> {
     if (announcement.isAcknowledged) return;
     try {
       final wrapper = SupabaseClientWrapper(Supabase.instance.client);
-      await SupabaseAnnouncementRepository(wrapper).acknowledgeAnnouncement(announcement.id);
+      await SupabaseAnnouncementRepository(
+        wrapper,
+      ).acknowledgeAnnouncement(announcement.id);
       if (!mounted) return;
       setState(() {
-        _announcements = _announcements.map((a) => a.id == announcement.id ? a.copyWith(readAt: DateTime.now(), acknowledgedAt: DateTime.now()) : a).toList();
+        _announcements = _announcements
+            .map(
+              (a) => a.id == announcement.id
+                  ? a.copyWith(
+                      readAt: DateTime.now(),
+                      acknowledgedAt: DateTime.now(),
+                    )
+                  : a,
+            )
+            .toList();
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Acknowledgement failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Acknowledgement failed: $e')));
     }
   }
 
@@ -414,8 +543,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final user = widget.authViewModel.currentUser;
     final nextLesson = _snapshot?.nextLesson;
@@ -431,7 +564,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
         unreadCount: _unreadCount,
         pendingHomework: _homeworkItems.where((h) => !h.isSubmitted).toList(),
         onRetry: _loadAll,
-        onOpenWorkspace: nextLesson == null ? null : () => _openWorkspace(nextLesson),
+        onOpenWorkspace: nextLesson == null
+            ? null
+            : () => _openWorkspace(nextLesson),
         onNavigate: (i) => setState(() => _selectedIndex = i),
       ),
       LearnTab(
@@ -498,10 +633,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 NavigationRail(
                   backgroundColor: surfaceColor,
                   selectedIndex: _selectedIndex,
-                  onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+                  onDestinationSelected: (i) =>
+                      setState(() => _selectedIndex = i),
                   labelType: NavigationRailLabelType.all,
                   indicatorColor: AppColors.primary.withValues(alpha: 0.12),
-                  selectedIconTheme: const IconThemeData(color: AppColors.primary),
+                  selectedIconTheme: const IconThemeData(
+                    color: AppColors.primary,
+                  ),
                   destinations: [
                     NavigationRailDestination(
                       icon: const Icon(Icons.house_outlined),
@@ -551,22 +689,32 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 elevation: 0,
                 indicatorColor: AppColors.primary.withValues(alpha: 0.12),
                 selectedIndex: _selectedIndex,
-                onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+                onDestinationSelected: (i) =>
+                    setState(() => _selectedIndex = i),
                 labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                 destinations: [
                   NavigationDestination(
                     icon: const Icon(Icons.house_outlined),
-                    selectedIcon: const Icon(Icons.house_rounded, color: AppColors.primary),
+                    selectedIcon: const Icon(
+                      Icons.house_rounded,
+                      color: AppColors.primary,
+                    ),
                     label: context.tr('Home'),
                   ),
                   NavigationDestination(
                     icon: const Icon(Icons.menu_book_outlined),
-                    selectedIcon: const Icon(Icons.menu_book_rounded, color: AppColors.primary),
+                    selectedIcon: const Icon(
+                      Icons.menu_book_rounded,
+                      color: AppColors.primary,
+                    ),
                     label: context.tr('Learn'),
                   ),
                   NavigationDestination(
                     icon: const Icon(Icons.bolt_outlined),
-                    selectedIcon: const Icon(Icons.bolt_rounded, color: AppColors.primary),
+                    selectedIcon: const Icon(
+                      Icons.bolt_rounded,
+                      color: AppColors.primary,
+                    ),
                     label: context.tr('Activity'),
                   ),
                   NavigationDestination(
@@ -575,7 +723,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
                       child: const Icon(Icons.person_outline_rounded),
                     ),
-                    selectedIcon: const Icon(Icons.person_rounded, color: AppColors.primary),
+                    selectedIcon: const Icon(
+                      Icons.person_rounded,
+                      color: AppColors.primary,
+                    ),
                     label: context.tr('Account'),
                   ),
                 ],
@@ -583,7 +734,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
             ),
           ),
         );
-      }
+      },
     );
   }
 }
@@ -684,7 +835,9 @@ class _SessionBoardScreenState extends State<_SessionBoardScreen> {
         actions: [
           IconButton(
             icon: Icon(_isDrawingMode ? Icons.pan_tool : Icons.edit),
-            tooltip: _isDrawingMode ? context.tr('Switch to Pan/Zoom') : context.tr('Switch to Draw'),
+            tooltip: _isDrawingMode
+                ? context.tr('Switch to Pan/Zoom')
+                : context.tr('Switch to Draw'),
             onPressed: () => setState(() => _isDrawingMode = !_isDrawingMode),
           ),
           if (_isDrawingMode) ...[
@@ -718,9 +871,7 @@ class _SessionBoardScreenState extends State<_SessionBoardScreen> {
             color: Colors.white,
             width: double.infinity,
             height: double.infinity,
-            child: CustomPaint(
-              painter: _BoardPainter(allStrokes),
-            ),
+            child: CustomPaint(painter: _BoardPainter(allStrokes)),
           ),
         ),
       ),
@@ -731,7 +882,9 @@ class _SessionBoardScreenState extends State<_SessionBoardScreen> {
 List<BoardStroke> decodeSessionBoard(Map<String, dynamic> data) {
   final strokesData = data['strokes'] as List?;
   if (strokesData == null) return [];
-  return strokesData.map((s) => BoardStroke.fromJson(s as Map<String, dynamic>)).toList();
+  return strokesData
+      .map((s) => BoardStroke.fromJson(s as Map<String, dynamic>))
+      .toList();
 }
 
 class _BoardPainter extends CustomPainter {
@@ -747,7 +900,8 @@ class _BoardPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
       if (stroke.points.isNotEmpty) {
-        final path = Path()..moveTo(stroke.points.first.dx, stroke.points.first.dy);
+        final path = Path()
+          ..moveTo(stroke.points.first.dx, stroke.points.first.dy);
         for (int i = 1; i < stroke.points.length; i++) {
           path.lineTo(stroke.points[i].dx, stroke.points[i].dy);
         }
