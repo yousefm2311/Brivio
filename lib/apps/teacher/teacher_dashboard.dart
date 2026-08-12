@@ -59,15 +59,20 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   void _subscribeToNotifications() {
     final notificationRepo = getIt<INotificationRepository>();
-    _notificationSubscription = notificationRepo.subscribeToNotifications().listen((notification) {
-      if (!mounted) return;
-      setState(() {
-        _notifications.insert(0, notification);
-        _unreadCount++;
-      });
-    }, onError: (error) {
-      debugPrint('Notification stream error caught: $error');
-    });
+    _notificationSubscription = notificationRepo
+        .subscribeToNotifications()
+        .listen(
+          (notification) {
+            if (!mounted) return;
+            setState(() {
+              _notifications.insert(0, notification);
+              _unreadCount++;
+            });
+          },
+          onError: (error) {
+            debugPrint('Notification stream error caught: $error');
+          },
+        );
   }
 
   Future<void> _loadTeacherMetrics() async {
@@ -89,8 +94,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       }
 
       final notificationRepo = getIt<INotificationRepository>();
-      final initialNotifications = await notificationRepo.getNotifications().catchError((_) => <AppNotification>[]);
-      final initialUnreadCount = await notificationRepo.getUnreadCount().catchError((_) => 0);
+      final initialNotifications = await notificationRepo
+          .getNotifications()
+          .catchError((_) => <AppNotification>[]);
+      final initialUnreadCount = await notificationRepo
+          .getUnreadCount()
+          .catchError((_) => 0);
 
       final groups = await teacherRepo.fetchAssignedGroups(teacherId);
       final hwRes = await Supabase.instance.client
@@ -125,7 +134,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             .eq('teacher_id', teacherId),
       );
       final analytics = await _safeList(
-        () => Supabase.instance.client.rpc('get_current_teacher_group_analytics'),
+        () =>
+            Supabase.instance.client.rpc('get_current_teacher_group_analytics'),
       );
 
       if (mounted) {
@@ -168,12 +178,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   Widget build(BuildContext context) {
     final teacherId = widget.authViewModel.bootstrap?.teacherId;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     if (teacherId == null) {
       return Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: Text(context.tr('Teacher Portal')),
           actions: [
@@ -188,7 +203,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              context.tr('This account is not linked to a teacher profile yet. Ask an admin to provision the teacher record before using the teacher portal.'),
+              context.tr(
+                'This account is not linked to a teacher profile yet. Ask an admin to provision the teacher record before using the teacher portal.',
+              ),
               textAlign: TextAlign.center,
             ),
           ),
@@ -214,10 +231,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       ClassesTab(teacherId: teacherId),
       WorkspaceTab(teacherId: teacherId),
       AnalyticsTab(profileId: widget.authViewModel.currentUser!.id),
-      AccountTab(
-        teacherId: teacherId,
-        authViewModel: widget.authViewModel,
-      ),
+      AccountTab(teacherId: teacherId, authViewModel: widget.authViewModel),
     ];
 
     return LayoutBuilder(
@@ -236,16 +250,20 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
         if (isWide) {
           return Scaffold(
+            resizeToAvoidBottomInset: false,
             backgroundColor: bgColor,
             body: Row(
               children: [
                 NavigationRail(
                   backgroundColor: surfaceColor,
                   selectedIndex: _selectedIndex,
-                  onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+                  onDestinationSelected: (i) =>
+                      setState(() => _selectedIndex = i),
                   labelType: NavigationRailLabelType.all,
                   indicatorColor: AppColors.teacherRole.withValues(alpha: 0.12),
-                  selectedIconTheme: const IconThemeData(color: AppColors.teacherRole),
+                  selectedIconTheme: const IconThemeData(
+                    color: AppColors.teacherRole,
+                  ),
                   destinations: [
                     NavigationRailDestination(
                       icon: const Icon(Icons.dashboard_outlined),
@@ -282,6 +300,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         }
 
         return Scaffold(
+          resizeToAvoidBottomInset: false,
           backgroundColor: bgColor,
           body: body,
           bottomNavigationBar: Container(
@@ -296,32 +315,48 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 elevation: 0,
                 indicatorColor: AppColors.teacherRole.withValues(alpha: 0.12),
                 selectedIndex: _selectedIndex,
-                onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+                onDestinationSelected: (i) =>
+                    setState(() => _selectedIndex = i),
                 labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                 destinations: [
                   NavigationDestination(
                     icon: const Icon(Icons.dashboard_outlined),
-                    selectedIcon: const Icon(Icons.dashboard_rounded, color: AppColors.teacherRole),
+                    selectedIcon: const Icon(
+                      Icons.dashboard_rounded,
+                      color: AppColors.teacherRole,
+                    ),
                     label: context.tr('Home'),
                   ),
                   NavigationDestination(
                     icon: const Icon(Icons.school_outlined),
-                    selectedIcon: const Icon(Icons.school_rounded, color: AppColors.teacherRole),
+                    selectedIcon: const Icon(
+                      Icons.school_rounded,
+                      color: AppColors.teacherRole,
+                    ),
                     label: context.tr('Classes'),
                   ),
                   NavigationDestination(
                     icon: const Icon(Icons.grading_outlined),
-                    selectedIcon: const Icon(Icons.grading_rounded, color: AppColors.teacherRole),
+                    selectedIcon: const Icon(
+                      Icons.grading_rounded,
+                      color: AppColors.teacherRole,
+                    ),
                     label: context.tr('Workspace'),
                   ),
                   NavigationDestination(
                     icon: const Icon(Icons.analytics_outlined),
-                    selectedIcon: const Icon(Icons.analytics_rounded, color: AppColors.teacherRole),
+                    selectedIcon: const Icon(
+                      Icons.analytics_rounded,
+                      color: AppColors.teacherRole,
+                    ),
                     label: context.tr('Analytics'),
                   ),
                   NavigationDestination(
                     icon: const Icon(Icons.person_outline_rounded),
-                    selectedIcon: const Icon(Icons.person_rounded, color: AppColors.teacherRole),
+                    selectedIcon: const Icon(
+                      Icons.person_rounded,
+                      color: AppColors.teacherRole,
+                    ),
                     label: context.tr('Account'),
                   ),
                 ],

@@ -19,6 +19,7 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
   bool _isRunning = false;
   bool _isTerminalExpanded = false;
   String _terminalOutput = '';
+  double _fontSize = 15;
 
   void _runCode() async {
     final code = _codeController.text;
@@ -120,6 +121,47 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
         });
       }
     }
+  }
+
+  void _insertStarter() {
+    final snippet = switch (_selectedLanguage) {
+      'Dart' => 'void main() {\n  print("Hello Dart");\n}\n',
+      'Python' => 'print("Hello Python")\n',
+      'JS' => 'console.log("Hello JavaScript");\n',
+      'C++' =>
+        '#include <iostream>\nusing namespace std;\n\nint main() {\n  cout << "Hello C++" << endl;\n  return 0;\n}\n',
+      _ => '',
+    };
+    final selection = _codeController.selection;
+    final text = _codeController.text;
+    final start = selection.start < 0 ? text.length : selection.start;
+    final end = selection.end < 0 ? text.length : selection.end;
+    _codeController.value = TextEditingValue(
+      text: text.replaceRange(start, end, snippet),
+      selection: TextSelection.collapsed(offset: start + snippet.length),
+    );
+  }
+
+  void _formatCode() {
+    var indent = 0;
+    final formatted = <String>[];
+    for (final raw in _codeController.text.split('\n')) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) {
+        formatted.add('');
+        continue;
+      }
+      if (trimmed.startsWith('}') || trimmed.startsWith(')')) {
+        indent = (indent - 1).clamp(0, 99);
+      }
+      formatted.add('${'  ' * indent}$trimmed');
+      if (trimmed.endsWith('{') || trimmed.endsWith(':')) indent++;
+    }
+    final next = formatted.join('\n');
+    _codeController.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
   }
 
   @override
@@ -224,29 +266,17 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Container(
+            child: Padding(
               padding: const EdgeInsets.all(16),
-              child: TextField(
+              child: _HomeCodeEditor(
                 controller: _codeController,
                 focusNode: _codeFocus,
-                maxLines: null,
-                expands: true,
-                autocorrect: false,
-                enableSuggestions: false,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  color: AppColors.darkTextPrimary,
-                  fontSize: 15,
-                  height: 1.5,
-                ),
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  hintText: '// Write your code here...',
-                  hintStyle: TextStyle(
-                    color: AppColors.darkTextPlaceholder,
-                    fontFamily: 'monospace',
-                  ),
-                ),
+                language: _selectedLanguage,
+                fontSize: _fontSize,
+                onInsertStarter: _insertStarter,
+                onFormat: _formatCode,
+                onClear: () => _codeController.clear(),
+                onFontSizeChanged: (value) => setState(() => _fontSize = value),
               ),
             ),
           ),
@@ -328,6 +358,153 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeCodeEditor extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final String language;
+  final double fontSize;
+  final VoidCallback onInsertStarter;
+  final VoidCallback onFormat;
+  final VoidCallback onClear;
+  final ValueChanged<double> onFontSizeChanged;
+
+  const _HomeCodeEditor({
+    required this.controller,
+    required this.focusNode,
+    required this.language,
+    required this.fontSize,
+    required this.onInsertStarter,
+    required this.onFormat,
+    required this.onClear,
+    required this.onFontSizeChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1220),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF243044)),
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 44,
+            child: Row(
+              children: [
+                const SizedBox(width: 12),
+                const Icon(Icons.terminal, color: AppColors.primary, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  language,
+                  style: const TextStyle(
+                    color: AppColors.darkTextPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Starter code',
+                  onPressed: onInsertStarter,
+                  icon: const Icon(Icons.post_add, color: Colors.white),
+                ),
+                IconButton(
+                  tooltip: 'Format',
+                  onPressed: onFormat,
+                  icon: const Icon(Icons.auto_fix_high, color: Colors.white),
+                ),
+                IconButton(
+                  tooltip: 'Clear',
+                  onPressed: onClear,
+                  icon: const Icon(Icons.delete_outline, color: Colors.white),
+                ),
+                SizedBox(
+                  width: 110,
+                  child: Slider(
+                    min: 12,
+                    max: 20,
+                    divisions: 4,
+                    value: fontSize,
+                    onChanged: onFontSizeChanged,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFF243044)),
+          Expanded(
+            child: AnimatedBuilder(
+              animation: controller,
+              builder: (context, _) {
+                final lineCount = controller.text
+                    .split('\n')
+                    .length
+                    .clamp(1, 9999);
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      width: 52,
+                      color: const Color(0xFF111827),
+                      padding: const EdgeInsets.only(top: 14, right: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (var i = 1; i <= lineCount; i++)
+                            SizedBox(
+                              height: fontSize * 1.5,
+                              child: Text(
+                                '$i',
+                                style: TextStyle(
+                                  color: const Color(0xFF64748B),
+                                  fontFamily: 'monospace',
+                                  fontSize: fontSize - 1,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          color: AppColors.darkTextPrimary,
+                          fontSize: fontSize,
+                          height: 1.5,
+                        ),
+                        cursorColor: AppColors.primary,
+                        decoration: const InputDecoration(
+                          isCollapsed: true,
+                          contentPadding: EdgeInsets.all(14),
+                          border: InputBorder.none,
+                          hintText: '// Write your code here...',
+                          hintStyle: TextStyle(
+                            color: AppColors.darkTextPlaceholder,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
         ],
       ),
     );

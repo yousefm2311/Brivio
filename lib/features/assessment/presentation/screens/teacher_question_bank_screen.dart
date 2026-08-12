@@ -99,14 +99,18 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
 
     if (existingQuestion != null && existingQuestion.options.isNotEmpty) {
       if (selectedType == QuestionType.multipleChoice) {
-        if (existingQuestion.options.isNotEmpty)
+        if (existingQuestion.options.isNotEmpty) {
           opt1Ctrl.text = existingQuestion.options[0].text;
-        if (existingQuestion.options.length > 1)
+        }
+        if (existingQuestion.options.length > 1) {
           opt2Ctrl.text = existingQuestion.options[1].text;
-        if (existingQuestion.options.length > 2)
+        }
+        if (existingQuestion.options.length > 2) {
           opt3Ctrl.text = existingQuestion.options[2].text;
-        if (existingQuestion.options.length > 3)
+        }
+        if (existingQuestion.options.length > 3) {
           opt4Ctrl.text = existingQuestion.options[3].text;
+        }
         correctIdx = existingQuestion.options.indexWhere((o) => o.isCorrect);
         if (correctIdx == -1) correctIdx = 0;
       } else if (selectedType == QuestionType.trueFalse) {
@@ -120,397 +124,418 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
       text: existingQuestion?.explanation,
     );
 
-    showDialog(
+    await showDialog<void>(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.32),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
+          final surfaceColor = isDark
+              ? AppColors.darkCard
+              : AppColors.lightCard;
+          final borderColor = isDark
+              ? AppColors.darkBorder
+              : AppColors.lightBorder;
           final textColor = isDark
               ? AppColors.darkTextPrimary
               : AppColors.lightTextPrimary;
 
           return Dialog(
-            backgroundColor: Colors.transparent,
+            backgroundColor: surfaceColor,
             insetPadding: const EdgeInsets.all(16),
-            child: GlassCard(
-              padding: const EdgeInsets.all(24),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      existingQuestion == null
-                          ? context.tr('Create Question')
-                          : context.tr('Edit Question'),
-                      style: AppTypography.displaySmall(textColor),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<QuestionType>(
-                      initialValue: selectedType,
-                      dropdownColor: isDark
-                          ? AppColors.darkCard
-                          : AppColors.lightCard,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Question Type'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: borderColor),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560, maxHeight: 720),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        existingQuestion == null
+                            ? context.tr('Create Question')
+                            : context.tr('Edit Question'),
+                        style: AppTypography.displaySmall(textColor),
                       ),
-                      items: [
-                        DropdownMenuItem(
-                          value: QuestionType.multipleChoice,
-                          child: Text(
-                            context.tr('Multiple Choice'),
-                            style: TextStyle(color: textColor),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<QuestionType>(
+                        initialValue: selectedType,
+                        dropdownColor: isDark
+                            ? AppColors.darkCard
+                            : AppColors.lightCard,
+                        decoration: InputDecoration(
+                          labelText: context.tr('Question Type'),
+                        ),
+                        items: [
+                          DropdownMenuItem(
+                            value: QuestionType.multipleChoice,
+                            child: Text(
+                              context.tr('Multiple Choice'),
+                              style: TextStyle(color: textColor),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: QuestionType.trueFalse,
+                            child: Text(
+                              context.tr('True / False'),
+                              style: TextStyle(color: textColor),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: QuestionType.shortAnswer,
+                            child: Text(
+                              context.tr('Short Answer'),
+                              style: TextStyle(color: textColor),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: QuestionType.longAnswer,
+                            child: Text(
+                              context.tr('Long Answer'),
+                              style: TextStyle(color: textColor),
+                            ),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) {
+                            setStateDialog(() {
+                              selectedType = v;
+                              if (v == QuestionType.trueFalse) {
+                                opt1Ctrl.text = 'True';
+                                opt2Ctrl.text = 'False';
+                                correctIdx = 0;
+                              } else {
+                                opt1Ctrl.clear();
+                                opt2Ctrl.clear();
+                              }
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: promptCtrl,
+                        style: TextStyle(color: textColor),
+                        decoration: InputDecoration(
+                          labelText: context.tr('Question Prompt'),
+                        ),
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 8),
+
+                      if (selectedType == QuestionType.multipleChoice) ...[
+                        TextField(
+                          controller: opt1Ctrl,
+                          style: TextStyle(color: textColor),
+                          decoration: InputDecoration(
+                            labelText: context.tr('Option 1'),
                           ),
                         ),
-                        DropdownMenuItem(
-                          value: QuestionType.trueFalse,
-                          child: Text(
-                            context.tr('True / False'),
-                            style: TextStyle(color: textColor),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: opt2Ctrl,
+                          style: TextStyle(color: textColor),
+                          decoration: InputDecoration(
+                            labelText: context.tr('Option 2'),
                           ),
                         ),
-                        DropdownMenuItem(
-                          value: QuestionType.shortAnswer,
-                          child: Text(
-                            context.tr('Short Answer'),
-                            style: TextStyle(color: textColor),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: opt3Ctrl,
+                          style: TextStyle(color: textColor),
+                          decoration: InputDecoration(
+                            labelText: context.tr('Option 3'),
                           ),
                         ),
-                        DropdownMenuItem(
-                          value: QuestionType.longAnswer,
-                          child: Text(
-                            context.tr('Long Answer'),
-                            style: TextStyle(color: textColor),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: opt4Ctrl,
+                          style: TextStyle(color: textColor),
+                          decoration: InputDecoration(
+                            labelText: context.tr('Option 4'),
                           ),
+                        ),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<int>(
+                          initialValue: correctIdx,
+                          dropdownColor: isDark
+                              ? AppColors.darkCard
+                              : AppColors.lightCard,
+                          decoration: InputDecoration(
+                            labelText: context.tr('Correct Option'),
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: 0,
+                              child: Text(
+                                context.tr('Option 1 is Correct'),
+                                style: TextStyle(color: textColor),
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 1,
+                              child: Text(
+                                context.tr('Option 2 is Correct'),
+                                style: TextStyle(color: textColor),
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 2,
+                              child: Text(
+                                context.tr('Option 3 is Correct'),
+                                style: TextStyle(color: textColor),
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 3,
+                              child: Text(
+                                context.tr('Option 4 is Correct'),
+                                style: TextStyle(color: textColor),
+                              ),
+                            ),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setStateDialog(() => correctIdx = v);
+                          },
+                        ),
+                      ] else if (selectedType == QuestionType.trueFalse) ...[
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<int>(
+                          initialValue: correctIdx,
+                          dropdownColor: isDark
+                              ? AppColors.darkCard
+                              : AppColors.lightCard,
+                          decoration: InputDecoration(
+                            labelText: context.tr('Correct Option'),
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: 0,
+                              child: Text(
+                                context.tr('True is Correct'),
+                                style: TextStyle(color: textColor),
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 1,
+                              child: Text(
+                                context.tr('False is Correct'),
+                                style: TextStyle(color: textColor),
+                              ),
+                            ),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setStateDialog(() => correctIdx = v);
+                          },
+                        ),
+                      ] else ...[
+                        TextField(
+                          controller: explanationCtrl,
+                          style: TextStyle(color: textColor),
+                          decoration: InputDecoration(
+                            labelText: context.tr('Model Answer / Explanation'),
+                          ),
+                          maxLines: 3,
                         ),
                       ],
-                      onChanged: (v) {
-                        if (v != null) {
-                          setStateDialog(() {
-                            selectedType = v;
-                            if (v == QuestionType.trueFalse) {
-                              opt1Ctrl.text = 'True';
-                              opt2Ctrl.text = 'False';
-                              correctIdx = 0;
-                            } else {
-                              opt1Ctrl.clear();
-                              opt2Ctrl.clear();
-                            }
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: promptCtrl,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        labelText: context.tr('Question Prompt'),
-                      ),
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 8),
-
-                    if (selectedType == QuestionType.multipleChoice) ...[
-                      TextField(
-                        controller: opt1Ctrl,
-                        style: TextStyle(color: textColor),
-                        decoration: InputDecoration(
-                          labelText: context.tr('Option 1'),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: opt2Ctrl,
-                        style: TextStyle(color: textColor),
-                        decoration: InputDecoration(
-                          labelText: context.tr('Option 2'),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: opt3Ctrl,
-                        style: TextStyle(color: textColor),
-                        decoration: InputDecoration(
-                          labelText: context.tr('Option 3'),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: opt4Ctrl,
-                        style: TextStyle(color: textColor),
-                        decoration: InputDecoration(
-                          labelText: context.tr('Option 4'),
-                        ),
-                      ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<int>(
-                        initialValue: correctIdx,
-                        dropdownColor: isDark
-                            ? AppColors.darkCard
-                            : AppColors.lightCard,
-                        decoration: InputDecoration(
-                          labelText: context.tr('Correct Option'),
-                        ),
-                        items: [
-                          DropdownMenuItem(
-                            value: 0,
-                            child: Text(
-                              context.tr('Option 1 is Correct'),
-                              style: TextStyle(color: textColor),
-                            ),
-                          ),
-                          DropdownMenuItem(
-                            value: 1,
-                            child: Text(
-                              context.tr('Option 2 is Correct'),
-                              style: TextStyle(color: textColor),
-                            ),
-                          ),
-                          DropdownMenuItem(
-                            value: 2,
-                            child: Text(
-                              context.tr('Option 3 is Correct'),
-                              style: TextStyle(color: textColor),
-                            ),
-                          ),
-                          DropdownMenuItem(
-                            value: 3,
-                            child: Text(
-                              context.tr('Option 4 is Correct'),
-                              style: TextStyle(color: textColor),
-                            ),
-                          ),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setStateDialog(() => correctIdx = v);
-                        },
-                      ),
-                    ] else if (selectedType == QuestionType.trueFalse) ...[
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<int>(
-                        initialValue: correctIdx,
-                        dropdownColor: isDark
-                            ? AppColors.darkCard
-                            : AppColors.lightCard,
-                        decoration: InputDecoration(
-                          labelText: context.tr('Correct Option'),
-                        ),
-                        items: [
-                          DropdownMenuItem(
-                            value: 0,
-                            child: Text(
-                              context.tr('True is Correct'),
-                              style: TextStyle(color: textColor),
-                            ),
-                          ),
-                          DropdownMenuItem(
-                            value: 1,
-                            child: Text(
-                              context.tr('False is Correct'),
-                              style: TextStyle(color: textColor),
-                            ),
-                          ),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setStateDialog(() => correctIdx = v);
-                        },
-                      ),
-                    ] else ...[
                       TextField(
-                        controller: explanationCtrl,
+                        controller: ptsCtrl,
                         style: TextStyle(color: textColor),
                         decoration: InputDecoration(
-                          labelText: context.tr('Model Answer / Explanation'),
+                          labelText: context.tr('Default Points'),
                         ),
-                        maxLines: 3,
+                        keyboardType: TextInputType.number,
                       ),
-                    ],
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: ptsCtrl,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        labelText: context.tr('Default Points'),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text(
-                            context.tr('Cancel'),
-                            style: TextStyle(color: textColor),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text(
+                              context.tr('Cancel'),
+                              style: TextStyle(color: textColor),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () async {
-                            if (promptCtrl.text.trim().isEmpty) return;
-                            final nav = Navigator.of(ctx);
-                            try {
-                              List<QuestionOption> opts = [];
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () async {
+                              if (promptCtrl.text.trim().isEmpty) return;
+                              final nav = Navigator.of(ctx);
+                              try {
+                                List<QuestionOption> opts = [];
 
-                              if (selectedType == QuestionType.multipleChoice) {
-                                opts = [
-                                  QuestionOption(
-                                    id: '',
-                                    questionId: '',
-                                    text: opt1Ctrl.text.trim(),
-                                    isCorrect: correctIdx == 0,
-                                    orderNumber: 1,
-                                  ),
-                                  QuestionOption(
-                                    id: '',
-                                    questionId: '',
-                                    text: opt2Ctrl.text.trim(),
-                                    isCorrect: correctIdx == 1,
-                                    orderNumber: 2,
-                                  ),
-                                  QuestionOption(
-                                    id: '',
-                                    questionId: '',
-                                    text: opt3Ctrl.text.trim(),
-                                    isCorrect: correctIdx == 2,
-                                    orderNumber: 3,
-                                  ),
-                                  QuestionOption(
-                                    id: '',
-                                    questionId: '',
-                                    text: opt4Ctrl.text.trim(),
-                                    isCorrect: correctIdx == 3,
-                                    orderNumber: 4,
-                                  ),
-                                ];
-                              } else if (selectedType ==
-                                  QuestionType.trueFalse) {
-                                opts = [
-                                  QuestionOption(
-                                    id: '',
-                                    questionId: '',
-                                    text: 'True',
-                                    isCorrect: correctIdx == 0,
-                                    orderNumber: 1,
-                                  ),
-                                  QuestionOption(
-                                    id: '',
-                                    questionId: '',
-                                    text: 'False',
-                                    isCorrect: correctIdx == 1,
-                                    orderNumber: 2,
-                                  ),
-                                ];
-                              }
-
-                              final q = Question(
-                                id: existingQuestion?.id ?? '',
-                                subjectId: _selectedGroup!.subjectId,
-                                questionType: selectedType,
-                                prompt: promptCtrl.text.trim(),
-                                explanation:
-                                    explanationCtrl.text.trim().isNotEmpty
-                                    ? explanationCtrl.text.trim()
-                                    : null,
-                                defaultPoints:
-                                    double.tryParse(ptsCtrl.text) ?? 5.0,
-                                options: opts,
-                              );
-
-                              if (existingQuestion != null) {
-                                // Check if used in exams
-                                final res = await Supabase.instance.client
-                                    .from('exam_questions')
-                                    .select('exams(title)')
-                                    .eq('question_id', existingQuestion.id);
-
-                                if (res.isNotEmpty) {
-                                  // Ask to update all or save as new
-                                  if (!mounted) return;
-                                  final doUpdate = await showDialog<bool>(
-                                    context: context,
-                                    builder: (c) => AlertDialog(
-                                      title: Text(context.tr('Warning')),
-                                      content: Text(
-                                        context.tr(
-                                          'This question is used in active exams. Do you want to update it everywhere, or save this as a new question?',
-                                        ),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(c, false),
-                                          child: Text(
-                                            context.tr('Save as New'),
-                                          ),
-                                        ),
-                                        FilledButton(
-                                          style: FilledButton.styleFrom(
-                                            backgroundColor: AppColors.error,
-                                          ),
-                                          onPressed: () =>
-                                              Navigator.pop(c, true),
-                                          child: Text(
-                                            context.tr('Update Everywhere'),
-                                          ),
-                                        ),
-                                      ],
+                                if (selectedType ==
+                                    QuestionType.multipleChoice) {
+                                  opts = [
+                                    QuestionOption(
+                                      id: '',
+                                      questionId: '',
+                                      text: opt1Ctrl.text.trim(),
+                                      isCorrect: correctIdx == 0,
+                                      orderNumber: 1,
                                     ),
-                                  );
+                                    QuestionOption(
+                                      id: '',
+                                      questionId: '',
+                                      text: opt2Ctrl.text.trim(),
+                                      isCorrect: correctIdx == 1,
+                                      orderNumber: 2,
+                                    ),
+                                    QuestionOption(
+                                      id: '',
+                                      questionId: '',
+                                      text: opt3Ctrl.text.trim(),
+                                      isCorrect: correctIdx == 2,
+                                      orderNumber: 3,
+                                    ),
+                                    QuestionOption(
+                                      id: '',
+                                      questionId: '',
+                                      text: opt4Ctrl.text.trim(),
+                                      isCorrect: correctIdx == 3,
+                                      orderNumber: 4,
+                                    ),
+                                  ];
+                                } else if (selectedType ==
+                                    QuestionType.trueFalse) {
+                                  opts = [
+                                    QuestionOption(
+                                      id: '',
+                                      questionId: '',
+                                      text: 'True',
+                                      isCorrect: correctIdx == 0,
+                                      orderNumber: 1,
+                                    ),
+                                    QuestionOption(
+                                      id: '',
+                                      questionId: '',
+                                      text: 'False',
+                                      isCorrect: correctIdx == 1,
+                                      orderNumber: 2,
+                                    ),
+                                  ];
+                                }
 
-                                  if (doUpdate == true) {
-                                    await _questionRepo.updateQuestion(q, opts);
+                                final q = Question(
+                                  id: existingQuestion?.id ?? '',
+                                  subjectId: _selectedGroup!.subjectId,
+                                  questionType: selectedType,
+                                  prompt: promptCtrl.text.trim(),
+                                  explanation:
+                                      explanationCtrl.text.trim().isNotEmpty
+                                      ? explanationCtrl.text.trim()
+                                      : null,
+                                  defaultPoints:
+                                      double.tryParse(ptsCtrl.text) ?? 5.0,
+                                  options: opts,
+                                );
+
+                                if (existingQuestion != null) {
+                                  // Check if used in exams
+                                  final res = await Supabase.instance.client
+                                      .from('exam_questions')
+                                      .select('exams(title)')
+                                      .eq('question_id', existingQuestion.id);
+
+                                  if (res.isNotEmpty) {
+                                    // Ask to update all or save as new
+                                    if (!mounted) return;
+                                    final doUpdate = await showDialog<bool>(
+                                      context: context,
+                                      builder: (c) => AlertDialog(
+                                        title: Text(context.tr('Warning')),
+                                        content: Text(
+                                          context.tr(
+                                            'This question is used in active exams. Do you want to update it everywhere, or save this as a new question?',
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(c, false),
+                                            child: Text(
+                                              context.tr('Save as New'),
+                                            ),
+                                          ),
+                                          FilledButton(
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor: AppColors.error,
+                                            ),
+                                            onPressed: () =>
+                                                Navigator.pop(c, true),
+                                            child: Text(
+                                              context.tr('Update Everywhere'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (doUpdate == true) {
+                                      await _questionRepo.updateQuestion(
+                                        q,
+                                        opts,
+                                      );
+                                    } else {
+                                      await _questionRepo.createQuestion(
+                                        q,
+                                        opts,
+                                      );
+                                    }
                                   } else {
-                                    await _questionRepo.createQuestion(q, opts);
+                                    await _questionRepo.updateQuestion(q, opts);
                                   }
                                 } else {
-                                  await _questionRepo.updateQuestion(q, opts);
+                                  await _questionRepo.createQuestion(q, opts);
                                 }
-                              } else {
-                                await _questionRepo.createQuestion(q, opts);
-                              }
 
-                              nav.pop();
-                              _loadQuestions();
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      context.tr(
-                                        'Question saved successfully!',
+                                nav.pop();
+                                _loadQuestions();
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        context.tr(
+                                          'Question saved successfully!',
+                                        ),
                                       ),
+                                      backgroundColor: Colors.green,
                                     ),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${context.tr('Save failed')}: $e',
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '${context.tr('Save failed')}: $e',
+                                      ),
+                                      backgroundColor: Colors.red,
                                     ),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                                  );
+                                }
                               }
-                            }
-                          },
-                          child: Text(
-                            existingQuestion == null
-                                ? context.tr('Save Question')
-                                : context.tr('Update Question'),
+                            },
+                            child: Text(
+                              existingQuestion == null
+                                  ? context.tr('Save Question')
+                                  : context.tr('Update Question'),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

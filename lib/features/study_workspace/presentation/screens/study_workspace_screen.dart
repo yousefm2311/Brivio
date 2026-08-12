@@ -41,6 +41,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   Timer? _notebookDebounce;
   Timer? _codeDebounce;
   Timer? _boardDebounce;
+  RealtimeChannel? _teacherPdfChannel;
   List<_BoardStroke> _boardStrokes = [];
   List<_PdfAnnotation> _pdfAnnotations = [];
   bool _pdfAnnotationsLoaded = false;
@@ -60,6 +61,8 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   _BoardStroke? _activeStroke;
   bool _isFabMenuOpen = false;
   bool _showBoard = false;
+  bool _showCode = false;
+  bool _showNotebook = false;
   bool _isPanMode = false;
   late final TransformationController _boardTransformationController;
 
@@ -109,7 +112,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     _notebookController = TextEditingController();
     _codeController = TextEditingController();
     _boardTransformationController = TransformationController();
-    
+
     // Center the board by default on the 4000x4000 canvas
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -120,6 +123,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
 
     _viewModel.addListener(_syncLoadedText);
     _viewModel.load();
+    _subscribeToTeacherPdfLayer();
   }
 
   @override
@@ -127,6 +131,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     _notebookDebounce?.cancel();
     _codeDebounce?.cancel();
     _boardDebounce?.cancel();
+    _teacherPdfChannel?.unsubscribe();
     _viewModel.removeListener(_syncLoadedText);
     _finishStudySession();
     _viewModel.dispose();
@@ -175,9 +180,9 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     setState(() => _boardStrokes = strokes);
     _boardDebounce?.cancel();
     _boardDebounce = Timer(const Duration(milliseconds: 450), () {
-      final strokesToSave = widget.teacherId == null 
-        ? strokes.where((s) => !s.isTeacher).toList()
-        : strokes;
+      final strokesToSave = widget.teacherId == null
+          ? strokes.where((s) => !s.isTeacher).toList()
+          : strokes;
       _viewModel.saveBoard(_encodeBoard(strokesToSave));
       _recordReplayEvent('board_changed', {'stroke_count': strokes.length});
     });
@@ -271,10 +276,11 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
           studentId: studentId,
           lessonId: widget.lesson.id,
         );
-        final teacherRows = await repository.fetchTeacherPdfAnnotationsForStudent(
-          studentId: studentId,
-          lessonId: widget.lesson.id,
-        );
+        final teacherRows = await repository
+            .fetchTeacherPdfAnnotationsForStudent(
+              studentId: studentId,
+              lessonId: widget.lesson.id,
+            );
         cloudRows = [...cloudRows, ...teacherRows];
       }
       final cloudAnnotations = cloudRows
@@ -282,10 +288,16 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
           .where((annotation) => annotation.id.isNotEmpty)
           .toList();
       if (cloudAnnotations.isEmpty || !mounted) return;
-      setState(() => _pdfAnnotations = cloudAnnotations);
+      final nextAnnotations = studentId == null
+          ? cloudAnnotations
+          : _mergeStudentAndTeacherPdfAnnotations(
+              localAnnotations,
+              cloudAnnotations,
+            );
+      setState(() => _pdfAnnotations = nextAnnotations);
       await preferences.setString(
         _pdfAnnotationKey,
-        _encodePdfAnnotations(cloudAnnotations),
+        _encodePdfAnnotations(nextAnnotations),
       );
     } catch (_) {}
   }
@@ -303,7 +315,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     if (repository == null) return;
     try {
       List<Map<String, dynamic>> annotationsToSave = [];
-      
+
       if (currentTeacherId != null) {
         annotationsToSave = annotations.map((a) => a.toJson()).toList();
         await repository.saveTeacherPdfAnnotations(
@@ -314,8 +326,11 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
       } else if (currentStudentId != null) {
         annotationsToSave = annotations
             .map((a) {
-              if (a.type == _PdfAnnotationType.freehand && a.strokes.isNotEmpty) {
-                final studentStrokes = a.strokes.where((s) => !s.isTeacher).toList();
+              if (a.type == _PdfAnnotationType.freehand &&
+                  a.strokes.isNotEmpty) {
+                final studentStrokes = a.strokes
+                    .where((s) => !s.isTeacher)
+                    .toList();
                 if (studentStrokes.isEmpty) return null;
                 return _PdfAnnotation(
                   id: a.id,
@@ -331,7 +346,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
             })
             .whereType<Map<String, dynamic>>()
             .toList();
-            
+
         await repository.savePdfAnnotations(
           studentId: currentStudentId,
           lessonId: widget.lesson.id,
@@ -341,12 +356,36 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     } catch (_) {}
   }
 
+  List<_PdfAnnotation> _mergeStudentAndTeacherPdfAnnotations(
+    List<_PdfAnnotation> localAnnotations,
+    List<_PdfAnnotation> cloudAnnotations,
+  ) {
+    final cloudStudent = cloudAnnotations
+        .where((annotation) => !annotation.isTeacher)
+        .toList();
+    final cloudTeacher = cloudAnnotations
+        .where((annotation) => annotation.isTeacher)
+        .toList();
+    final cloudStudentIds = cloudStudent
+        .map((annotation) => annotation.id)
+        .toSet();
+    final unsyncedLocalStudent = localAnnotations
+        .where(
+          (annotation) =>
+              !annotation.isTeacher && !cloudStudentIds.contains(annotation.id),
+        )
+        .toList();
+
+    return [...cloudStudent, ...unsyncedLocalStudent, ...cloudTeacher];
+  }
+
   String get _pdfAnnotationKey =>
       'study_workspace_pdf_annotations_${widget.lesson.id}_${widget.teacherId ?? widget.studentId ?? 'guest'}';
 
   Future<void> _addStickyNote() async {
     final text = await showDialog<String>(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.32),
       builder: (context) => const _StickyNoteDialog(),
     );
     if (text == null || text.isEmpty) return;
@@ -418,8 +457,14 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
 
   Future<void> _deletePdfAnnotation(String id) async {
     final annotation = _pdfAnnotations.firstWhere(
-      (a) => a.id == id, 
-      orElse: () => _PdfAnnotation(id: '', page: 0, type: _PdfAnnotationType.note, text: '', createdAt: DateTime.now())
+      (a) => a.id == id,
+      orElse: () => _PdfAnnotation(
+        id: '',
+        page: 0,
+        type: _PdfAnnotationType.note,
+        text: '',
+        createdAt: DateTime.now(),
+      ),
     );
     if (annotation.id.isEmpty) return;
     if (widget.teacherId == null && annotation.isTeacher) return;
@@ -431,14 +476,19 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   }
 
   Future<void> _savePdfFreehand(int page, List<_BoardStroke> strokes) async {
+    final isTeacherWorkspace = widget.teacherId != null;
     final withoutPageDrawing = _pdfAnnotations
         .where(
           (annotation) =>
               !(annotation.page == page &&
-                  annotation.type == _PdfAnnotationType.freehand),
+                  annotation.type == _PdfAnnotationType.freehand &&
+                  annotation.isTeacher == isTeacherWorkspace),
         )
         .toList();
-    final nextAnnotations = strokes.isEmpty
+    final ownStrokes = isTeacherWorkspace
+        ? strokes.map((stroke) => stroke.copyWith(isTeacher: true)).toList()
+        : strokes.where((stroke) => !stroke.isTeacher).toList();
+    final nextAnnotations = ownStrokes.isEmpty
         ? withoutPageDrawing
         : [
             ...withoutPageDrawing,
@@ -448,15 +498,52 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
               type: _PdfAnnotationType.freehand,
               text: 'Freehand drawing',
               createdAt: DateTime.now(),
-              strokes: strokes,
-              isTeacher: widget.teacherId != null,
+              strokes: ownStrokes,
+              isTeacher: isTeacherWorkspace,
             ),
           ];
     await _savePdfAnnotations(nextAnnotations);
     _recordReplayEvent('pdf_freehand_changed', {
       'page': page,
-      'stroke_count': strokes.length,
+      'stroke_count': ownStrokes.length,
     });
+  }
+
+  void _subscribeToTeacherPdfLayer() {
+    if (widget.studentId == null || widget.repository == null) return;
+
+    _teacherPdfChannel = Supabase.instance.client.channel(
+      'public:teacher_study_pdf_layer:${widget.lesson.id}:${widget.studentId}',
+    );
+
+    void reloadTeacherLayer(PostgresChangePayload _) {
+      unawaited(_loadPdfAnnotations());
+    }
+
+    _teacherPdfChannel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'teacher_study_annotations',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'lesson_id',
+            value: widget.lesson.id,
+          ),
+          callback: reloadTeacherLayer,
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'teacher_study_pdf_drawings',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'lesson_id',
+            value: widget.lesson.id,
+          ),
+          callback: reloadTeacherLayer,
+        )
+        .subscribe();
   }
 
   Future<void> _goToPage(int delta) async {
@@ -469,24 +556,28 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
 
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, _) {
         if (!_viewModel.isLoaded) {
           return Scaffold(
+            resizeToAvoidBottomInset: false,
             backgroundColor: bgColor,
-            body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            body: const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
           );
         }
-        
+
         final hasPdf = widget.lesson.pdfUrl != null;
-        final showPdf = hasPdf && !_showBoard;
+        final showPdf = hasPdf && !_showBoard && !_showCode && !_showNotebook;
 
         return Scaffold(
+          resizeToAvoidBottomInset: false,
           backgroundColor: bgColor,
           body: Stack(
             children: [
@@ -506,10 +597,41 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                   ),
                 ),
 
-              if (!showPdf)
+              if (_showCode)
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.of(context).padding.top + 92,
+                    ),
+                    child: _CodePane(
+                      viewModel: _viewModel,
+                      controller: _codeController,
+                      onChanged: _queueCodeSave,
+                    ),
+                  ),
+                ),
+
+              if (_showNotebook)
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.of(context).padding.top + 92,
+                    ),
+                    child: _NotebookPane(
+                      controller: _notebookController,
+                      strokes: _boardStrokes,
+                      onChanged: _queueNotebookSave,
+                      onBoardChanged: _queueBoardSave,
+                    ),
+                  ),
+                ),
+
+              if (!showPdf && !_showCode && !_showNotebook)
                 Positioned.fill(
                   child: _DrawingBoard(
-                    strokes: _activeStroke == null ? _boardStrokes : [..._boardStrokes, _activeStroke!],
+                    strokes: _activeStroke == null
+                        ? _boardStrokes
+                        : [..._boardStrokes, _activeStroke!],
                     onPanStart: _startStroke,
                     onPanUpdate: _appendStroke,
                     onPanEnd: _endStroke,
@@ -525,17 +647,28 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                 left: 16,
                 right: 16,
                 child: GlassCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   borderRadius: BorderRadius.circular(32),
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 18,
+                        ),
                         onPressed: () => Navigator.of(context).pop(),
                         splashRadius: 20,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -546,7 +679,9 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                             Text(
                               widget.lesson.title,
                               style: AppTypography.labelLarge(
-                                isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                isDark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.lightTextPrimary,
                               ).copyWith(fontWeight: FontWeight.w800),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -554,11 +689,19 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.timer_outlined, size: 12, color: AppColors.info),
+                                const Icon(
+                                  Icons.timer_outlined,
+                                  size: 12,
+                                  color: AppColors.info,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '${widget.lesson.estimatedMinutes} min',
-                                  style: const TextStyle(fontSize: 10, color: AppColors.info, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.info,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -567,8 +710,13 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                                     child: LinearProgressIndicator(
                                       value: widget.lesson.progress,
                                       minHeight: 4,
-                                      backgroundColor: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
-                                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
+                                      backgroundColor:
+                                          (isDark ? Colors.white : Colors.black)
+                                              .withValues(alpha: 0.1),
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                            AppColors.success,
+                                          ),
                                     ),
                                   ),
                                 ),
@@ -577,10 +725,18 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                                   duration: const Duration(milliseconds: 200),
                                   child: _viewModel.isSaving
                                       ? const SizedBox(
-                                          width: 14, height: 14,
-                                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.primary,
+                                          ),
                                         )
-                                      : const Icon(Icons.cloud_done_rounded, size: 16, color: AppColors.success),
+                                      : const Icon(
+                                          Icons.cloud_done_rounded,
+                                          size: 16,
+                                          color: AppColors.success,
+                                        ),
                                 ),
                                 const SizedBox(width: 4),
                               ],
@@ -593,54 +749,93 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                 ),
               ),
 
-              if (hasPdf)
-                Positioned(
-                  bottom: MediaQuery.of(context).padding.bottom + 24,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: GlassCard(
-                      padding: const EdgeInsets.all(4),
-                      borderRadius: BorderRadius.circular(28),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+              Positioned(
+                bottom: MediaQuery.of(context).padding.bottom + 24,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: GlassCard(
+                    padding: const EdgeInsets.all(4),
+                    borderRadius: BorderRadius.circular(28),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (hasPdf)
                           _ToggleButton(
                             title: 'PDF',
-                            isSelected: !_showBoard,
-                            onTap: () => setState(() => _showBoard = false),
+                            isSelected: showPdf,
+                            onTap: () => setState(() {
+                              _showBoard = false;
+                              _showCode = false;
+                              _showNotebook = false;
+                            }),
                           ),
-                          _ToggleButton(
-                            title: 'Board',
-                            isSelected: _showBoard,
-                            onTap: () => setState(() => _showBoard = true),
-                          ),
-                        ],
-                      ),
+                        _ToggleButton(
+                          title: 'Board',
+                          isSelected:
+                              _showBoard && !_showCode && !_showNotebook,
+                          onTap: () => setState(() {
+                            _showBoard = true;
+                            _showCode = false;
+                            _showNotebook = false;
+                          }),
+                        ),
+                        _ToggleButton(
+                          title: 'Notes',
+                          isSelected: _showNotebook,
+                          onTap: () => setState(() {
+                            _showNotebook = true;
+                            _showCode = false;
+                            _showBoard = false;
+                          }),
+                        ),
+                        _ToggleButton(
+                          title: 'Code',
+                          isSelected: _showCode,
+                          onTap: () => setState(() {
+                            _showCode = true;
+                            _showBoard = false;
+                            _showNotebook = false;
+                          }),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-
-              Positioned(
-                bottom: MediaQuery.of(context).padding.bottom + 24,
-                right: 24,
-                child: _FloatingToolMenu(
-                  isOpen: _isFabMenuOpen,
-                  onToggle: () => setState(() => _isFabMenuOpen = !_isFabMenuOpen),
-                  selectedColor: _selectedColor,
-                  eraser: _eraser,
-                  onColorSelected: (c) => setState(() { _selectedColor = c; _eraser = false; _isPanMode = false; }),
-                  onToggleEraser: () => setState(() { _eraser = !_eraser; if (_eraser) _isPanMode = false; }),
-                  isPanMode: _isPanMode,
-                  onTogglePanMode: () => setState(() { _isPanMode = !_isPanMode; if (_isPanMode) _eraser = false; }),
-                  onClear: _clearBoard,
-                  hasPdf: showPdf,
-                  onPrevPage: () => _goToPage(-1),
-                  onNextPage: () => _goToPage(1),
-                  currentPage: _viewModel.currentPage,
-                  totalPages: widget.lesson.totalPages,
-                ),
               ),
+
+              if (!_showCode && !_showNotebook)
+                Positioned(
+                  bottom: MediaQuery.of(context).padding.bottom + 24,
+                  right: 24,
+                  child: _FloatingToolMenu(
+                    isOpen: _isFabMenuOpen,
+                    onToggle: () =>
+                        setState(() => _isFabMenuOpen = !_isFabMenuOpen),
+                    selectedColor: _selectedColor,
+                    eraser: _eraser,
+                    onColorSelected: (c) => setState(() {
+                      _selectedColor = c;
+                      _eraser = false;
+                      _isPanMode = false;
+                    }),
+                    onToggleEraser: () => setState(() {
+                      _eraser = !_eraser;
+                      if (_eraser) _isPanMode = false;
+                    }),
+                    isPanMode: _isPanMode,
+                    onTogglePanMode: () => setState(() {
+                      _isPanMode = !_isPanMode;
+                      if (_isPanMode) _eraser = false;
+                    }),
+                    onClear: _clearBoard,
+                    hasPdf: showPdf,
+                    onPrevPage: () => _goToPage(-1),
+                    onNextPage: () => _goToPage(1),
+                    currentPage: _viewModel.currentPage,
+                    totalPages: widget.lesson.totalPages,
+                  ),
+                ),
             ],
           ),
         );
@@ -648,7 +843,6 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     );
   }
 }
-
 
 class _ToggleButton extends StatelessWidget {
   final String title;
@@ -665,15 +859,17 @@ class _ToggleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? (isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08))
+          color: isSelected
+              ? (isDark
+                    ? Colors.white.withValues(alpha: 0.15)
+                    : Colors.black.withValues(alpha: 0.08))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
         ),
@@ -681,7 +877,7 @@ class _ToggleButton extends StatelessWidget {
           title,
           style: TextStyle(
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected 
+            color: isSelected
                 ? (isDark ? Colors.white : Colors.black)
                 : (isDark ? Colors.white70 : Colors.black54),
           ),
@@ -736,7 +932,7 @@ class _FloatingToolMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -754,7 +950,10 @@ class _FloatingToolMenu extends StatelessWidget {
                     icon: const Icon(Icons.chevron_left_rounded),
                     tooltip: 'Previous Page',
                   ),
-                  Text('${currentPage} / ${totalPages}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(
+                    '${currentPage} / ${totalPages}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   IconButton(
                     onPressed: currentPage < totalPages ? onNextPage : null,
                     icon: const Icon(Icons.chevron_right_rounded),
@@ -780,20 +979,34 @@ class _FloatingToolMenu extends StatelessWidget {
                       onTap: () => onColorSelected(color),
                     ),
                   ),
-                Container(height: 1, width: 24, color: theme.dividerColor, margin: const EdgeInsets.only(bottom: 12)),
+                Container(
+                  height: 1,
+                  width: 24,
+                  color: theme.dividerColor,
+                  margin: const EdgeInsets.only(bottom: 12),
+                ),
                 IconButton(
                   onPressed: onToggleEraser,
-                  icon: Icon(Icons.cleaning_services_rounded, color: eraser && !isPanMode ? AppColors.primary : null),
+                  icon: Icon(
+                    Icons.cleaning_services_rounded,
+                    color: eraser && !isPanMode ? AppColors.primary : null,
+                  ),
                   tooltip: 'Eraser',
                 ),
                 IconButton(
                   onPressed: onTogglePanMode,
-                  icon: Icon(Icons.pan_tool_rounded, color: isPanMode ? AppColors.primary : null),
+                  icon: Icon(
+                    Icons.pan_tool_rounded,
+                    color: isPanMode ? AppColors.primary : null,
+                  ),
                   tooltip: 'Pan Tool',
                 ),
                 IconButton(
                   onPressed: onClear,
-                  icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: AppColors.error,
+                  ),
                   tooltip: 'Clear Board',
                 ),
               ],
@@ -809,7 +1022,9 @@ class _FloatingToolMenu extends StatelessWidget {
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
             transitionBuilder: (child, anim) => RotationTransition(
-              turns: child.key == const ValueKey('close') ? Tween<double>(begin: -0.125, end: 0).animate(anim) : Tween<double>(begin: 0.125, end: 0).animate(anim),
+              turns: child.key == const ValueKey('close')
+                  ? Tween<double>(begin: -0.125, end: 0).animate(anim)
+                  : Tween<double>(begin: 0.125, end: 0).animate(anim),
               child: ScaleTransition(scale: anim, child: child),
             ),
             child: isOpen
@@ -827,7 +1042,11 @@ class _ToolColorDot extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _ToolColorDot({required this.color, required this.isSelected, required this.onTap});
+  const _ToolColorDot({
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -844,15 +1063,17 @@ class _ToolColorDot extends StatelessWidget {
             width: 3,
           ),
           boxShadow: [
-            if (isSelected) BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 8)
+            if (isSelected)
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.4),
+                blurRadius: 8,
+              ),
           ],
         ),
       ),
     );
   }
 }
-
- 
 
 class _PdfPane extends StatefulWidget {
   final StudyWorkspaceViewModel viewModel;
@@ -946,13 +1167,15 @@ class _PdfPaneState extends State<_PdfPane> {
     final page = widget.viewModel.currentPage;
     final strokes = _pageStrokes(widget.annotations, page);
     if (strokes.isEmpty) return;
-    
+
     if (widget.teacherId == null) {
       final studentStrokes = strokes.where((s) => !s.isTeacher).toList();
       if (studentStrokes.isEmpty) return;
       final teacherStrokes = strokes.where((s) => s.isTeacher).toList();
-      widget.onFreehandChanged(
-          page, [...teacherStrokes, ...studentStrokes.take(studentStrokes.length - 1)]);
+      widget.onFreehandChanged(page, [
+        ...teacherStrokes,
+        ...studentStrokes.take(studentStrokes.length - 1),
+      ]);
     } else {
       widget.onFreehandChanged(page, strokes.take(strokes.length - 1).toList());
     }
@@ -987,9 +1210,6 @@ class _PdfPaneState extends State<_PdfPane> {
         .where((annotation) => annotation.type == _PdfAnnotationType.highlight)
         .toList();
     final pageStrokes = _pageStrokes(widget.annotations, viewModel.currentPage);
-    final visibleStrokes = _activeStroke == null
-        ? pageStrokes
-        : [...pageStrokes, _activeStroke!];
 
     return Stack(
       children: [
@@ -1003,7 +1223,7 @@ class _PdfPaneState extends State<_PdfPane> {
               final pageNum = page.pageNumber;
               final pStrokes = _pageStrokes(widget.annotations, pageNum);
               final isActive = pageNum == viewModel.currentPage;
-              
+
               final pageVisibleStrokes = (isActive && _activeStroke != null)
                   ? [...pStrokes, _activeStroke!]
                   : pStrokes;
@@ -1377,6 +1597,11 @@ class _PdfAnnotation {
 
   factory _PdfAnnotation.fromJson(Map<String, dynamic> json) {
     final rawType = json['type']?.toString() ?? 'note';
+    final isTeacher =
+        json['isTeacher'] as bool? ?? json['is_teacher'] as bool? ?? false;
+    final strokes = _decodeStrokeList(json['strokes'])
+        .map((stroke) => isTeacher ? stroke.copyWith(isTeacher: true) : stroke)
+        .toList();
     return _PdfAnnotation(
       id: json['id']?.toString() ?? '',
       page: int.tryParse(json['page']?.toString() ?? '') ?? 1,
@@ -1388,9 +1613,8 @@ class _PdfAnnotation {
       createdAt:
           DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
-      strokes: _decodeStrokeList(json['strokes']),
-      isTeacher:
-          json['isTeacher'] as bool? ?? json['is_teacher'] as bool? ?? false,
+      strokes: strokes,
+      isTeacher: isTeacher,
     );
   }
 
@@ -1483,128 +1707,130 @@ class _SignedPdfViewerState extends State<_SignedPdfViewer> {
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: widget.localPath != null
-          ? PdfViewer.file(
-              widget.localPath!,
-              controller: _controller,
-              initialPageNumber: widget.pageNumber,
-              params: PdfViewerParams(
-                pageOverlaysBuilder: widget.pageOverlaysBuilder,
-                onViewerReady: (document, controller) {
-                  controller.goToPage(
-                    pageNumber: widget.pageNumber,
-                    duration: Duration.zero,
-                  );
-                },
-                loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
-                  final progress = totalBytes == null || totalBytes == 0
-                      ? null
-                      : bytesDownloaded / totalBytes;
-                  return Center(
-                    child: SizedBox(
-                      width: 260,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          LinearProgressIndicator(value: progress),
-                          const SizedBox(height: 12),
-                          Text(context.tr('Loading PDF...')),
-                        ],
+            ? PdfViewer.file(
+                widget.localPath!,
+                controller: _controller,
+                initialPageNumber: widget.pageNumber,
+                params: PdfViewerParams(
+                  pageOverlaysBuilder: widget.pageOverlaysBuilder,
+                  onViewerReady: (document, controller) {
+                    controller.goToPage(
+                      pageNumber: widget.pageNumber,
+                      duration: Duration.zero,
+                    );
+                  },
+                  loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
+                    final progress = totalBytes == null || totalBytes == 0
+                        ? null
+                        : bytesDownloaded / totalBytes;
+                    return Center(
+                      child: SizedBox(
+                        width: 260,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            LinearProgressIndicator(value: progress),
+                            const SizedBox(height: 12),
+                            Text(context.tr('Loading PDF...')),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-                errorBannerBuilder: (context, error, stackTrace, documentRef) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.picture_as_pdf_outlined,
-                            color: AppColors.error,
-                            size: 48,
+                    );
+                  },
+                  errorBannerBuilder:
+                      (context, error, stackTrace, documentRef) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.picture_as_pdf_outlined,
+                                  color: AppColors.error,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  context.tr('PDF failed to load'),
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w900),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  error.toString(),
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            context.tr('PDF failed to load'),
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            error.toString(),
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
+                        );
+                      },
+                ),
+              )
+            : PdfViewer.uri(
+                Uri.parse(widget.url),
+                controller: _controller,
+                initialPageNumber: widget.pageNumber,
+                params: PdfViewerParams(
+                  pageOverlaysBuilder: widget.pageOverlaysBuilder,
+                  onViewerReady: (document, controller) {
+                    controller.goToPage(
+                      pageNumber: widget.pageNumber,
+                      duration: Duration.zero,
+                    );
+                  },
+                  loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
+                    final progress = totalBytes == null || totalBytes == 0
+                        ? null
+                        : bytesDownloaded / totalBytes;
+                    return Center(
+                      child: SizedBox(
+                        width: 260,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            LinearProgressIndicator(value: progress),
+                            const SizedBox(height: 12),
+                            Text(context.tr('Loading PDF...')),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                  errorBannerBuilder:
+                      (context, error, stackTrace, documentRef) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.picture_as_pdf_outlined,
+                                  color: AppColors.error,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  context.tr('PDF failed to load'),
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w900),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  error.toString(),
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                ),
               ),
-            )
-          : PdfViewer.uri(
-              Uri.parse(widget.url),
-              controller: _controller,
-              initialPageNumber: widget.pageNumber,
-              params: PdfViewerParams(
-                pageOverlaysBuilder: widget.pageOverlaysBuilder,
-                onViewerReady: (document, controller) {
-                  controller.goToPage(
-                    pageNumber: widget.pageNumber,
-                    duration: Duration.zero,
-                  );
-                },
-                loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
-                  final progress = totalBytes == null || totalBytes == 0
-                      ? null
-                      : bytesDownloaded / totalBytes;
-                  return Center(
-                    child: SizedBox(
-                      width: 260,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          LinearProgressIndicator(value: progress),
-                          const SizedBox(height: 12),
-                          Text(context.tr('Loading PDF...')),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                errorBannerBuilder: (context, error, stackTrace, documentRef) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.picture_as_pdf_outlined,
-                            color: AppColors.error,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            context.tr('PDF failed to load'),
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            error.toString(),
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
       ),
     );
   }
@@ -1725,7 +1951,8 @@ class _NotebookPaneState extends State<_NotebookPane> {
                 ],
               ),
               const SizedBox(width: 10),
-              Expanded(
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 160, maxWidth: 260),
                 child: Wrap(
                   spacing: 8,
                   children: [
@@ -1777,33 +2004,53 @@ class _DrawingBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InteractiveViewer(
-      transformationController: transformationController,
-      panEnabled: isPanMode,
-      scaleEnabled: isPanMode,
-      minScale: 0.1,
-      maxScale: 10.0,
-      constrained: false,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onPanStart: isPanMode ? null : onPanStart,
-        onPanUpdate: isPanMode ? null : onPanUpdate,
-        onPanEnd: isPanMode ? null : onPanEnd,
-        child: canvasSize != null 
-          ? Container(
-              width: canvasSize!.width,
-              height: canvasSize!.height,
-              color: Colors.transparent, // Capture gestures
-              child: CustomPaint(
-                painter: _NotebookSketchPainter(strokes, isTransparent: isTransparent),
-                size: canvasSize!,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final viewportHeight = constraints.hasBoundedHeight
+            ? constraints.maxHeight
+            : MediaQuery.sizeOf(context).height;
+        final boardSize =
+            canvasSize ??
+            Size(
+              viewportWidth.isFinite ? viewportWidth : 800,
+              viewportHeight.isFinite ? viewportHeight : 480,
+            );
+
+        return SizedBox(
+          width: viewportWidth,
+          height: viewportHeight,
+          child: InteractiveViewer(
+            transformationController: transformationController,
+            panEnabled: isPanMode,
+            scaleEnabled: isPanMode,
+            minScale: 0.1,
+            maxScale: 10.0,
+            constrained: false,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onPanStart: isPanMode ? null : onPanStart,
+              onPanUpdate: isPanMode ? null : onPanUpdate,
+              onPanEnd: isPanMode ? null : onPanEnd,
+              child: SizedBox(
+                width: boardSize.width,
+                height: boardSize.height,
+                child: ColoredBox(
+                  color: Colors.transparent,
+                  child: CustomPaint(
+                    painter: _NotebookSketchPainter(
+                      strokes,
+                      isTransparent: isTransparent,
+                    ),
+                  ),
+                ),
               ),
-            )
-          : CustomPaint(
-              painter: _NotebookSketchPainter(strokes, isTransparent: isTransparent),
-              child: const SizedBox.expand(),
             ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1819,7 +2066,7 @@ class _NotebookSketchPainter extends CustomPainter {
     if (!isTransparent) {
       final bgPaint = Paint()..color = Colors.white;
       canvas.drawRect(Offset.zero & size, bgPaint);
-      
+
       final gridPaint = Paint()
         ..color = AppColors.lightBorder
         ..strokeWidth = 1;
@@ -1847,7 +2094,8 @@ class _NotebookSketchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _NotebookSketchPainter oldDelegate) =>
-      oldDelegate.strokes != strokes || oldDelegate.isTransparent != isTransparent;
+      oldDelegate.strokes != strokes ||
+      oldDelegate.isTransparent != isTransparent;
 }
 
 class _ColorDot extends StatelessWidget {
@@ -1897,7 +2145,12 @@ class _BoardStroke {
     this.isTeacher = false,
   });
 
-  _BoardStroke copyWith({Color? color, double? width, List<Offset>? points, bool? isTeacher}) {
+  _BoardStroke copyWith({
+    Color? color,
+    double? width,
+    List<Offset>? points,
+    bool? isTeacher,
+  }) {
     return _BoardStroke(
       color: color ?? this.color,
       width: width ?? this.width,
@@ -1948,6 +2201,193 @@ List<_BoardStroke> _decodeBoard(String raw) {
   }
 }
 
+class _CodeEditorShell extends StatefulWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final String language;
+  final double fontSize;
+  final VoidCallback onInsertSnippet;
+  final VoidCallback onFormat;
+  final VoidCallback onClear;
+  final ValueChanged<double> onFontSizeChanged;
+
+  const _CodeEditorShell({
+    required this.controller,
+    required this.onChanged,
+    required this.language,
+    required this.fontSize,
+    required this.onInsertSnippet,
+    required this.onFormat,
+    required this.onClear,
+    required this.onFontSizeChanged,
+  });
+
+  @override
+  State<_CodeEditorShell> createState() => _CodeEditorShellState();
+}
+
+class _CodeEditorShellState extends State<_CodeEditorShell> {
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lineCount = widget.controller.text.split('\n').length.clamp(1, 9999);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF374151)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFF0B1220),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+              border: Border(bottom: BorderSide(color: Color(0xFF374151))),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.code, size: 18, color: Color(0xFF93C5FD)),
+                const SizedBox(width: 8),
+                Text(
+                  widget.language.toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFFE5E7EB),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+                const Spacer(),
+                Tooltip(
+                  message: 'Insert starter code',
+                  child: IconButton(
+                    onPressed: widget.onInsertSnippet,
+                    icon: const Icon(Icons.post_add),
+                    color: Colors.white,
+                  ),
+                ),
+                Tooltip(
+                  message: 'Format code',
+                  child: IconButton(
+                    onPressed: widget.onFormat,
+                    icon: const Icon(Icons.auto_fix_high),
+                    color: Colors.white,
+                  ),
+                ),
+                Tooltip(
+                  message: 'Clear editor',
+                  child: IconButton(
+                    onPressed: widget.onClear,
+                    icon: const Icon(Icons.delete_outline),
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(
+                  width: 120,
+                  child: Slider(
+                    min: 12,
+                    max: 20,
+                    divisions: 4,
+                    value: widget.fontSize,
+                    onChanged: widget.onFontSizeChanged,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: AnimatedBuilder(
+              animation: widget.controller,
+              builder: (context, _) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      width: 52,
+                      color: const Color(0xFF0F172A),
+                      child: SingleChildScrollView(
+                        controller: _scrollController,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(0, 14, 8, 14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            for (var i = 1; i <= lineCount; i++)
+                              SizedBox(
+                                height: widget.fontSize * 1.45,
+                                child: Text(
+                                  '$i',
+                                  style: TextStyle(
+                                    color: const Color(0xFF64748B),
+                                    fontFamily: 'monospace',
+                                    fontSize: widget.fontSize - 1,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (notification) {
+                          if (notification.metrics.axis == Axis.vertical &&
+                              _scrollController.hasClients) {
+                            _scrollController.jumpTo(
+                              notification.metrics.pixels.clamp(
+                                0,
+                                _scrollController.position.maxScrollExtent,
+                              ),
+                            );
+                          }
+                          return false;
+                        },
+                        child: TextField(
+                          controller: widget.controller,
+                          expands: true,
+                          maxLines: null,
+                          minLines: null,
+                          textAlignVertical: TextAlignVertical.top,
+                          keyboardType: TextInputType.multiline,
+                          onChanged: widget.onChanged,
+                          style: TextStyle(
+                            color: const Color(0xFFE5E7EB),
+                            fontFamily: 'monospace',
+                            fontSize: widget.fontSize,
+                            height: 1.45,
+                          ),
+                          cursorColor: const Color(0xFF60A5FA),
+                          decoration: const InputDecoration(
+                            isCollapsed: true,
+                            contentPadding: EdgeInsets.all(14),
+                            border: InputBorder.none,
+                            hintText: 'Write code here...',
+                            hintStyle: TextStyle(color: Color(0xFF64748B)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CodePane extends StatefulWidget {
   final StudyWorkspaceViewModel viewModel;
   final TextEditingController controller;
@@ -1965,6 +2405,7 @@ class _CodePane extends StatefulWidget {
 
 class _CodePaneState extends State<_CodePane> {
   String _language = 'python';
+  double _fontSize = 14;
   bool _isLoadingChallenges = false;
   bool _isRunningChallenge = false;
   List<_CodeChallenge> _challenges = [];
@@ -2122,6 +2563,55 @@ class _CodePaneState extends State<_CodePane> {
     setState(() => _isVisualizing = false);
   }
 
+  void _insertSnippet(String snippet) {
+    final selection = widget.controller.selection;
+    final text = widget.controller.text;
+    final start = selection.start < 0 ? text.length : selection.start;
+    final end = selection.end < 0 ? text.length : selection.end;
+    final next = text.replaceRange(start, end, snippet);
+    widget.controller.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: start + snippet.length),
+    );
+    widget.onChanged(next);
+  }
+
+  void _formatCode() {
+    final lines = widget.controller.text.split('\n');
+    var indent = 0;
+    final formatted = <String>[];
+    for (final raw in lines) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) {
+        formatted.add('');
+        continue;
+      }
+      if (trimmed.startsWith('}') || trimmed.startsWith(')')) {
+        indent = (indent - 1).clamp(0, 99);
+      }
+      formatted.add('${'  ' * indent}$trimmed');
+      if (trimmed.endsWith('{') || trimmed.endsWith(':')) {
+        indent++;
+      }
+    }
+    final next = formatted.join('\n');
+    widget.controller.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
+    widget.onChanged(next);
+  }
+
+  String _snippetForLanguage() {
+    return switch (_language) {
+      'dart' => 'void main() {\n  print("Hello Dart");\n}\n',
+      'cpp' =>
+        '#include <iostream>\nusing namespace std;\n\nint main() {\n  cout << "Hello C++" << endl;\n  return 0;\n}\n',
+      'js' => 'console.log("Hello JavaScript");\n',
+      _ => 'print("Hello Python")\n',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewModel = widget.viewModel;
@@ -2130,18 +2620,18 @@ class _CodePaneState extends State<_CodePane> {
       child: Column(
         children: [
           Expanded(
-            child: TextField(
+            child: _CodeEditorShell(
               controller: widget.controller,
-              maxLines: null,
-              expands: true,
-              textAlignVertical: TextAlignVertical.top,
               onChanged: widget.onChanged,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
-              decoration: const InputDecoration(
-                labelText: 'Code Playground',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
-              ),
+              language: _language,
+              fontSize: _fontSize,
+              onInsertSnippet: () => _insertSnippet(_snippetForLanguage()),
+              onFormat: _formatCode,
+              onClear: () {
+                widget.controller.clear();
+                widget.onChanged('');
+              },
+              onFontSizeChanged: (value) => setState(() => _fontSize = value),
             ),
           ),
           Flexible(
@@ -2170,6 +2660,11 @@ class _CodePaneState extends State<_CodePane> {
                               child: Text('Python'),
                             ),
                             DropdownMenuItem(value: 'cpp', child: Text('C++')),
+                            DropdownMenuItem(
+                              value: 'dart',
+                              child: Text('Dart'),
+                            ),
+                            DropdownMenuItem(value: 'js', child: Text('JS')),
                           ],
                           onChanged: viewModel.isRunningCode
                               ? null
@@ -2709,7 +3204,7 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
       title: const Text('Add Note'),
       content: TextField(
         controller: _controller,
-        autofocus: true,
+        autofocus: false,
         maxLines: 4,
         decoration: const InputDecoration(
           labelText: 'Note',

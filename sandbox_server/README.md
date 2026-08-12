@@ -21,7 +21,8 @@ flutter run --dart-define=CODE_SANDBOX_URL=http://127.0.0.1:8787
 Android emulator traffic is automatically mapped to `10.0.2.2` by `AppConfig`.
 
 Python uses the same Python executable that starts this server. C++ requires `g++`
-to be installed and available in `PATH`.
+to be installed and available in `PATH`. Dart requires the Dart SDK or Flutter
+SDK `dart` command to be available in `PATH`.
 
 This mode is only for trusted local development.
 
@@ -36,6 +37,7 @@ cd sandbox_server
 docker compose -f docker-compose.production.yml up --build -d
 docker pull python:3.12-alpine
 docker pull gcc:14-bookworm
+docker pull dart:stable
 ```
 
 Run Flutter with the public HTTPS URL of this service:
@@ -61,6 +63,7 @@ Current production limits:
 - Read-only runner root filesystem with small `/tmp`
 - Per-request timeout: 5 seconds
 - C++ compile timeout: 10 seconds
+- Supported languages: Python, C++, Dart
 - Code size limit: 20 KB
 - stdin size limit: 4 KB
 - Optional API key header: `X-Sandbox-Key`

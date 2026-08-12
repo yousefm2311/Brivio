@@ -493,7 +493,9 @@ class SupabaseBranchRepository implements IBranchRepository {
     try {
       await _wrapper.client.rpc('delete_branch', params: {'branch_id': id});
     } catch (e) {
-      throw DatabaseFailure(message: 'Failed to delete branch: ${e.toString()}');
+      throw DatabaseFailure(
+        message: 'Failed to delete branch: ${e.toString()}',
+      );
     }
   }
 }
@@ -564,7 +566,9 @@ class SupabaseSubjectRepository implements ISubjectRepository {
     try {
       await _wrapper.client.rpc('delete_subject', params: {'subject_id': id});
     } catch (e) {
-      throw DatabaseFailure(message: 'Failed to delete subject: ${e.toString()}');
+      throw DatabaseFailure(
+        message: 'Failed to delete subject: ${e.toString()}',
+      );
     }
   }
 }
@@ -807,12 +811,21 @@ class SupabaseScheduleRepository implements IScheduleRepository {
     String? roomLocation,
   }) async {
     try {
-      await _wrapper.client.from('schedules').update({
-        'day_of_week': dayOfWeek,
-        'start_time': startTime,
-        'end_time': endTime,
-        'location': roomLocation,
-      }).eq('id', scheduleId);
+      final response = await _wrapper.client.rpc(
+        'teacher_update_schedule',
+        params: {
+          'p_schedule_id': scheduleId,
+          'p_day_of_week': dayOfWeek,
+          'p_start_time': startTime,
+          'p_end_time': endTime,
+          'p_location': roomLocation,
+        },
+      );
+
+      final jsonMap = Map<String, dynamic>.from(response as Map);
+      if (jsonMap['success'] != true) {
+        throw DatabaseFailure(message: 'Schedule update failed');
+      }
     } on supabase.PostgrestException catch (e) {
       if (e.code == '23514') {
         throw DatabaseFailure(message: 'End time must be after start time.');
@@ -825,16 +838,24 @@ class SupabaseScheduleRepository implements IScheduleRepository {
       }
       throw DatabaseFailure(message: e.message);
     } catch (e) {
-      throw DatabaseFailure(
-        message: 'Schedule update failed: ${e.toString()}',
-      );
+      throw DatabaseFailure(message: 'Schedule update failed: ${e.toString()}');
     }
   }
 
   @override
   Future<void> deleteSchedule(String scheduleId) async {
     try {
-      await _wrapper.client.from('schedules').delete().eq('id', scheduleId);
+      final response = await _wrapper.client.rpc(
+        'teacher_delete_schedule',
+        params: {'p_schedule_id': scheduleId},
+      );
+
+      final jsonMap = Map<String, dynamic>.from(response as Map);
+      if (jsonMap['success'] != true) {
+        throw DatabaseFailure(message: 'Schedule deletion failed');
+      }
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: e.message);
     } catch (e) {
       throw DatabaseFailure(
         message: 'Schedule deletion failed: ${e.toString()}',

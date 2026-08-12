@@ -91,6 +91,23 @@ def _run_cpp(workdir, code, stdin):
     return _run_process([exe_path], workdir, stdin, RUN_TIMEOUT_SECONDS)
 
 
+def _run_dart(workdir, code, stdin):
+    dart = shutil.which("dart")
+    if dart is None:
+        return {
+            "success": False,
+            "stdout": "",
+            "stderr": "Dart SDK was not found. Install Dart/Flutter and ensure dart is available in PATH.",
+            "exitCode": -1,
+            "durationMs": 0,
+        }
+
+    source_path = os.path.join(workdir, "main.dart")
+    with open(source_path, "w", encoding="utf-8") as handle:
+        handle.write(code)
+    return _run_process([dart, "run", source_path], workdir, stdin, RUN_TIMEOUT_SECONDS)
+
+
 class SandboxHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print("%s - %s" % (self.address_string(), fmt % args))
@@ -137,11 +154,13 @@ class SandboxHandler(BaseHTTPRequestHandler):
                     result = _run_python(workdir, code, stdin)
                 elif language in ("cpp", "c++"):
                     result = _run_cpp(workdir, code, stdin)
+                elif language in ("dart",):
+                    result = _run_dart(workdir, code, stdin)
                 else:
                     result = {
                         "success": False,
                         "stdout": "",
-                        "stderr": "Unsupported language. Use python or cpp.",
+                        "stderr": "Unsupported language. Use python, cpp, or dart.",
                         "exitCode": -1,
                         "durationMs": 0,
                     }

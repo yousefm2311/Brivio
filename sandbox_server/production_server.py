@@ -21,6 +21,7 @@ CPU_LIMIT = os.getenv("SANDBOX_CPU_LIMIT", "0.5")
 PIDS_LIMIT = os.getenv("SANDBOX_PIDS_LIMIT", "64")
 PYTHON_IMAGE = os.getenv("SANDBOX_PYTHON_IMAGE", "python:3.12-alpine")
 CPP_IMAGE = os.getenv("SANDBOX_CPP_IMAGE", "gcc:14-bookworm")
+DART_IMAGE = os.getenv("SANDBOX_DART_IMAGE", "dart:stable")
 API_KEY = os.getenv("SANDBOX_API_KEY", "").strip()
 RATE_LIMIT_PER_MINUTE = int(os.getenv("SANDBOX_RATE_LIMIT_PER_MINUTE", "30"))
 _REQUEST_LOG = defaultdict(deque)
@@ -183,6 +184,20 @@ def _run_cpp(workdir, code, stdin):
     return _run_docker(run_command, RUN_TIMEOUT_SECONDS, stdin)
 
 
+def _run_dart(workdir, code, stdin):
+    script_path = os.path.join(workdir, "main.dart")
+    with open(script_path, "w", encoding="utf-8") as handle:
+        handle.write(code)
+    os.chmod(script_path, 0o644)
+    command = [
+        *_base_docker_args(DART_IMAGE, workdir),
+        "dart",
+        "run",
+        "/workspace/main.dart",
+    ]
+    return _run_docker(command, RUN_TIMEOUT_SECONDS, stdin)
+
+
 class ProductionSandboxHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print("%s - %s" % (self.address_string(), fmt % args))
@@ -309,11 +324,13 @@ class ProductionSandboxHandler(BaseHTTPRequestHandler):
                 result = _run_python(workdir, code, stdin)
             elif language in ("cpp", "c++"):
                 result = _run_cpp(workdir, code, stdin)
+            elif language in ("dart",):
+                result = _run_dart(workdir, code, stdin)
             else:
                 result = {
                     "success": False,
                     "stdout": "",
-                    "stderr": "Unsupported language. Use python or cpp.",
+                    "stderr": "Unsupported language. Use python, cpp, or dart.",
                     "exitCode": -1,
                     "durationMs": 0,
                 }

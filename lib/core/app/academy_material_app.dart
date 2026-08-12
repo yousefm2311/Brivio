@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../design_system/theme/app_theme.dart';
+import '../../design_system/tokens/colors.dart';
 import '../localization/app_localizations.dart';
 import '../notifications/push_notification_service.dart';
 import '../services/settings_service.dart';
@@ -52,9 +53,22 @@ class AcademyMaterialApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
           builder: (context, child) {
+            final isDarkBackground = switch (settingsService.themeMode) {
+              ThemeMode.dark => true,
+              ThemeMode.light => false,
+              ThemeMode.system =>
+                WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                    Brightness.dark,
+            };
+            final backgroundColor = isDarkBackground
+                ? AppColors.darkBackground
+                : AppColors.lightBackground;
             return Directionality(
               textDirection: textDirection,
-              child: child ?? const SizedBox.shrink(),
+              child: ColoredBox(
+                color: backgroundColor,
+                child: child ?? const SizedBox.shrink(),
+              ),
             );
           },
           home: _PushLifecycleScope(child: home),

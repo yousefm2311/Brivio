@@ -7,19 +7,16 @@ import '../tokens/typography.dart';
 class AppTheme {
   AppTheme._();
 
-  static const double _radiusSm  = 10.0;
-  static const double _radiusMd  = 14.0;
-  static const double _radiusLg  = 18.0;
-  static const double _radiusXl  = 24.0;
+  static const double _radiusSm = 10.0;
+  static const double _radiusMd = 14.0;
+  static const double _radiusLg = 18.0;
+  static const double _radiusXl = 24.0;
 
   // ───────────────────────────────────────────────────────────────────────────
   //  DARK THEME (Primary)
   // ───────────────────────────────────────────────────────────────────────────
   static ThemeData darkTheme() {
-    final base = ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-    );
+    final base = ThemeData(useMaterial3: true, brightness: Brightness.dark);
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.darkBackground,
@@ -60,8 +57,9 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         systemOverlayStyle: SystemUiOverlayStyle.light,
-        titleTextStyle: AppTypography.titleMedium(AppColors.darkTextPrimary)
-            .copyWith(fontWeight: FontWeight.w700),
+        titleTextStyle: AppTypography.titleMedium(
+          AppColors.darkTextPrimary,
+        ).copyWith(fontWeight: FontWeight.w700),
         iconTheme: const IconThemeData(
           color: AppColors.darkTextPrimary,
           size: 22,
@@ -96,8 +94,9 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_radiusLg),
           ),
-          textStyle: AppTypography.labelLarge(Colors.white)
-              .copyWith(fontWeight: FontWeight.w700),
+          textStyle: AppTypography.labelLarge(
+            Colors.white,
+          ).copyWith(fontWeight: FontWeight.w700),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         ),
       ),
@@ -112,8 +111,9 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_radiusLg),
           ),
-          textStyle: AppTypography.labelLarge(AppColors.primary)
-              .copyWith(fontWeight: FontWeight.w600),
+          textStyle: AppTypography.labelLarge(
+            AppColors.primary,
+          ).copyWith(fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -135,7 +135,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.darkSurface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_radiusLg),
           borderSide: BorderSide.none,
@@ -174,8 +177,9 @@ class AppTheme {
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return AppTypography.labelSmall(AppColors.primary)
-                .copyWith(fontWeight: FontWeight.w700);
+            return AppTypography.labelSmall(
+              AppColors.primary,
+            ).copyWith(fontWeight: FontWeight.w700);
           }
           return AppTypography.labelSmall(AppColors.darkTextSecondary);
         }),
@@ -183,7 +187,10 @@ class AppTheme {
           if (states.contains(WidgetState.selected)) {
             return const IconThemeData(color: AppColors.primary, size: 22);
           }
-          return const IconThemeData(color: AppColors.darkTextTertiary, size: 22);
+          return const IconThemeData(
+            color: AppColors.darkTextTertiary,
+            size: 22,
+          );
         }),
       ),
 
@@ -201,13 +208,15 @@ class AppTheme {
       // ── Dialog ───────────────────────────────────────────────────────────────
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.darkCard,
+        barrierColor: Colors.black54,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(_radiusXl),
           side: const BorderSide(color: AppColors.darkBorder, width: 0.5),
         ),
-        titleTextStyle: AppTypography.titleMedium(AppColors.darkTextPrimary)
-            .copyWith(fontWeight: FontWeight.w700),
+        titleTextStyle: AppTypography.titleMedium(
+          AppColors.darkTextPrimary,
+        ).copyWith(fontWeight: FontWeight.w700),
         contentTextStyle: AppTypography.bodyMedium(AppColors.darkTextSecondary),
       ),
 
@@ -264,7 +273,9 @@ class AppTheme {
         subtitleTextStyle: AppTypography.bodySmall(AppColors.darkTextSecondary),
         titleTextStyle: AppTypography.bodyMedium(AppColors.darkTextPrimary),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_radiusMd)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_radiusMd),
+        ),
         minVerticalPadding: 12,
       ),
 
@@ -356,9 +367,13 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        titleTextStyle: AppTypography.titleMedium(AppColors.lightTextPrimary)
-            .copyWith(fontWeight: FontWeight.w700),
-        iconTheme: const IconThemeData(color: AppColors.lightTextPrimary, size: 22),
+        titleTextStyle: AppTypography.titleMedium(
+          AppColors.lightTextPrimary,
+        ).copyWith(fontWeight: FontWeight.w700),
+        iconTheme: const IconThemeData(
+          color: AppColors.lightTextPrimary,
+          size: 22,
+        ),
       ),
       cardTheme: CardThemeData(
         color: AppColors.lightCard,
@@ -379,21 +394,28 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_radiusLg),
           ),
-          textStyle: AppTypography.labelLarge(Colors.white)
-              .copyWith(fontWeight: FontWeight.w700),
+          textStyle: AppTypography.labelLarge(
+            Colors.white,
+          ).copyWith(fontWeight: FontWeight.w700),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.lightSurface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_radiusLg),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_radiusLg),
-          borderSide: const BorderSide(color: AppColors.lightBorder, width: 0.6),
+          borderSide: const BorderSide(
+            color: AppColors.lightBorder,
+            width: 0.6,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_radiusLg),
@@ -419,8 +441,9 @@ class AppTheme {
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return AppTypography.labelSmall(AppColors.primary)
-                .copyWith(fontWeight: FontWeight.w700);
+            return AppTypography.labelSmall(
+              AppColors.primary,
+            ).copyWith(fontWeight: FontWeight.w700);
           }
           return AppTypography.labelSmall(AppColors.lightTextSecondary);
         }),
@@ -433,8 +456,25 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.lightTextPrimary,
         contentTextStyle: AppTypography.bodyMedium(AppColors.lightBackground),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_radiusMd)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_radiusMd),
+        ),
         behavior: SnackBarBehavior.floating,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.lightCard,
+        barrierColor: Colors.black38,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_radiusXl),
+          side: const BorderSide(color: AppColors.lightBorder, width: 0.5),
+        ),
+        titleTextStyle: AppTypography.titleMedium(
+          AppColors.lightTextPrimary,
+        ).copyWith(fontWeight: FontWeight.w700),
+        contentTextStyle: AppTypography.bodyMedium(
+          AppColors.lightTextSecondary,
+        ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.primary,

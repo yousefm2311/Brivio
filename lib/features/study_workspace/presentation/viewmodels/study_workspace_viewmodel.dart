@@ -386,17 +386,93 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
         output: buffer.toString().trimRight(),
       );
     } catch (error) {
-      _lastRunResult = CodeRunResult(
-        isSuccess: false,
-        output:
-            'Sandbox server is not reachable.\n'
-            'Start sandbox_server/server.py for local trusted execution, or use the Docker production sandbox on a server.\n'
-            'The Visualize button still works offline for studying the code flow.\n\n'
-            '${_buildPreviewOutput(code)}',
+      _lastRunResult = await _runCompilerExplorer(
+        code: code,
+        language: language,
       );
     } finally {
       _isRunningCode = false;
       if (!_isDisposed) notifyListeners();
+    }
+  }
+
+  Future<CodeRunResult> _runCompilerExplorer({
+    required String code,
+    required String language,
+  }) async {
+    final compilerId = switch (language.toLowerCase()) {
+      'dart' => 'dart373',
+      'python' || 'py' => 'python311',
+      'js' || 'javascript' => 'v8113',
+      'cpp' || 'c++' => 'g132',
+      _ => 'python311',
+    };
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('https://godbolt.org/api/compiler/$compilerId/compile'),
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'source': code,
+              'compiler': compilerId,
+              'options': {
+                'userArguments': '',
+                'executeParameters': {'args': [], 'stdin': ''},
+                'compilerOptions': {'executorRequest': true},
+                'filters': {'execute': true},
+                'tools': [],
+                'libraries': [],
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 16));
+
+      if (response.statusCode != 200) {
+        return CodeRunResult(
+          isSuccess: false,
+          output:
+              'Execution failed. Compiler API status: ${response.statusCode}.',
+        );
+      }
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final output = StringBuffer();
+      for (final section in ['stdout', 'stderr']) {
+        final lines = decoded[section];
+        if (lines is List) {
+          for (final line in lines.whereType<Map>()) {
+            final text = line['text']?.toString() ?? '';
+            if (text.trim().isNotEmpty) output.writeln(text);
+          }
+        }
+      }
+      final buildResult = decoded['buildResult'];
+      if (buildResult is Map && buildResult['stderr'] is List) {
+        for (final line in (buildResult['stderr'] as List).whereType<Map>()) {
+          final text = line['text']?.toString() ?? '';
+          if (text.trim().isNotEmpty &&
+              !text.startsWith('<Compilation failed>')) {
+            output.writeln(text);
+          }
+        }
+      }
+
+      final text = output.toString().trim();
+      return CodeRunResult(
+        isSuccess: true,
+        output: text.isEmpty ? 'Program finished with no output.' : text,
+      );
+    } catch (fallbackError) {
+      return CodeRunResult(
+        isSuccess: false,
+        output:
+            'Sandbox and Compiler Explorer are not reachable.\n\n'
+            '${_buildPreviewOutput(code)}',
+      );
     }
   }
 
@@ -446,6 +522,6 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
         .length;
     return 'Preview runner is ready.\n'
         'Analyzed $lines non-empty code lines.\n'
-        'Use Run code for real Python/C++ execution through the Sandbox Server.';
+        'Use Run code for real Python/C++/Dart execution through the Sandbox Server.';
   }
 }

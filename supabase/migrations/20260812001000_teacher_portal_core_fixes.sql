@@ -538,4 +538,189 @@ CREATE TRIGGER bridge_app_notification_to_push_trigger
 AFTER INSERT ON public.app_notifications
 FOR EACH ROW EXECUTE FUNCTION public.bridge_app_notification_to_push_notification();
 
+CREATE OR REPLACE FUNCTION public.get_student_teacher_study_annotations(
+  p_lesson_id UUID,
+  p_student_id UUID
+)
+RETURNS SETOF public.teacher_study_annotations
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_student_id UUID;
+BEGIN
+  SELECT s.id
+    INTO v_student_id
+  FROM public.students s
+  WHERE s.id = p_student_id OR s.profile_id = p_student_id
+  LIMIT 1;
+
+  IF v_student_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT DISTINCT tsa.*
+  FROM public.teacher_study_annotations tsa
+  JOIN public.group_teachers gt ON gt.teacher_id = tsa.teacher_id
+  JOIN public.enrollments e ON e.group_id = gt.group_id
+  JOIN public.groups g ON g.id = e.group_id
+  JOIN public.units u ON u.subject_id = g.subject_id
+  JOIN public.lessons l ON l.unit_id = u.id AND l.id = tsa.lesson_id
+  WHERE tsa.lesson_id = p_lesson_id
+    AND e.student_id = v_student_id
+    AND e.status = 'active'
+    AND COALESCE(gt.is_active, true) = true
+    AND (gt.effective_to IS NULL OR gt.effective_to >= CURRENT_DATE);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_student_teacher_study_pdf_drawings(
+  p_lesson_id UUID,
+  p_student_id UUID
+)
+RETURNS SETOF public.teacher_study_pdf_drawings
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_student_id UUID;
+BEGIN
+  SELECT s.id
+    INTO v_student_id
+  FROM public.students s
+  WHERE s.id = p_student_id OR s.profile_id = p_student_id
+  LIMIT 1;
+
+  IF v_student_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT DISTINCT tsd.*
+  FROM public.teacher_study_pdf_drawings tsd
+  JOIN public.group_teachers gt ON gt.teacher_id = tsd.teacher_id
+  JOIN public.enrollments e ON e.group_id = gt.group_id
+  JOIN public.groups g ON g.id = e.group_id
+  JOIN public.units u ON u.subject_id = g.subject_id
+  JOIN public.lessons l ON l.unit_id = u.id AND l.id = tsd.lesson_id
+  WHERE tsd.lesson_id = p_lesson_id
+    AND e.student_id = v_student_id
+    AND e.status = 'active'
+    AND COALESCE(gt.is_active, true) = true
+    AND (gt.effective_to IS NULL OR gt.effective_to >= CURRENT_DATE);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.teacher_update_schedule(
+  p_schedule_id UUID,
+  p_day_of_week INT,
+  p_start_time TIME,
+  p_end_time TIME,
+  p_location TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_group_id UUID;
+BEGIN
+  SELECT group_id INTO v_group_id
+  FROM public.schedules
+  WHERE id = p_schedule_id;
+
+  IF v_group_id IS NULL THEN
+    RAISE EXCEPTION 'Schedule not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT (
+    public.is_admin_or_super()
+    OR public.has_permission('schedules.manage')
+    OR public.current_teacher_assigned_to_group(v_group_id)
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized to update schedule' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_day_of_week < 0 OR p_day_of_week > 6 THEN
+    RAISE EXCEPTION 'Invalid day of week' USING ERRCODE = '22023';
+  END IF;
+
+  IF p_end_time <= p_start_time THEN
+    RAISE EXCEPTION 'End time must be after start time' USING ERRCODE = '23514';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.schedules s
+    WHERE s.id <> p_schedule_id
+      AND s.group_id = v_group_id
+      AND s.status = 'active'
+      AND s.day_of_week = p_day_of_week
+      AND tsrange(
+        CURRENT_DATE + s.start_time,
+        CURRENT_DATE + s.end_time,
+        '[)'
+      ) && tsrange(
+        CURRENT_DATE + p_start_time,
+        CURRENT_DATE + p_end_time,
+        '[)'
+      )
+  ) THEN
+    RAISE EXCEPTION 'Schedule conflict detected' USING ERRCODE = '23505';
+  END IF;
+
+  UPDATE public.schedules
+  SET day_of_week = p_day_of_week,
+      start_time = p_start_time,
+      end_time = p_end_time,
+      location = NULLIF(trim(p_location), ''),
+      updated_at = NOW()
+  WHERE id = p_schedule_id;
+
+  RETURN jsonb_build_object('success', true, 'schedule_id', p_schedule_id);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.teacher_delete_schedule(
+  p_schedule_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_group_id UUID;
+BEGIN
+  SELECT group_id INTO v_group_id
+  FROM public.schedules
+  WHERE id = p_schedule_id;
+
+  IF v_group_id IS NULL THEN
+    RAISE EXCEPTION 'Schedule not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT (
+    public.is_admin_or_super()
+    OR public.has_permission('schedules.manage')
+    OR public.current_teacher_assigned_to_group(v_group_id)
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized to delete schedule' USING ERRCODE = '42501';
+  END IF;
+
+  DELETE FROM public.schedules WHERE id = p_schedule_id;
+
+  RETURN jsonb_build_object('success', true, 'schedule_id', p_schedule_id);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_student_teacher_study_annotations(UUID, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_student_teacher_study_pdf_drawings(UUID, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.teacher_update_schedule(UUID, INT, TIME, TIME, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.teacher_delete_schedule(UUID) TO authenticated;
+
 NOTIFY pgrst, 'reload schema';
