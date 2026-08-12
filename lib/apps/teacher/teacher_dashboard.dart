@@ -14,7 +14,6 @@ import 'tabs/home_tab.dart';
 import 'tabs/classes_tab.dart';
 import 'tabs/workspace_tab.dart';
 import 'tabs/analytics_tab.dart';
-import 'tabs/comms_tab.dart';
 import 'tabs/account_tab.dart';
 
 class TeacherDashboard extends StatefulWidget {
@@ -213,7 +212,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       ClassesTab(teacherId: teacherId),
       WorkspaceTab(teacherId: teacherId),
       AnalyticsTab(profileId: widget.authViewModel.currentUser!.id),
-      const CommsTab(),
       AccountTab(
         teacherId: teacherId,
         authViewModel: widget.authViewModel,
@@ -268,11 +266,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       label: Text(context.tr('Analytics')),
                     ),
                     NavigationRailDestination(
-                      icon: const Icon(Icons.message_outlined),
-                      selectedIcon: const Icon(Icons.message_rounded),
-                      label: Text(context.tr('Messages')),
-                    ),
-                    NavigationRailDestination(
                       icon: const Icon(Icons.person_outline_rounded),
                       selectedIcon: const Icon(Icons.person_rounded),
                       label: Text(context.tr('Account')),
@@ -323,11 +316,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     icon: const Icon(Icons.analytics_outlined),
                     selectedIcon: const Icon(Icons.analytics_rounded, color: AppColors.teacherRole),
                     label: context.tr('Analytics'),
-                  ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.message_outlined),
-                    selectedIcon: const Icon(Icons.message_rounded, color: AppColors.teacherRole),
-                    label: context.tr('Messages'),
                   ),
                   NavigationDestination(
                     icon: const Icon(Icons.person_outline_rounded),

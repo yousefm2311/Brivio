@@ -3,139 +3,116 @@ import '../../../core/localization/app_localizations.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../design_system/components/glass_card.dart';
-import 'workspace_view_model.dart';
-import 'package:provider/provider.dart';
+import '../../../features/assessment/presentation/screens/teacher_exam_screen.dart';
+import '../../../features/assessment/presentation/screens/teacher_grading_screen.dart';
+import '../../../features/assessment/presentation/screens/teacher_homework_screen.dart';
+import '../../../features/assessment/presentation/screens/teacher_question_bank_screen.dart';
+import '../../../features/attendance/presentation/screens/teacher_attendance_screen.dart';
+import '../../../features/study_workspace/presentation/screens/study_replay_screen.dart';
 
-class WorkspaceTab extends StatelessWidget {
+class WorkspaceTab extends StatefulWidget {
   final String teacherId;
 
   const WorkspaceTab({super.key, required this.teacherId});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => WorkspaceViewModel(),
-      child: const _WorkspaceTabContent(),
-    );
-  }
+  State<WorkspaceTab> createState() => _WorkspaceTabState();
 }
 
-class _WorkspaceTabContent extends StatelessWidget {
-  const _WorkspaceTabContent();
+class _WorkspaceTabState extends State<WorkspaceTab> with SingleTickerProviderStateMixin {
+  late TabController _tabCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 6, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final viewModel = context.watch<WorkspaceViewModel>();
+    final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
 
-    return Container(
-      color: bgColor,
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      children: [
+        Container(
+          color: bgColor,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                context.tr('Workspace'),
-                style: AppTypography.displaySmall(textPrimary).copyWith(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
+              FadeInSlide(
+                duration: const Duration(milliseconds: 400),
+                child: Text(
+                  context.tr('Workspace'),
+                  style: AppTypography.displaySmall(textPrimary).copyWith(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.5),
                 ),
               ),
-              GlassCard(
-                borderRadius: BorderRadius.circular(12),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.add, color: textPrimary, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      context.tr('Upload'),
-                      style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w600),
+              const SizedBox(height: 16),
+              FadeInSlide(
+                duration: const Duration(milliseconds: 500),
+                delay: const Duration(milliseconds: 100),
+                child: Container(
+                  height: 44,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: TabBar(
+                    controller: _tabCtrl,
+                    isScrollable: true,
+                    dividerColor: Colors.transparent,
+                    indicator: BoxDecoration(
+                      color: surfaceColor,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 2)),
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4)),
+                      ],
                     ),
-                  ],
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelColor: textPrimary,
+                    unselectedLabelColor: textPrimary.withValues(alpha: 0.5),
+                    labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+                    unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -0.2),
+                    tabs: [
+                      Tab(text: context.tr('Questions')),
+                      Tab(text: context.tr('Homework')),
+                      Tab(text: context.tr('Exams')),
+                      Tab(text: context.tr('Attendance')),
+                      Tab(text: context.tr('Grading')),
+                      Tab(text: context.tr('Replay')),
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(height: 12),
             ],
           ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.85,
-              ),
-              itemCount: viewModel.materials.length,
-              itemBuilder: (context, index) {
-                final material = viewModel.materials[index];
-                return _buildMaterialCard(context, material, textPrimary);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMaterialCard(BuildContext context, StudyMaterial material, Color textPrimary) {
-    IconData icon;
-    Color iconColor;
-
-    switch (material.type) {
-      case StudyMaterialType.pdf:
-        icon = Icons.picture_as_pdf;
-        iconColor = Colors.redAccent;
-        break;
-      case StudyMaterialType.video:
-        icon = Icons.play_circle_fill;
-        iconColor = Colors.blueAccent;
-        break;
-      case StudyMaterialType.summary:
-        icon = Icons.article;
-        iconColor = Colors.orangeAccent;
-        break;
-    }
-
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: iconColor, size: 32),
-          ),
-          const Spacer(),
-          Text(
-            material.title,
-            style: AppTypography.bodyLarge(textPrimary).copyWith(fontWeight: FontWeight.w700),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabCtrl,
             children: [
-              Text(
-                material.size,
-                style: AppTypography.bodySmall(textPrimary.withValues(alpha: 0.6)),
-              ),
-              Icon(Icons.more_vert, color: textPrimary.withValues(alpha: 0.6), size: 16),
+              TeacherQuestionBankScreen(teacherId: widget.teacherId),
+              TeacherHomeworkScreen(teacherId: widget.teacherId),
+              TeacherExamScreen(teacherId: widget.teacherId),
+              TeacherAttendanceScreen(teacherId: widget.teacherId),
+              TeacherGradingScreen(teacherId: widget.teacherId),
+              StudyReplayScreen(teacherId: widget.teacherId),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
