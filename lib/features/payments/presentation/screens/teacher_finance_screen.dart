@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/localization/app_localizations.dart';
@@ -129,48 +132,61 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              ..._groups.asMap().entries.map(
-                (entry) {
-                  final index = entry.key;
-                  final group = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: FadeInSlide(
-                      delay: Duration(milliseconds: 30 * index),
-                      child: GlassCard(
-                        onTap: () => _openGroupRoster(group),
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            const CircleIcon(icon: Icons.group, color: AppColors.teacherRole),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(group.groupName, style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
-                                  Text(
-                                    '${group.subjectName} - ${group.paidStudents}/${group.totalStudents} ${context.tr('paid')} - ${context.tr('Remaining')} ${_money(group.remainingAmountMinor, group.currency)}',
-                                    style: AppTypography.bodySmall(AppColors.darkTextSecondary),
+              ..._groups.asMap().entries.map((entry) {
+                final index = entry.key;
+                final group = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: FadeInSlide(
+                    delay: Duration(milliseconds: 30 * index),
+                    child: GlassCard(
+                      onTap: () => _openGroupRoster(group),
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const CircleIcon(
+                            icon: Icons.group,
+                            color: AppColors.teacherRole,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  group.groupName,
+                                  style: AppTypography.titleMedium(
+                                    AppColors.darkTextPrimary,
                                   ),
-                                ],
-                              ),
+                                ),
+                                Text(
+                                  '${group.subjectName} - ${group.paidStudents}/${group.totalStudents} ${context.tr('paid')} - ${context.tr('Remaining')} ${_money(group.remainingAmountMinor, group.currency)}',
+                                  style: AppTypography.bodySmall(
+                                    AppColors.darkTextSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
-                            StatusChip(
-                              label: group.unpaidStudents == 0
-                                  ? 'paid'
-                                  : '${group.unpaidStudents} ${context.tr('unpaid')}',
-                              status: group.unpaidStudents == 0 ? ChipStatus.success : ChipStatus.warning,
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.chevron_right, color: AppColors.darkTextSecondary),
-                          ],
-                        ),
+                          ),
+                          StatusChip(
+                            label: group.unpaidStudents == 0
+                                ? 'paid'
+                                : '${group.unpaidStudents} ${context.tr('unpaid')}',
+                            status: group.unpaidStudents == 0
+                                ? ChipStatus.success
+                                : ChipStatus.warning,
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: AppColors.darkTextSecondary,
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              }),
             ],
           ),
         ),
@@ -264,6 +280,106 @@ class _TeacherFinanceRosterSheetState
     }
   }
 
+  Future<void> _openReceipts(_TeacherFinanceStudent student) async {
+    List<_TeacherReceipt> receipts;
+    try {
+      final response = await Supabase.instance.client.rpc(
+        'get_teacher_student_receipts',
+        params: {
+          'p_student_id': student.studentId,
+          'p_group_id': widget.group.groupId,
+        },
+      );
+      receipts = (response is List ? response : <dynamic>[])
+          .whereType<Map>()
+          .map((row) => _TeacherReceipt.fromJson(row))
+          .toList();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      return;
+    }
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ReceiptSheet(
+        student: student,
+        receipts: receipts,
+        onPrint: _printReceipt,
+      ),
+    );
+  }
+
+  Future<void> _printReceipt(_TeacherReceipt receipt) async {
+    final pdf = pw.Document();
+    final amount = _money(receipt.amountMinor, receipt.currency);
+    final issuedAt = _formatDateTime(receipt.issuedAt);
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: const PdfPageFormat(80 * PdfPageFormat.mm, double.infinity)
+            .copyWith(
+              marginLeft: 5 * PdfPageFormat.mm,
+              marginRight: 5 * PdfPageFormat.mm,
+              marginTop: 6 * PdfPageFormat.mm,
+              marginBottom: 6 * PdfPageFormat.mm,
+            ),
+        build: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            pw.Center(
+              child: pw.Text(
+                'PAYMENT RECEIPT',
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Center(child: pw.Text('Fawry style cash receipt')),
+            pw.Divider(thickness: 1),
+            _receiptLine('Receipt No', receipt.receiptNumber),
+            _receiptLine('Date', issuedAt),
+            _receiptLine('Student', receipt.studentName),
+            _receiptLine('Code', receipt.studentCode),
+            _receiptLine('Group', receipt.groupName),
+            _receiptLine('Subject', receipt.subjectName),
+            _receiptLine('Invoice', receipt.invoiceNumber),
+            _receiptLine('Method', receipt.paymentMethod),
+            _receiptLine('Provider', receipt.provider),
+            _receiptLine('Reference', receipt.providerTransactionId),
+            pw.Divider(thickness: 1),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'TOTAL',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                ),
+                pw.Text(
+                  amount,
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 10),
+            pw.Center(child: pw.Text('Thank you')),
+          ],
+        ),
+      ),
+    );
+
+    await Printing.layoutPdf(
+      name: 'receipt_${receipt.receiptNumber}.pdf',
+      onLayout: (_) => pdf.save(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -334,6 +450,11 @@ class _TeacherFinanceRosterSheetState
                             PortalStatusChip(
                               status: context.tr('pending request'),
                             ),
+                          IconButton.filledTonal(
+                            tooltip: context.tr('Receipts'),
+                            onPressed: () => _openReceipts(student),
+                            icon: const Icon(Icons.receipt_long),
+                          ),
                           IconButton.filledTonal(
                             tooltip: context.tr(
                               'Request discount or exemption',
@@ -466,6 +587,83 @@ class _AdjustmentDraft {
   const _AdjustmentDraft({required this.discountMinor, required this.reason});
 }
 
+class _ReceiptSheet extends StatelessWidget {
+  final _TeacherFinanceStudent student;
+  final List<_TeacherReceipt> receipts;
+  final Future<void> Function(_TeacherReceipt receipt) onPrint;
+
+  const _ReceiptSheet({
+    required this.student,
+    required this.receipts,
+    required this.onPrint,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * .72,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${context.tr('Receipts')} - ${student.studentName}',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: context.tr('Close'),
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: receipts.isEmpty
+                    ? Center(child: Text(context.tr('No receipts found.')))
+                    : ListView.separated(
+                        itemCount: receipts.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (_, index) {
+                          final receipt = receipts[index];
+                          return PortalListCard(
+                            icon: Icons.receipt,
+                            accentColor: AppColors.success,
+                            title: receipt.receiptNumber,
+                            subtitle:
+                                '${_formatDateTime(receipt.issuedAt)} - ${receipt.invoiceNumber} - ${receipt.providerTransactionId}',
+                            trailing: [
+                              Text(
+                                _money(receipt.amountMinor, receipt.currency),
+                                style: AppTypography.titleSmall(
+                                  AppColors.darkTextPrimary,
+                                ),
+                              ),
+                              IconButton.filledTonal(
+                                tooltip: context.tr('Print'),
+                                onPressed: () => onPrint(receipt),
+                                icon: const Icon(Icons.print),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TeacherFinanceGroup {
   final String groupId;
   final String groupName;
@@ -513,6 +711,7 @@ class _TeacherFinanceGroup {
 
 class _TeacherFinanceStudent {
   final String enrollmentId;
+  final String studentId;
   final String studentName;
   final String studentCode;
   final int finalPriceMinor;
@@ -525,6 +724,7 @@ class _TeacherFinanceStudent {
 
   const _TeacherFinanceStudent({
     required this.enrollmentId,
+    required this.studentId,
     required this.studentName,
     required this.studentCode,
     required this.finalPriceMinor,
@@ -546,6 +746,7 @@ class _TeacherFinanceStudent {
     final json = Map<String, dynamic>.from(raw);
     return _TeacherFinanceStudent(
       enrollmentId: json['enrollment_id']?.toString() ?? '',
+      studentId: json['student_id']?.toString() ?? '',
       studentName: json['student_name']?.toString() ?? 'Student',
       studentCode: json['student_code']?.toString() ?? '',
       finalPriceMinor: _asInt(json['final_price_minor']),
@@ -555,6 +756,65 @@ class _TeacherFinanceStudent {
       paymentStatus: json['payment_status']?.toString() ?? 'paid',
       paymentExempt: json['payment_exempt'] == true,
       pendingAdjustmentCount: _asInt(json['pending_adjustment_count']),
+    );
+  }
+}
+
+class _TeacherReceipt {
+  final String receiptId;
+  final String receiptNumber;
+  final String invoiceNumber;
+  final String transactionId;
+  final String provider;
+  final String providerTransactionId;
+  final String paymentMethod;
+  final int amountMinor;
+  final String currency;
+  final DateTime issuedAt;
+  final String studentName;
+  final String studentCode;
+  final String groupName;
+  final String groupCode;
+  final String subjectName;
+
+  const _TeacherReceipt({
+    required this.receiptId,
+    required this.receiptNumber,
+    required this.invoiceNumber,
+    required this.transactionId,
+    required this.provider,
+    required this.providerTransactionId,
+    required this.paymentMethod,
+    required this.amountMinor,
+    required this.currency,
+    required this.issuedAt,
+    required this.studentName,
+    required this.studentCode,
+    required this.groupName,
+    required this.groupCode,
+    required this.subjectName,
+  });
+
+  factory _TeacherReceipt.fromJson(Map<dynamic, dynamic> raw) {
+    final json = Map<String, dynamic>.from(raw);
+    return _TeacherReceipt(
+      receiptId: json['receipt_id']?.toString() ?? '',
+      receiptNumber: json['receipt_number']?.toString() ?? '',
+      invoiceNumber: json['invoice_number']?.toString() ?? '',
+      transactionId: json['transaction_id']?.toString() ?? '',
+      provider: json['provider']?.toString() ?? 'cash',
+      providerTransactionId: json['provider_transaction_id']?.toString() ?? '',
+      paymentMethod: json['payment_method']?.toString() ?? 'cash',
+      amountMinor: _asInt(json['amount_minor']),
+      currency: json['currency']?.toString() ?? 'EGP',
+      issuedAt:
+          DateTime.tryParse(json['issued_at']?.toString() ?? '') ??
+          DateTime.now(),
+      studentName: json['student_name']?.toString() ?? 'Student',
+      studentCode: json['student_code']?.toString() ?? '',
+      groupName: json['group_name']?.toString() ?? '',
+      groupCode: json['group_code']?.toString() ?? '',
+      subjectName: json['subject_name']?.toString() ?? '',
     );
   }
 }
@@ -571,4 +831,33 @@ String _money(int minor, [String currency = 'EGP']) {
       ? amount.toStringAsFixed(0)
       : amount.toStringAsFixed(2);
   return '$formatted $currency';
+}
+
+String _formatDateTime(DateTime value) {
+  final local = value.toLocal();
+  final date =
+      '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+  final time =
+      '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  return '$date $time';
+}
+
+pw.Widget _receiptLine(String label, String value) {
+  return pw.Padding(
+    padding: const pw.EdgeInsets.symmetric(vertical: 2),
+    child: pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(label),
+        pw.SizedBox(width: 8),
+        pw.Expanded(
+          child: pw.Text(
+            value.isEmpty ? '-' : value,
+            textAlign: pw.TextAlign.right,
+          ),
+        ),
+      ],
+    ),
+  );
 }

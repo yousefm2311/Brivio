@@ -199,6 +199,155 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     );
   }
 
+  Future<void> _openRosterDialog(ClassSession session) async {
+    final messenger = ScaffoldMessenger.of(context);
+    List<AttendanceRosterEntry> roster;
+    try {
+      roster = await _attendanceRepo.fetchRosterForSession(session.id);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('${context.tr('Failed to load roster')}: $e')),
+      );
+      return;
+    }
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (stateCtx, setStateDialog) {
+          final presentCount = roster.where((entry) => entry.isPresent).length;
+          final absentCount = roster.where((entry) => entry.isAbsent).length;
+          final checkedOutCount = roster
+              .where((entry) => entry.checkOutAt != null)
+              .length;
+
+          Future<void> refreshRoster() async {
+            final updated = await _attendanceRepo.fetchRosterForSession(
+              session.id,
+            );
+            setStateDialog(() => roster = updated);
+          }
+
+          return AlertDialog(
+            title: Text(context.tr('Attendance roster')),
+            content: SizedBox(
+              width: 620,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Chip(
+                        label: Text('${context.tr('Present')}: $presentCount'),
+                      ),
+                      Chip(
+                        label: Text('${context.tr('Absent')}: $absentCount'),
+                      ),
+                      Chip(
+                        label: Text(
+                          '${context.tr('Checked out')}: $checkedOutCount',
+                        ),
+                      ),
+                      Chip(
+                        label: Text('${context.tr('Total')}: ${roster.length}'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 420),
+                    child: roster.isEmpty
+                        ? Center(
+                            child: Text(context.tr('No enrolled students.')),
+                          )
+                        : ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: roster.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
+                            itemBuilder: (_, index) {
+                              final entry = roster[index];
+                              final statusLabel =
+                                  entry.attendanceStatus?.name ?? 'pending';
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  entry.isPresent
+                                      ? Icons.check_circle
+                                      : entry.isAbsent
+                                      ? Icons.cancel
+                                      : Icons.radio_button_unchecked,
+                                  color: entry.isPresent
+                                      ? Colors.green
+                                      : entry.isAbsent
+                                      ? Colors.red
+                                      : Colors.grey,
+                                ),
+                                title: Text(entry.fullName),
+                                subtitle: Text(
+                                  [
+                                    entry.studentCode,
+                                    context.tr(statusLabel),
+                                    if (entry.checkInAt != null)
+                                      '${context.tr('In')}: ${_formatQrTime(entry.checkInAt!)}',
+                                    if (entry.checkOutAt != null)
+                                      '${context.tr('Out')}: ${_formatQrTime(entry.checkOutAt!)}',
+                                  ].join(' | '),
+                                ),
+                                trailing:
+                                    entry.isPresent && entry.checkOutAt == null
+                                    ? TextButton.icon(
+                                        onPressed: () async {
+                                          try {
+                                            await _attendanceRepo
+                                                .markStudentCheckout(
+                                                  sessionId: session.id,
+                                                  studentId: entry.studentId,
+                                                );
+                                            await refreshRoster();
+                                          } catch (e) {
+                                            if (!mounted) return;
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  '${context.tr('Checkout failed')}: $e',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        icon: const Icon(Icons.logout),
+                                        label: Text(context.tr('Checkout')),
+                                      )
+                                    : null,
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: Text(context.tr('Close')),
+              ),
+              FilledButton.icon(
+                onPressed: refreshRoster,
+                icon: const Icon(Icons.refresh),
+                label: Text(context.tr('Refresh')),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -234,7 +383,12 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-          Center(child: Text(context.tr('No assigned groups found.'), style: AppTypography.bodyMedium(AppColors.darkTextSecondary))),
+          Center(
+            child: Text(
+              context.tr('No assigned groups found.'),
+              style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
+            ),
+          ),
         ],
       );
     }
@@ -243,7 +397,12 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-          Center(child: Text(context.tr('No active class sessions for this group.'), style: AppTypography.bodyMedium(AppColors.darkTextSecondary))),
+          Center(
+            child: Text(
+              context.tr('No active class sessions for this group.'),
+              style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
+            ),
+          ),
         ],
       );
     }
@@ -263,94 +422,111 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             ),
           );
         }
-        
+
         final i = index - 1;
         final session = _sessions[i];
         final isFinalized = session.status == SessionStatus.completed;
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: FadeInSlide(
-          delay: Duration(milliseconds: 30 * i),
-          child: GlassCard(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: isFinalized ? AppColors.successSubtle : AppColors.warningSubtle,
-                  child: Icon(
-                    Icons.event_available,
-                    color: isFinalized ? AppColors.success : AppColors.warning,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${context.tr('Session')}: ${session.location ?? context.tr('Main Hall')}',
-                        style: AppTypography.titleMedium(AppColors.darkTextPrimary),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${context.tr('Date')}: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day} | ${context.tr('Status')}: ${context.tr(session.status.name)}',
-                        style: AppTypography.bodySmall(AppColors.darkTextSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-                Wrap(
-                spacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
+            delay: Duration(milliseconds: 30 * i),
+            child: GlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => TeacherSessionBoardScreen(
-                            teacherId: widget.teacherId,
-                            session: session,
+                  CircleAvatar(
+                    backgroundColor: isFinalized
+                        ? AppColors.successSubtle
+                        : AppColors.warningSubtle,
+                    child: Icon(
+                      Icons.event_available,
+                      color: isFinalized
+                          ? AppColors.success
+                          : AppColors.warning,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${context.tr('Session')}: ${session.location ?? context.tr('Main Hall')}',
+                          style: AppTypography.titleMedium(
+                            AppColors.darkTextPrimary,
                           ),
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.draw, size: 18),
-                    label: Text(context.tr('Whiteboard')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.info,
-                      foregroundColor: Colors.white,
+                        const SizedBox(height: 4),
+                        Text(
+                          '${context.tr('Date')}: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day} | ${context.tr('Status')}: ${context.tr(session.status.name)}',
+                          style: AppTypography.bodySmall(
+                            AppColors.darkTextSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  if (!isFinalized)
-                    IconButton.filledTonal(
-                      tooltip: context.tr('Show rotating attendance QR'),
-                      onPressed: () => _openQrAttendance(session),
-                      icon: const Icon(Icons.qr_code_2),
-                    ),
-                  if (isFinalized)
-                    StatusChip(label: context.tr('FINALIZED'), status: ChipStatus.success)
-                  else
-                    ElevatedButton(
-                      onPressed: () => _openRollCall(session),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                  Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => TeacherSessionBoardScreen(
+                                teacherId: widget.teacherId,
+                                session: session,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.draw, size: 18),
+                        label: Text(context.tr('Whiteboard')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.info,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
-                      child: Text(context.tr('Take Attendance')),
-                    ),
+                      if (!isFinalized)
+                        IconButton.filledTonal(
+                          tooltip: context.tr('Show rotating attendance QR'),
+                          onPressed: () => _openQrAttendance(session),
+                          icon: const Icon(Icons.qr_code_2),
+                        ),
+                      IconButton.filledTonal(
+                        tooltip: context.tr('View attendance roster'),
+                        onPressed: () => _openRosterDialog(session),
+                        icon: const Icon(Icons.fact_check),
+                      ),
+                      if (isFinalized)
+                        StatusChip(
+                          label: context.tr('FINALIZED'),
+                          status: ChipStatus.success,
+                        )
+                      else
+                        ElevatedButton(
+                          onPressed: () => _openRollCall(session),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: Text(context.tr('Take Attendance')),
+                        ),
+                    ],
+                  ),
                 ],
               ),
-              ],
             ),
-          ),
           ),
         );
       },
     );
   }
+
   Future<void> _showCreateSessionDialog() async {
     if (_selectedGroup == null) return;
-    
+
     final locationController = TextEditingController();
     DateTime? selectedDate = DateTime.now();
 
@@ -373,7 +549,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(context.tr('Date')),
-                  subtitle: Text('${selectedDate!.year}-${selectedDate!.month}-${selectedDate!.day}'),
+                  subtitle: Text(
+                    '${selectedDate!.year}-${selectedDate!.month}-${selectedDate!.day}',
+                  ),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
                     final date = await showDatePicker(
@@ -400,25 +578,31 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               ),
             ],
           );
-        }
+        },
       ),
     );
 
     if (result == true) {
       try {
-        await _sessionRepo.createClassSession(ClassSession(
-          id: '', // Will be generated by DB
-          groupId: _selectedGroup!.id,
-          sessionDate: selectedDate!,
-          scheduledStartAt: selectedDate!,
-          scheduledEndAt: selectedDate!.add(const Duration(hours: 1)),
-          status: SessionStatus.scheduled,
-          location: locationController.text.trim().isEmpty ? null : locationController.text.trim(),
-        ));
+        await _sessionRepo.createClassSession(
+          ClassSession(
+            id: '', // Will be generated by DB
+            groupId: _selectedGroup!.id,
+            sessionDate: selectedDate!,
+            scheduledStartAt: selectedDate!,
+            scheduledEndAt: selectedDate!.add(const Duration(hours: 1)),
+            status: SessionStatus.scheduled,
+            location: locationController.text.trim().isEmpty
+                ? null
+                : locationController.text.trim(),
+          ),
+        );
         await _loadGroupsAndSessions();
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to create session: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to create session: $e')));
       }
     }
   }
@@ -575,100 +759,110 @@ class _TeacherAttendanceQrDialogState
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-              context.tr(
-                'Students scan this QR to mark themselves present. It rotates every minute.',
-              ),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.all(48),
-                child: CircularProgressIndicator(),
-              )
-            else if (_error != null)
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.red),
-              )
-            else if (qrPayload != null)
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                context.tr(
+                  'Students scan this QR to mark themselves present. It rotates every minute.',
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: QrImageView(
-                    data: qrPayload,
-                    version: QrVersions.auto,
-                    size: 240,
-                    backgroundColor: Colors.white,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(48),
+                  child: CircularProgressIndicator(),
+                )
+              else if (_error != null)
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red),
+                )
+              else if (qrPayload != null)
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: QrImageView(
+                      data: qrPayload,
+                      version: QrVersions.auto,
+                      size: 240,
+                      backgroundColor: Colors.white,
+                    ),
                   ),
                 ),
+              const SizedBox(height: 12),
+              Text(
+                secondsLeft == null
+                    ? context.tr('Waiting for token')
+                    : '${context.tr('Expires in')} ${secondsLeft}s',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-            const SizedBox(height: 12),
-            Text(
-              secondsLeft == null
-                  ? context.tr('Waiting for token')
-                  : '${context.tr('Expires in')} ${secondsLeft}s',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${context.tr('Present')}: $presentCount',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: Colors.green),
-                ),
-                Text(
-                  '${context.tr('Absent')}: ${_roster.length - presentCount}',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: Colors.red),
-                ),
-                Text(
-                  '${context.tr('Total')}: ${_roster.length}',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 180),
-              child: _roster.isEmpty
-                  ? Center(child: Text(context.tr('Roster will appear here.')))
-                  : ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: _roster.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final item = _roster[index];
-                        final checkedIn =
-                            item.status == 'present' || item.status == 'late';
-                        return ListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(
-                            checkedIn
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            color: checkedIn ? Colors.green : Colors.grey,
-                          ),
-                          title: Text(item.fullName),
-                          subtitle: Text(
-                            item.checkInAt == null
-                                ? item.studentCode
-                                : '${item.studentCode} | ${_formatQrTime(item.checkInAt!)} | ${item.markedByQr ? "QR" : context.tr("Manual")}',
-                          ),
-                          trailing: Text(context.tr(item.status)),
-                        );
-                      },
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${context.tr('Present')}: $presentCount',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.green,
                     ),
-            ),
-          ],
-        ),
+                  ),
+                  Text(
+                    '${context.tr('Absent')}: ${_roster.length - presentCount}',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.red,
+                    ),
+                  ),
+                  Text(
+                    '${context.tr('Total')}: ${_roster.length}',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 180),
+                child: _roster.isEmpty
+                    ? Center(
+                        child: Text(context.tr('Roster will appear here.')),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _roster.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final item = _roster[index];
+                          final checkedIn =
+                              item.status == 'present' || item.status == 'late';
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(
+                              checkedIn
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: checkedIn ? Colors.green : Colors.grey,
+                            ),
+                            title: Text(item.fullName),
+                            subtitle: Text(
+                              item.checkInAt == null
+                                  ? item.studentCode
+                                  : '${item.studentCode} | ${_formatQrTime(item.checkInAt!)} | ${item.markedByQr ? "QR" : context.tr("Manual")}',
+                            ),
+                            trailing: Text(context.tr(item.status)),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [

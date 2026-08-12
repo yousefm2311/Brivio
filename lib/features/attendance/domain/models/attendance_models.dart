@@ -140,6 +140,47 @@ class AttendanceRecord {
   }
 }
 
+class AttendanceRosterEntry {
+  final String studentId;
+  final String studentCode;
+  final String fullName;
+  final AttendanceStatus? attendanceStatus;
+  final DateTime? checkInAt;
+  final DateTime? checkOutAt;
+  final bool markedByQr;
+
+  const AttendanceRosterEntry({
+    required this.studentId,
+    required this.studentCode,
+    required this.fullName,
+    required this.attendanceStatus,
+    required this.checkInAt,
+    required this.checkOutAt,
+    required this.markedByQr,
+  });
+
+  bool get isPresent =>
+      attendanceStatus == AttendanceStatus.present ||
+      attendanceStatus == AttendanceStatus.late;
+
+  bool get isAbsent => attendanceStatus == AttendanceStatus.absent;
+
+  factory AttendanceRosterEntry.fromJson(Map<String, dynamic> json) {
+    final status = json['attendance_status']?.toString();
+    return AttendanceRosterEntry(
+      studentId: json['student_id']?.toString() ?? '',
+      studentCode: json['student_code']?.toString() ?? '',
+      fullName: json['full_name']?.toString() ?? 'Student',
+      attendanceStatus: status == null || status == 'pending'
+          ? null
+          : AttendanceStatusExtension.fromString(status),
+      checkInAt: DateTime.tryParse(json['check_in_at']?.toString() ?? ''),
+      checkOutAt: DateTime.tryParse(json['check_out_at']?.toString() ?? ''),
+      markedByQr: json['marked_by_qr'] == true,
+    );
+  }
+}
+
 class LeaveRequest {
   final String id;
   final String studentId;

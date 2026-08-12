@@ -302,7 +302,9 @@ class GroupEntity extends Equatable {
     code: json['code'] as String? ?? '',
     subjectId: json['subject_id'] as String? ?? '',
     branchId: json['branch_id'] as String? ?? '',
-    maxCapacity: json['max_capacity'] as int?,
+    maxCapacity:
+        (json['capacity'] as num?)?.toInt() ??
+        (json['max_capacity'] as num?)?.toInt(),
     status: json['status'] as String? ?? 'active',
   );
 
@@ -312,7 +314,7 @@ class GroupEntity extends Equatable {
       'code': code,
       'subject_id': subjectId,
       'branch_id': branchId,
-      'max_capacity': maxCapacity,
+      'capacity': maxCapacity,
       'status': status,
     };
     if (id.isNotEmpty) map['id'] = id;
@@ -390,7 +392,8 @@ class ScheduleEntity extends Equatable {
     dayOfWeek: json['day_of_week'] as int,
     startTime: json['start_time'] as String,
     endTime: json['end_time'] as String,
-    roomLocation: json['room_location'] as String?,
+    roomLocation:
+        json['location'] as String? ?? json['room_location'] as String?,
     status: json['status'] as String? ?? 'active',
   );
 

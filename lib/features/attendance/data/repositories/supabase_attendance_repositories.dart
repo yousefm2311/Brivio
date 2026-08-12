@@ -75,6 +75,31 @@ class SupabaseAttendanceRepository implements IAttendanceRepository {
   }
 
   @override
+  Future<List<AttendanceRosterEntry>> fetchRosterForSession(
+    String sessionId,
+  ) async {
+    try {
+      final response = await _wrapper.client.rpc(
+        'get_teacher_session_attendance_roster',
+        params: {'p_class_session_id': sessionId},
+      );
+      return (response as List)
+          .map(
+            (j) => AttendanceRosterEntry.fromJson(
+              Map<String, dynamic>.from(j as Map),
+            ),
+          )
+          .toList();
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: e.message);
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Failed to fetch attendance roster: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
   Future<void> markSessionAttendance({
     required String sessionId,
     required List<Map<String, dynamic>> records,
@@ -93,6 +118,28 @@ class SupabaseAttendanceRepository implements IAttendanceRepository {
       throw DatabaseFailure(message: e.message);
     } catch (e) {
       throw DatabaseFailure(message: 'Mark attendance failed: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> markStudentCheckout({
+    required String sessionId,
+    required String studentId,
+  }) async {
+    try {
+      final response = await _wrapper.client.rpc(
+        'mark_student_checkout',
+        params: {'p_class_session_id': sessionId, 'p_student_id': studentId},
+      );
+
+      final jsonMap = Map<String, dynamic>.from(response as Map);
+      if (jsonMap['success'] != true) {
+        throw DatabaseFailure(message: 'Checkout operation failed');
+      }
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: e.message);
+    } catch (e) {
+      throw DatabaseFailure(message: 'Checkout failed: ${e.toString()}');
     }
   }
 

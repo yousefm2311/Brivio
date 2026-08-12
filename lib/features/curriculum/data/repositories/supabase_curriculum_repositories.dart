@@ -55,11 +55,35 @@ class SupabaseSemesterRepository implements ISemesterRepository {
   }
 
   @override
+  Future<Semester> updateSemester(Semester semester) async {
+    try {
+      final response = await _wrapper.client.rpc(
+        'teacher_update_semester',
+        params: {
+          'p_semester_id': semester.id,
+          'p_name': semester.name,
+          'p_code': semester.code,
+          'p_status': semester.status,
+        },
+      );
+      return Semester.fromJson(Map<String, dynamic>.from(response as Map));
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: 'Failed to update semester: ${e.message}');
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Failed to update semester: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
   Future<void> deleteSemester(String id) async {
     try {
       await _wrapper.client.rpc('delete_semester', params: {'semester_id': id});
     } catch (e) {
-      throw DatabaseFailure(message: 'Failed to delete semester: ${e.toString()}');
+      throw DatabaseFailure(
+        message: 'Failed to delete semester: ${e.toString()}',
+      );
     }
   }
 }
@@ -101,6 +125,26 @@ class SupabaseUnitRepository implements IUnitRepository {
       return Unit.fromJson(response);
     } catch (e) {
       throw DatabaseFailure(message: 'Failed to create unit: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<Unit> updateUnit(Unit unit) async {
+    try {
+      final response = await _wrapper.client.rpc(
+        'teacher_update_unit',
+        params: {
+          'p_unit_id': unit.id,
+          'p_name': unit.name,
+          'p_code': unit.code,
+          'p_status': unit.status,
+        },
+      );
+      return Unit.fromJson(Map<String, dynamic>.from(response as Map));
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: 'Failed to update unit: ${e.message}');
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to update unit: ${e.toString()}');
     }
   }
 
@@ -190,13 +234,40 @@ class SupabaseLessonRepository implements ILessonRepository {
   }
 
   @override
+  Future<Lesson> updateLesson(Lesson lesson) async {
+    try {
+      final response = await _wrapper.client.rpc(
+        'teacher_update_lesson',
+        params: {
+          'p_lesson_id': lesson.id,
+          'p_title': lesson.title,
+          'p_lesson_type': lesson.lessonType.toDbValue(),
+          'p_estimated_duration_minutes': lesson.estimatedDurationMinutes,
+        },
+      );
+      return Lesson.fromJson(Map<String, dynamic>.from(response as Map));
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: 'Failed to update lesson: ${e.message}');
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Failed to update lesson: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
   Future<void> publishLesson(String lessonId, {bool publish = true}) async {
     try {
-      await _wrapper.client.from('lessons').update({
-        'status': publish ? 'published' : 'draft',
-        'published_at': publish ? DateTime.now().toUtc().toIso8601String() : null,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', lessonId);
+      await _wrapper.client
+          .from('lessons')
+          .update({
+            'status': publish ? 'published' : 'draft',
+            'published_at': publish
+                ? DateTime.now().toUtc().toIso8601String()
+                : null,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', lessonId);
     } on supabase.PostgrestException catch (e) {
       throw DatabaseFailure(message: e.message);
     } catch (e) {
@@ -235,7 +306,9 @@ class SupabaseLessonRepository implements ILessonRepository {
     try {
       await _wrapper.client.rpc('delete_lesson', params: {'lesson_id': id});
     } catch (e) {
-      throw DatabaseFailure(message: 'Failed to delete lesson: ${e.toString()}');
+      throw DatabaseFailure(
+        message: 'Failed to delete lesson: ${e.toString()}',
+      );
     }
   }
 }
@@ -283,6 +356,25 @@ class SupabaseLessonResourceRepository implements ILessonResourceRepository {
     } catch (e) {
       throw DatabaseFailure(
         message: 'Failed to create resource: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<LessonResource> updateResource(LessonResource resource) async {
+    try {
+      final response = await _wrapper.client.rpc(
+        'teacher_update_lesson_resource',
+        params: {'p_resource_id': resource.id, 'p_title': resource.title},
+      );
+      return LessonResource.fromJson(
+        Map<String, dynamic>.from(response as Map),
+      );
+    } on supabase.PostgrestException catch (e) {
+      throw DatabaseFailure(message: 'Failed to update resource: ${e.message}');
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Failed to update resource: ${e.toString()}',
       );
     }
   }

@@ -146,7 +146,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
 
   void _showCreateSemesterDialog() {
     final titleCtrl = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -172,18 +172,26 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                   id: '',
                   subjectId: _selectedGroup!.subjectId,
                   name: titleCtrl.text.trim(),
-                  code: titleCtrl.text.trim().replaceAll(' ', '_').toLowerCase(),
+                  code: titleCtrl.text
+                      .trim()
+                      .replaceAll(' ', '_')
+                      .toLowerCase(),
                   orderNumber: _semesters.length + 1,
                   status: 'active',
                   units: [],
                 );
-                
+
                 await _semesterRepo.createSemester(sem);
                 nav.pop();
                 _loadCurriculum();
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               }
             },
@@ -197,7 +205,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
   void _showCreateUnitDialog(Semester semester) {
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -231,18 +239,26 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                   id: '',
                   semesterId: semester.id,
                   name: titleCtrl.text.trim(),
-                  code: titleCtrl.text.trim().replaceAll(' ', '_').toLowerCase(),
+                  code: titleCtrl.text
+                      .trim()
+                      .replaceAll(' ', '_')
+                      .toLowerCase(),
                   orderNumber: semester.units.length + 1,
                   status: 'active',
                   lessons: [],
                 );
-                
+
                 await _unitRepo.createUnit(unit);
                 nav.pop();
                 _loadCurriculum();
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               }
             },
@@ -251,6 +267,283 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
         ],
       ),
     );
+  }
+
+  void _showEditSemesterDialog(Semester semester) {
+    final titleCtrl = TextEditingController(text: semester.name);
+    final codeCtrl = TextEditingController(text: semester.code);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('Edit Semester / Term')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              decoration: InputDecoration(labelText: context.tr('Name')),
+            ),
+            TextField(
+              controller: codeCtrl,
+              decoration: InputDecoration(labelText: context.tr('Code')),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.trim().isEmpty ||
+                  codeCtrl.text.trim().isEmpty) {
+                return;
+              }
+              final nav = Navigator.of(ctx);
+              try {
+                await _semesterRepo.updateSemester(
+                  Semester(
+                    id: semester.id,
+                    subjectId: semester.subjectId,
+                    name: titleCtrl.text.trim(),
+                    code: codeCtrl.text.trim(),
+                    orderNumber: semester.orderNumber,
+                    startDate: semester.startDate,
+                    endDate: semester.endDate,
+                    status: semester.status,
+                    units: semester.units,
+                  ),
+                );
+                nav.pop();
+                _loadCurriculum();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
+              }
+            },
+            child: Text(context.tr('Save')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditUnitDialog(Unit unit) {
+    final titleCtrl = TextEditingController(text: unit.name);
+    final codeCtrl = TextEditingController(text: unit.code);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('Edit Unit')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              decoration: InputDecoration(labelText: context.tr('Name')),
+            ),
+            TextField(
+              controller: codeCtrl,
+              decoration: InputDecoration(labelText: context.tr('Code')),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.trim().isEmpty ||
+                  codeCtrl.text.trim().isEmpty) {
+                return;
+              }
+              final nav = Navigator.of(ctx);
+              try {
+                await _unitRepo.updateUnit(
+                  Unit(
+                    id: unit.id,
+                    semesterId: unit.semesterId,
+                    name: titleCtrl.text.trim(),
+                    code: codeCtrl.text.trim(),
+                    orderNumber: unit.orderNumber,
+                    status: unit.status,
+                    lessons: unit.lessons,
+                  ),
+                );
+                nav.pop();
+                _loadCurriculum();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
+              }
+            },
+            child: Text(context.tr('Save')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditLessonDialog(Lesson lesson) {
+    final titleCtrl = TextEditingController(text: lesson.title);
+    final durationCtrl = TextEditingController(
+      text: (lesson.estimatedDurationMinutes ?? 30).toString(),
+    );
+    String lessonTypeStr = lesson.lessonType.toDbValue();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(context.tr('Edit Lesson')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: InputDecoration(labelText: context.tr('Title')),
+              ),
+              DropdownButtonFormField<String>(
+                initialValue: lessonTypeStr,
+                decoration: InputDecoration(labelText: context.tr('Type')),
+                items: const [
+                  DropdownMenuItem(value: 'video', child: Text('Video')),
+                  DropdownMenuItem(value: 'pdf', child: Text('PDF')),
+                  DropdownMenuItem(value: 'text', child: Text('Text')),
+                  DropdownMenuItem(value: 'programming', child: Text('Code')),
+                  DropdownMenuItem(value: 'quiz', child: Text('Quiz')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setDialogState(() => lessonTypeStr = value);
+                  }
+                },
+              ),
+              TextField(
+                controller: durationCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: context.tr('Minutes')),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.tr('Cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (titleCtrl.text.trim().isEmpty) return;
+                final nav = Navigator.of(ctx);
+                try {
+                  await _lessonRepo.updateLesson(
+                    Lesson(
+                      id: lesson.id,
+                      unitId: lesson.unitId,
+                      title: titleCtrl.text.trim(),
+                      lessonType: LessonType.fromString(lessonTypeStr),
+                      orderNumber: lesson.orderNumber,
+                      status: lesson.status,
+                      publishedAt: lesson.publishedAt,
+                      estimatedDurationMinutes: int.tryParse(
+                        durationCtrl.text.trim(),
+                      ),
+                      resources: lesson.resources,
+                    ),
+                  );
+                  nav.pop();
+                  _loadCurriculum();
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
+                }
+              },
+              child: Text(context.tr('Save')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditResourceDialog(LessonResource resource) {
+    final titleCtrl = TextEditingController(text: resource.title);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('Edit Resource')),
+        content: TextField(
+          controller: titleCtrl,
+          decoration: InputDecoration(labelText: context.tr('Title')),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.trim().isEmpty) return;
+              final nav = Navigator.of(ctx);
+              try {
+                await _resourceRepo.updateResource(
+                  LessonResource(
+                    id: resource.id,
+                    lessonId: resource.lessonId,
+                    resourceType: resource.resourceType,
+                    title: titleCtrl.text.trim(),
+                    bucket: resource.bucket,
+                    objectPath: resource.objectPath,
+                    orderNumber: resource.orderNumber,
+                  ),
+                );
+                nav.pop();
+                _loadCurriculum();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
+              }
+            },
+            child: Text(context.tr('Save')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirmDelete(String title, String message) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('Cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(context.tr('Delete')),
+          ),
+        ],
+      ),
+    );
+    return confirm == true;
   }
 
   void _showCreateLessonDialog(Unit unit) {
@@ -418,7 +711,9 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                       final bytes = file == null
                           ? null
                           : await file.readAsBytes();
-                      if (titleCtrl.text.trim().isEmpty || file == null || bytes == null) {
+                      if (titleCtrl.text.trim().isEmpty ||
+                          file == null ||
+                          bytes == null) {
                         return;
                       }
 
@@ -486,8 +781,6 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
     );
   }
 
-
-
   void _showCodeChallengesDialog(Lesson lesson) {
     showDialog(
       context: context,
@@ -498,9 +791,15 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final subtitleColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final subtitleColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return RefreshIndicator(
       onRefresh: _loadCurriculum,
@@ -521,7 +820,10 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                         const SizedBox(height: 8),
                         ElevatedButton(
                           onPressed: _loadCurriculum,
-                          child: Text(context.tr('Retry'), style: AppTypography.labelMedium(textColor)),
+                          child: Text(
+                            context.tr('Retry'),
+                            style: AppTypography.labelMedium(textColor),
+                          ),
                         ),
                       ],
                     ),
@@ -565,7 +867,10 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                       onPressed: _showCreateSemesterDialog,
                       backgroundColor: AppColors.primary,
                       icon: const Icon(Icons.add, color: Colors.white),
-                      label: Text(context.tr('Add Semester / Term'), style: const TextStyle(color: Colors.white)),
+                      label: Text(
+                        context.tr('Add Semester / Term'),
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
               ],
@@ -591,7 +896,10 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                             color: surfaceColor,
                             padding: EdgeInsets.zero,
                             child: ExpansionTile(
-                              leading: const CircleIcon(icon: Icons.school, color: AppColors.primary),
+                              leading: const CircleIcon(
+                                icon: Icons.school,
+                                color: AppColors.primary,
+                              ),
                               title: Text(
                                 sem.name,
                                 style: AppTypography.titleMedium(textColor),
@@ -600,10 +908,43 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                 '${context.tr('Code')}: ${sem.code} | ${context.tr('Units')}: ${sem.units.length}',
                                 style: AppTypography.bodySmall(subtitleColor),
                               ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                                onPressed: () => _showCreateUnitDialog(sem),
-                                tooltip: context.tr('Add Unit'),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () =>
+                                        _showEditSemesterDialog(sem),
+                                    tooltip: context.tr('Edit Semester'),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.add_circle_outline,
+                                      color: AppColors.primary,
+                                    ),
+                                    onPressed: () => _showCreateUnitDialog(sem),
+                                    tooltip: context.tr('Add Unit'),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: AppColors.error,
+                                    ),
+                                    onPressed: () async {
+                                      if (!await _confirmDelete(
+                                        'Delete Semester',
+                                        'Delete ${sem.name} and all its units?',
+                                      )) {
+                                        return;
+                                      }
+                                      await _semesterRepo.deleteSemester(
+                                        sem.id,
+                                      );
+                                      _loadCurriculum();
+                                    },
+                                    tooltip: context.tr('Delete Semester'),
+                                  ),
+                                ],
                               ),
                               children: sem.units.map((unit) {
                                 return Padding(
@@ -615,24 +956,57 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                     ),
                                     title: Text(
                                       unit.name,
-                                      style: AppTypography.titleSmall(textColor),
+                                      style: AppTypography.titleSmall(
+                                        textColor,
+                                      ),
                                     ),
                                     subtitle: Text(
                                       '${context.tr('Lessons')}: ${unit.lessons.length}',
-                                      style: AppTypography.bodySmall(subtitleColor),
-                                    ),
-                                    trailing: IconButton(
-                                      icon: const Icon(
-                                        Icons.add_circle_outline,
-                                        color: AppColors.warning,
+                                      style: AppTypography.bodySmall(
+                                        subtitleColor,
                                       ),
-                                      onPressed: () =>
-                                          _showCreateLessonDialog(unit),
-                                      tooltip: context.tr('Add Lesson'),
+                                    ),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.edit),
+                                          onPressed: () =>
+                                              _showEditUnitDialog(unit),
+                                          tooltip: context.tr('Edit Unit'),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.add_circle_outline,
+                                            color: AppColors.warning,
+                                          ),
+                                          onPressed: () =>
+                                              _showCreateLessonDialog(unit),
+                                          tooltip: context.tr('Add Lesson'),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                            color: AppColors.error,
+                                          ),
+                                          onPressed: () async {
+                                            if (!await _confirmDelete(
+                                              'Delete Unit',
+                                              'Delete ${unit.name} and all its lessons?',
+                                            )) {
+                                              return;
+                                            }
+                                            await _unitRepo.deleteUnit(unit.id);
+                                            _loadCurriculum();
+                                          },
+                                          tooltip: context.tr('Delete Unit'),
+                                        ),
+                                      ],
                                     ),
                                     children: unit.lessons.map((lesson) {
                                       final isPublished =
-                                          lesson.status == LessonStatus.published;
+                                          lesson.status ==
+                                          LessonStatus.published;
 
                                       return ExpansionTile(
                                         leading: const CircleIcon(
@@ -641,22 +1015,36 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                         ),
                                         title: Text(
                                           lesson.title,
-                                          style: AppTypography.bodyLarge(textColor),
+                                          style: AppTypography.bodyLarge(
+                                            textColor,
+                                          ),
                                         ),
                                         subtitle: Text(
                                           '${context.tr('Type')}: ${context.tr(lesson.lessonType.name)} | ${context.tr('Status')}: ${context.tr(lesson.status.name)}',
-                                          style: AppTypography.bodySmall(subtitleColor),
+                                          style: AppTypography.bodySmall(
+                                            subtitleColor,
+                                          ),
                                         ),
                                         trailing: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
+                                            IconButton(
+                                              icon: const Icon(Icons.edit),
+                                              onPressed: () =>
+                                                  _showEditLessonDialog(lesson),
+                                              tooltip: context.tr(
+                                                'Edit Lesson',
+                                              ),
+                                            ),
                                             IconButton(
                                               icon: const Icon(
                                                 Icons.attach_file,
                                                 color: AppColors.purple,
                                               ),
                                               onPressed: () =>
-                                                  _showUploadResourceDialog(lesson),
+                                                  _showUploadResourceDialog(
+                                                    lesson,
+                                                  ),
                                               tooltip: context.tr(
                                                 'Upload Resource',
                                               ),
@@ -667,7 +1055,9 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                 color: AppColors.info,
                                               ),
                                               onPressed: () =>
-                                                  _showCodeChallengesDialog(lesson),
+                                                  _showCodeChallengesDialog(
+                                                    lesson,
+                                                  ),
                                               tooltip: context.tr(
                                                 'Code Challenges',
                                               ),
@@ -679,7 +1069,8 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                     : Icons.visibility_off,
                                                 color: isPublished
                                                     ? AppColors.success
-                                                    : AppColors.darkTextSecondary,
+                                                    : AppColors
+                                                          .darkTextSecondary,
                                               ),
                                               onPressed: () async {
                                                 await _lessonRepo.publishLesson(
@@ -688,7 +1079,30 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                 );
                                                 _loadCurriculum();
                                               },
-                                              tooltip: context.tr('Toggle Publish'),
+                                              tooltip: context.tr(
+                                                'Toggle Publish',
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                                color: AppColors.error,
+                                              ),
+                                              onPressed: () async {
+                                                if (!await _confirmDelete(
+                                                  'Delete Lesson',
+                                                  'Delete ${lesson.title} and its files?',
+                                                )) {
+                                                  return;
+                                                }
+                                                await _lessonRepo.deleteLesson(
+                                                  lesson.id,
+                                                );
+                                                _loadCurriculum();
+                                              },
+                                              tooltip: context.tr(
+                                                'Delete Lesson',
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -702,41 +1116,98 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                               ),
                                               title: Text(
                                                 res.title,
-                                                style: AppTypography.bodyMedium(textColor),
+                                                style: AppTypography.bodyMedium(
+                                                  textColor,
+                                                ),
                                               ),
                                               subtitle: Text(
                                                 '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
-                                                style: AppTypography.bodySmall(subtitleColor),
+                                                style: AppTypography.bodySmall(
+                                                  subtitleColor,
+                                                ),
+                                              ),
+                                              trailing: Wrap(
+                                                children: [
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.edit,
+                                                    ),
+                                                    onPressed: () =>
+                                                        _showEditResourceDialog(
+                                                          res,
+                                                        ),
+                                                    tooltip: context.tr(
+                                                      'Edit Resource',
+                                                    ),
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.delete_outline,
+                                                      color: AppColors.error,
+                                                    ),
+                                                    onPressed: () async {
+                                                      if (!await _confirmDelete(
+                                                        'Delete Resource',
+                                                        'Delete ${res.title}?',
+                                                      )) {
+                                                        return;
+                                                      }
+                                                      await _resourceRepo
+                                                          .deleteResource(
+                                                            res.id,
+                                                          );
+                                                      _loadCurriculum();
+                                                    },
+                                                    tooltip: context.tr(
+                                                      'Delete Resource',
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                               onTap: () async {
                                                 if (res.resourceType == 'pdf') {
-                                                  final url = await Supabase.instance.client.storage
+                                                  final url = await Supabase
+                                                      .instance
+                                                      .client
+                                                      .storage
                                                       .from(res.bucket)
-                                                      .createSignedUrl(res.objectPath, 3600);
+                                                      .createSignedUrl(
+                                                        res.objectPath,
+                                                        3600,
+                                                      );
                                                   if (!context.mounted) return;
-                                                  final summary = StudyLessonSummary(
-                                                    id: lesson.id,
-                                                    title: lesson.title,
-                                                    pathName: 'Curriculum',
-                                                    unitName: unit.name,
-                                                    progressPercentage: 0,
-                                                    estimatedMinutes: 30,
-                                                    lastPage: 1,
-                                                    totalPages: 0,
-                                                    xp: 0,
-                                                    hasPdf: true,
-                                                    hasCodePlayground: false,
-                                                    pdfUrl: url,
-                                                  );
-                                                  Navigator.of(context).push(MaterialPageRoute(
-                                                    builder: (_) => StudyWorkspaceScreen(
-                                                      lesson: summary,
-                                                      teacherId: widget.teacherId,
-                                                      repository: SupabaseStudyWorkspaceRepository(
-                                                        GetIt.I<SupabaseClientWrapper>(),
-                                                      ),
+                                                  final summary =
+                                                      StudyLessonSummary(
+                                                        id: lesson.id,
+                                                        title: lesson.title,
+                                                        pathName: 'Curriculum',
+                                                        unitName: unit.name,
+                                                        progressPercentage: 0,
+                                                        estimatedMinutes: 30,
+                                                        lastPage: 1,
+                                                        totalPages: 0,
+                                                        xp: 0,
+                                                        hasPdf: true,
+                                                        hasCodePlayground:
+                                                            false,
+                                                        pdfUrl: url,
+                                                      );
+                                                  Navigator.of(context).push(
+                                                    MaterialPageRoute(
+                                                      builder: (_) =>
+                                                          StudyWorkspaceScreen(
+                                                            lesson: summary,
+                                                            teacherId: widget
+                                                                .teacherId,
+                                                            repository:
+                                                                SupabaseStudyWorkspaceRepository(
+                                                                  GetIt.I<
+                                                                    SupabaseClientWrapper
+                                                                  >(),
+                                                                ),
+                                                          ),
                                                     ),
-                                                  ));
+                                                  );
                                                 }
                                               },
                                             ),

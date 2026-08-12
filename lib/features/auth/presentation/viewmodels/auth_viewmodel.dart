@@ -137,7 +137,10 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> signInWithMagicQr({required String email, required String token}) async {
+  Future<void> signInWithMagicQr({
+    required String email,
+    required String token,
+  }) async {
     _state = AuthState.loading();
     notifyListeners();
 
@@ -209,6 +212,43 @@ class AuthViewModel extends ChangeNotifier {
       _state = AuthState.error(f);
       notifyListeners();
     }
+  }
+
+  Future<void> updateProfile({
+    required String fullName,
+    String? phoneNumber,
+    String? avatarUrl,
+  }) async {
+    final current = currentUser;
+    final bootstrap = _state.bootstrap;
+    if (current == null || bootstrap == null) return;
+
+    try {
+      final updatedProfile = await _authRepository.updateProfile(
+        current.copyWith(
+          fullName: fullName.trim(),
+          phoneNumber: phoneNumber?.trim(),
+          avatarUrl: avatarUrl?.trim(),
+        ),
+      );
+      _state = AuthState.authenticated(
+        AuthUserBootstrap(
+          profile: updatedProfile,
+          role: bootstrap.role,
+          primaryBranchId: bootstrap.primaryBranchId,
+          accountStatus: bootstrap.accountStatus,
+          effectivePermissions: bootstrap.effectivePermissions,
+          studentId: bootstrap.studentId,
+          parentId: bootstrap.parentId,
+          teacherId: bootstrap.teacherId,
+        ),
+      );
+    } on Failure catch (f) {
+      _state = AuthState.error(f);
+    } catch (e) {
+      _state = AuthState.error(UnexpectedFailure(message: e.toString()));
+    }
+    notifyListeners();
   }
 
   Future<void> signOut() async {

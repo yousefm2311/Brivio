@@ -7,9 +7,14 @@ abstract class IClassSessionRepository {
 
 abstract class IAttendanceRepository {
   Future<List<AttendanceRecord>> fetchAttendanceForSession(String sessionId);
+  Future<List<AttendanceRosterEntry>> fetchRosterForSession(String sessionId);
   Future<void> markSessionAttendance({
     required String sessionId,
     required List<Map<String, dynamic>> records,
+  });
+  Future<void> markStudentCheckout({
+    required String sessionId,
+    required String studentId,
   });
   Future<void> finalizeSessionAttendance(String sessionId);
   Future<AttendanceSummary> fetchStudentAttendanceSummary(String studentId);
