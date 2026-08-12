@@ -45,6 +45,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   List<_BoardStroke> _boardStrokes = [];
   List<_PdfAnnotation> _pdfAnnotations = [];
   bool _pdfAnnotationsLoaded = false;
+  String _lastAppliedBoardData = '';
   String? _studySessionId;
   DateTime? _studySessionStartedAt;
   final Set<int> _visitedPages = {};
@@ -118,7 +119,11 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
       if (!mounted) return;
       final size = MediaQuery.of(context).size;
       _boardTransformationController.value = Matrix4.identity()
-        ..translate(-2000.0 + size.width / 2, -2000.0 + size.height / 2);
+        ..setTranslationRaw(
+          -2000.0 + size.width / 2,
+          -2000.0 + size.height / 2,
+          0,
+        );
     });
 
     _viewModel.addListener(_syncLoadedText);
@@ -150,8 +155,10 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     if (_codeController.text.isEmpty && _viewModel.codeText.isNotEmpty) {
       _codeController.text = _viewModel.codeText;
     }
-    final newBoardStrokes = _decodeBoard(_viewModel.boardData);
-    if (newBoardStrokes.length != _boardStrokes.length) {
+    final nextBoardData = _viewModel.boardData;
+    final newBoardStrokes = _decodeBoard(nextBoardData);
+    if (nextBoardData != _lastAppliedBoardData) {
+      _lastAppliedBoardData = nextBoardData;
       setState(() => _boardStrokes = newBoardStrokes);
     }
     if (!_pdfAnnotationsLoaded) {
@@ -177,6 +184,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   }
 
   void _queueBoardSave(List<_BoardStroke> strokes) {
+    _lastAppliedBoardData = _encodeBoard(strokes);
     setState(() => _boardStrokes = strokes);
     _boardDebounce?.cancel();
     _boardDebounce = Timer(const Duration(milliseconds: 450), () {
@@ -951,7 +959,7 @@ class _FloatingToolMenu extends StatelessWidget {
                     tooltip: 'Previous Page',
                   ),
                   Text(
-                    '${currentPage} / ${totalPages}',
+                    '$currentPage / $totalPages',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   IconButton(
@@ -1295,6 +1303,14 @@ class _PdfPaneState extends State<_PdfPane> {
                   tooltip: 'Sticky note',
                   onPressed: widget.onAddNote,
                   icon: const Icon(Icons.sticky_note_2_outlined),
+                ),
+                IconButton(
+                  tooltip: _drawMode ? 'Stop drawing' : 'Draw on PDF',
+                  onPressed: () => setState(() => _drawMode = !_drawMode),
+                  icon: Icon(
+                    _drawMode ? Icons.pan_tool_alt_rounded : Icons.draw_rounded,
+                    color: _drawMode ? AppColors.primary : null,
+                  ),
                 ),
               ],
             ),

@@ -1,4 +1,5 @@
--- Return exam attempts with resolved student profile data for teacher review screens.
+-- Make the teacher attempts RPC resilient and re-install it on databases that
+-- already applied the earlier get_teacher_exam_attempts migration.
 
 CREATE OR REPLACE FUNCTION public.get_teacher_exam_attempts(p_exam_id UUID)
 RETURNS TABLE (
@@ -23,9 +24,10 @@ DECLARE
   v_group_id UUID;
   v_exam_exists BOOLEAN := false;
 BEGIN
-  SELECT true, group_id INTO v_exam_exists, v_group_id
-  FROM public.exams
-  WHERE id = p_exam_id;
+  SELECT true, ex.group_id
+  INTO v_exam_exists, v_group_id
+  FROM public.exams ex
+  WHERE ex.id = p_exam_id;
 
   IF NOT COALESCE(v_exam_exists, false) THEN
     RAISE EXCEPTION 'Exam not found' USING ERRCODE = 'P0002';
@@ -44,20 +46,20 @@ BEGIN
     att.id,
     att.exam_id,
     att.student_id,
-    COALESCE(NULLIF(trim(p.full_name), ''), s.student_code, 'Unknown Student') AS student_name,
-    s.student_code,
+    COALESCE(NULLIF(trim(p.full_name), ''), s.student_code, 'Unknown Student')::TEXT AS student_name,
+    s.student_code::TEXT,
     att.attempt_number,
-    att.status,
+    att.status::TEXT,
     att.score,
     att.max_score,
     att.started_at,
     att.submitted_at,
-    att.teacher_feedback
+    att.teacher_feedback::TEXT
   FROM public.exam_attempts att
-  JOIN public.students s ON s.id = att.student_id
+  LEFT JOIN public.students s ON s.id = att.student_id
   LEFT JOIN public.profiles p ON p.id = s.profile_id
   WHERE att.exam_id = p_exam_id
-  ORDER BY p.full_name, s.student_code, att.attempt_number;
+  ORDER BY COALESCE(NULLIF(trim(p.full_name), ''), s.student_code, 'Unknown Student'), att.attempt_number;
 END;
 $$;
 

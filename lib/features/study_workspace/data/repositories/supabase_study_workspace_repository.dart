@@ -88,7 +88,7 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
     required String lessonId,
   }) async {
     try {
-      final boards = await _wrapper.client
+      final annotationBoards = await _wrapper.client
           .rpc(
             'get_student_teacher_study_annotations',
             params: {'p_lesson_id': lessonId, 'p_student_id': studentId},
@@ -96,7 +96,17 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
           .eq('page_number', 1)
           .eq('annotation_type', 'freehand');
 
-      final boardData = _mergeBoardDataFromRows(boards);
+      final pdfDrawingBoards = await _wrapper.client
+          .rpc(
+            'get_student_teacher_study_pdf_drawings',
+            params: {'p_lesson_id': lessonId, 'p_student_id': studentId},
+          )
+          .eq('page_number', 1);
+
+      final boardData = _mergeBoardDataFromRows([
+        ..._asRowList(annotationBoards),
+        ..._asRowList(pdfDrawingBoards),
+      ]);
       if (boardData.isNotEmpty) {
         return StudyWorkspaceDraft(
           notebookContent: '',
@@ -112,10 +122,19 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
           .eq('page_number', 1)
           .eq('annotation_type', 'freehand');
 
+      final directPdfDrawings = await _wrapper.client
+          .from('teacher_study_pdf_drawings')
+          .select('strokes')
+          .eq('lesson_id', lessonId)
+          .eq('page_number', 1);
+
       return StudyWorkspaceDraft(
         notebookContent: '',
         code: '',
-        boardData: _mergeBoardDataFromRows(directBoards),
+        boardData: _mergeBoardDataFromRows([
+          ..._asRowList(directBoards),
+          ..._asRowList(directPdfDrawings),
+        ]),
       );
     } catch (e) {
       return const StudyWorkspaceDraft(
@@ -267,6 +286,20 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
     required String lessonId,
     required String boardData,
   }) async {
+    try {
+      await _wrapper.client.rpc(
+        'save_teacher_study_board',
+        params: {
+          'p_teacher_id': teacherId,
+          'p_lesson_id': lessonId,
+          'p_board_data': boardData,
+        },
+      );
+      return;
+    } catch (_) {
+      // Older databases may not have the RPC until the latest migration is run.
+    }
+
     await _wrapper.client
         .from('teacher_study_annotations')
         .delete()
@@ -727,18 +760,30 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
 
 String _mergeBoardDataFromRows(dynamic rows) {
   final strokes = <dynamic>[];
-  final list = rows is List ? rows : const [];
+  final list = _asRowList(rows);
   for (final raw in list) {
     if (raw is! Map) continue;
     final geometry = raw['geometry'];
     final boardData = geometry is Map ? geometry['board_data'] : null;
-    if (boardData is! String || boardData.trim().isEmpty) continue;
-    try {
-      final decoded = jsonDecode(boardData);
-      if (decoded is Map && decoded['strokes'] is List) {
-        strokes.addAll(decoded['strokes'] as List);
-      }
-    } catch (_) {}
+    if (boardData is String && boardData.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(boardData);
+        if (decoded is Map && decoded['strokes'] is List) {
+          strokes.addAll(decoded['strokes'] as List);
+        }
+      } catch (_) {}
+    }
+
+    final rawStrokes = raw['strokes'];
+    if (rawStrokes is List && rawStrokes.isNotEmpty) {
+      strokes.addAll(rawStrokes);
+    }
   }
   return strokes.isEmpty ? '' : jsonEncode({'strokes': strokes});
+}
+
+List<dynamic> _asRowList(dynamic rows) {
+  if (rows is List) return rows;
+  if (rows == null) return const [];
+  return [rows];
 }

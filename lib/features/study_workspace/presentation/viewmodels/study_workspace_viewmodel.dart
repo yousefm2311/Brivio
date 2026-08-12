@@ -53,7 +53,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   String? get localPdfPath => _localPdfPath;
 
   Future<void> load() async {
-    final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
+    final userSuffix = teacherId ?? studentId ?? 'guest';
     final preferences = await SharedPreferences.getInstance();
     _notebookText =
         preferences.getString('$_notebookPrefix${lesson.id}_$userSuffix') ?? '';
@@ -121,7 +121,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       _codeText = draft.code;
       _boardData = draft.boardData;
 
-      final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
+      final userSuffix = teacherId ?? studentId ?? 'guest';
       await preferences.setString(
         '$_notebookPrefix${lesson.id}_$userSuffix',
         _notebookText,
@@ -162,7 +162,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
             if (!_isDisposed) notifyListeners();
           },
           onError: (error) {
-            print('Error listening to teacher draft: $error');
+            debugPrint('Error listening to teacher draft: $error');
           },
         );
   }
@@ -218,7 +218,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     _notebookText = value;
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
-      final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
+      final userSuffix = teacherId ?? studentId ?? 'guest';
       await preferences.setString(
         '$_notebookPrefix${lesson.id}_$userSuffix',
         value,
@@ -240,7 +240,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     _codeText = value;
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
-      final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
+      final userSuffix = teacherId ?? studentId ?? 'guest';
       await preferences.setString(
         '$_codePrefix${lesson.id}_$userSuffix',
         value,
@@ -254,20 +254,26 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
             code: value,
           );
         } catch (e, st) {
-          print('=== DEBUG ERROR IN SAVE CODEDRAFT: $e\n$st ===');
+          debugPrint('Failed to save code draft: $e\n$st');
         }
       }
     });
   }
 
   Future<void> saveBoard(String value) async {
-    _boardData = value;
+    final currentStudentId = studentId;
+    final currentTeacherId = teacherId;
+    final valueToPersist = value;
+    final valueToDisplay = currentStudentId != null && currentTeacherId == null
+        ? _mergeExistingTeacherStrokes(value)
+        : value;
+    _boardData = valueToDisplay;
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
-      final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
+      final userSuffix = teacherId ?? studentId ?? 'guest';
       await preferences.setString(
         '$_boardPrefix${lesson.id}_$userSuffix',
-        value,
+        valueToDisplay,
       );
 
       final boxName = 'study_workspace_cache';
@@ -278,28 +284,26 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
                 boxName,
                 path: (await getApplicationDocumentsDirectory()).path,
               );
-        await box.put('$_boardPrefix${lesson.id}_$userSuffix', value);
+        await box.put('$_boardPrefix${lesson.id}_$userSuffix', valueToDisplay);
       } catch (_) {}
 
-      final currentStudentId = studentId;
-      final currentTeacherId = teacherId;
       if (repository != null) {
         try {
           if (currentTeacherId != null) {
             await repository!.saveTeacherBoard(
               teacherId: currentTeacherId,
               lessonId: lesson.id,
-              boardData: value,
+              boardData: valueToPersist,
             );
           } else if (currentStudentId != null) {
             await repository!.saveBoard(
               studentId: currentStudentId,
               lessonId: lesson.id,
-              boardData: value,
+              boardData: valueToPersist,
             );
           }
         } catch (e, st) {
-          print('=== DEBUG ERROR IN SAVEBOARD: $e\n$st ===');
+          debugPrint('Failed to save study board: $e\n$st');
         }
       }
     });
@@ -310,7 +314,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     _currentPage = normalized;
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
-      final userSuffix = '${teacherId ?? studentId ?? 'guest'}';
+      final userSuffix = teacherId ?? studentId ?? 'guest';
       await preferences.setInt(
         '$_pagePrefix${lesson.id}_$userSuffix',
         normalized,
@@ -326,7 +330,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
             progressPercentage: progress,
           );
         } catch (e, st) {
-          print('=== DEBUG ERROR IN UPDATEPAGEPROGRESS: $e\n$st ===');
+          debugPrint('Failed to update lesson progress: $e\n$st');
         }
       }
     });
@@ -393,6 +397,45 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     } finally {
       _isRunningCode = false;
       if (!_isDisposed) notifyListeners();
+    }
+  }
+
+  String _mergeExistingTeacherStrokes(String studentBoardData) {
+    try {
+      final teacherStrokes = <dynamic>[];
+      if (_boardData.isNotEmpty) {
+        final current = jsonDecode(_boardData);
+        if (current is Map && current['strokes'] is List) {
+          teacherStrokes.addAll(
+            (current['strokes'] as List).where(
+              (stroke) =>
+                  stroke is Map &&
+                  (stroke['is_teacher'] == true || stroke['isTeacher'] == true),
+            ),
+          );
+        }
+      }
+
+      final nextStudentStrokes = <dynamic>[];
+      if (studentBoardData.isNotEmpty) {
+        final next = jsonDecode(studentBoardData);
+        if (next is Map && next['strokes'] is List) {
+          nextStudentStrokes.addAll(
+            (next['strokes'] as List).where(
+              (stroke) =>
+                  stroke is Map &&
+                  stroke['is_teacher'] != true &&
+                  stroke['isTeacher'] != true,
+            ),
+          );
+        }
+      }
+
+      return jsonEncode({
+        'strokes': [...teacherStrokes, ...nextStudentStrokes],
+      });
+    } catch (_) {
+      return studentBoardData;
     }
   }
 

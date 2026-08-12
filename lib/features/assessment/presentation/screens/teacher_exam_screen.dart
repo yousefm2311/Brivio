@@ -48,6 +48,82 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _loadExamAttemptsForReview(
+    String examId,
+  ) async {
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'get_teacher_exam_attempts',
+        params: {'p_exam_id': examId},
+      );
+      final attempts = List<Map<String, dynamic>>.from(res);
+      if (attempts.isNotEmpty) return attempts;
+      debugPrint('get_teacher_exam_attempts returned no rows, using fallback');
+    } catch (e) {
+      debugPrint('get_teacher_exam_attempts failed, using fallback: $e');
+    }
+
+    final attemptsRes = await Supabase.instance.client
+        .from('exam_attempts')
+        .select('*')
+        .eq('exam_id', examId)
+        .order('attempt_number', ascending: true);
+    final attempts = List<Map<String, dynamic>>.from(attemptsRes);
+    final studentIds = attempts
+        .map((attempt) => attempt['student_id']?.toString())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (studentIds.isEmpty) return attempts;
+
+    final studentsRes = await Supabase.instance.client
+        .from('students')
+        .select('id, student_code, profile_id')
+        .inFilter('id', studentIds);
+    final studentsById = {
+      for (final raw in List<Map<String, dynamic>>.from(studentsRes))
+        raw['id']?.toString(): raw,
+    };
+    final profileIds = studentsById.values
+        .map((student) => student['profile_id']?.toString())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+
+    final profilesById = <String, Map<String, dynamic>>{};
+    if (profileIds.isNotEmpty) {
+      try {
+        final profilesRes = await Supabase.instance.client
+            .from('profiles')
+            .select('id, full_name')
+            .inFilter('id', profileIds);
+        profilesById.addEntries(
+          List<Map<String, dynamic>>.from(
+            profilesRes,
+          ).map((profile) => MapEntry(profile['id'].toString(), profile)),
+        );
+      } catch (e) {
+        debugPrint('Fallback profiles lookup failed: $e');
+      }
+    }
+
+    return attempts.map((attempt) {
+      final student = studentsById[attempt['student_id']?.toString()];
+      final profile = profilesById[student?['profile_id']?.toString()];
+      return {
+        ...attempt,
+        'student_code': student?['student_code'],
+        'student_name':
+            profile?['full_name'] ??
+            student?['student_code'] ??
+            'Unknown Student',
+      };
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -453,13 +529,11 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     );
 
     List<Map<String, dynamic>> attempts = [];
+    Object? loadError;
     try {
-      final res = await Supabase.instance.client.rpc(
-        'get_teacher_exam_attempts',
-        params: {'p_exam_id': exam.id},
-      );
-      attempts = List<Map<String, dynamic>>.from(res);
+      attempts = await _loadExamAttemptsForReview(exam.id);
     } catch (e) {
+      loadError = e;
       debugPrint('Error fetching attempts: $e');
     }
 
@@ -482,7 +556,16 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              if (attempts.isEmpty)
+              if (loadError != null)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    '${context.tr('Failed to load attempts')}: $loadError',
+                    style: AppTypography.bodyMedium(AppColors.error),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              else if (attempts.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
