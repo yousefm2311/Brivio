@@ -159,7 +159,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   Future<List<StudentExamItem>> _fetchExamFeed() async {
     final rows = await Supabase.instance.client.rpc('get_student_exam_feed');
-    return (rows as List).whereType<Map>().map((r) => StudentExamItem.fromJson(r)).toList();
+    final items = (rows as List).whereType<Map>().map((r) => StudentExamItem.fromJson(r)).toList();
+    for (var item in items) {
+      print('=== EXAM ${item.exam.title} ===');
+      print('  attemptCount: ${item.attemptCount}');
+      print('  maxAttempts: ${item.exam.maxAttempts}');
+      print('  canStart: ${item.canStart}');
+    }
+    return items;
   }
 
   Future<List<StudentAttendanceItem>> _fetchAttendanceHistory() async {

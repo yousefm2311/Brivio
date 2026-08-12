@@ -18,7 +18,7 @@ class SupabaseErrorHandler {
       return msg.replaceAll('Exception:', '').trim();
     }
     
-    return 'An unexpected error occurred. Please try again.';
+    return 'Unexpected Error: ${error.toString()}';
   }
 
   static String _translateAuthError(String message) {

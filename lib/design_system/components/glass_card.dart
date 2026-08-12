@@ -51,7 +51,10 @@ class GlassCard extends StatelessWidget {
             boxShadow: boxShadow,
           ),
           padding: padding ?? const EdgeInsets.all(20),
-          child: child,
+          child: Material(
+            type: MaterialType.transparency,
+            child: child,
+          ),
         ),
       ),
     );
@@ -98,7 +101,10 @@ class GlassSurface extends StatelessWidget {
             border: Border.all(color: AppColors.glassBorder, width: 0.5),
           ),
           padding: padding,
-          child: child,
+          child: Material(
+            type: MaterialType.transparency,
+            child: child,
+          ),
         ),
       ),
     );
@@ -148,7 +154,10 @@ class GlowContainer extends StatelessWidget {
         ],
       ),
       padding: padding ?? const EdgeInsets.all(20),
-      child: child,
+      child: Material(
+        type: MaterialType.transparency,
+        child: child,
+      ),
     );
   }
 }
@@ -216,7 +225,10 @@ class _AppCardState extends State<AppCard> with SingleTickerProviderStateMixin {
         border: Border.all(color: border, width: 0.5),
       ),
       padding: widget.padding ?? const EdgeInsets.all(16),
-      child: widget.child,
+      child: Material(
+        type: MaterialType.transparency,
+        child: widget.child,
+      ),
     );
 
     if (widget.onTap == null) return card;

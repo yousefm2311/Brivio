@@ -138,8 +138,7 @@ class Homework {
       description: json['description'] as String?,
       subjectId: json['subject_id'] as String? ?? '',
       groupId: json['group_id'] as String?,
-      dueAt:
-          DateTime.tryParse(json['due_at'] as String? ?? '') ?? DateTime.now(),
+      dueAt: parseUtcDate(json['due_at'] as String?) ?? DateTime.now(),
       maxScore: (json['max_score'] as num? ?? 100.0).toDouble(),
       status: json['status'] as String? ?? 'published',
       questions: questions,
@@ -227,17 +226,20 @@ class ExamAttempt {
       studentId: json['student_id'] as String,
       attemptNumber: json['attempt_number'] as int? ?? 1,
       status: json['status'] as String? ?? 'in_progress',
-      startedAt:
-          DateTime.tryParse(json['started_at'] as String? ?? '') ??
-          DateTime.now(),
-      expiresAt:
-          DateTime.tryParse(json['expires_at'] as String? ?? '') ??
-          DateTime.now().add(const Duration(minutes: 30)),
-      submittedAt: json['submitted_at'] != null
-          ? DateTime.tryParse(json['submitted_at'] as String)
-          : null,
+      startedAt: parseUtcDate(json['started_at'] as String?) ?? DateTime.now(),
+      expiresAt: parseUtcDate(json['expires_at'] as String?) ?? DateTime.now().add(const Duration(minutes: 30)),
+      submittedAt: parseUtcDate(json['submitted_at'] as String?),
       score: json['score'] != null ? (json['score'] as num).toDouble() : null,
       maxScore: (json['max_score'] as num? ?? 100.0).toDouble(),
     );
   }
+}
+
+DateTime? parseUtcDate(String? dateStr) {
+  if (dateStr == null || dateStr.trim().isEmpty) return null;
+  var str = dateStr.trim();
+  if (!str.endsWith('Z') && !str.contains('+') && !str.contains('-')) {
+    str += 'Z';
+  }
+  return DateTime.tryParse(str)?.toLocal();
 }

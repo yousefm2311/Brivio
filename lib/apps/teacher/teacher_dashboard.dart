@@ -65,6 +65,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         _notifications.insert(0, notification);
         _unreadCount++;
       });
+    }, onError: (error) {
+      debugPrint('Notification stream error caught: $error');
     });
   }
 

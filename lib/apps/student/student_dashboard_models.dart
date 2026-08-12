@@ -45,6 +45,7 @@ class StudentExamItem {
   });
 
   bool get canStart {
+    if (lastAttemptStatus == 'submitted' || lastAttemptStatus == 'graded' || lastAttemptStatus == 'finished') return false;
     return attemptCount < exam.maxAttempts;
   }
 
