@@ -44,6 +44,7 @@ class ReportGeneratorService {
   Future<void> generateAttendanceReport({
     required String className,
     required List<Map<String, dynamic>> attendanceData,
+    String personType = 'Student',
   }) async {
     final pdf = pw.Document();
     
@@ -54,7 +55,7 @@ class ReportGeneratorService {
         pw.TableHelper.fromTextArray(
           context: context,
           data: [
-            ['Student Name', 'Total Present', 'Total Absent', 'Absence Dates'],
+            ['$personType Name', 'Total Present', 'Total Absent', 'Absence Dates'],
             ...attendanceData.map((record) => [
               record['name']?.toString() ?? '',
               record['present']?.toString() ?? '0',
@@ -235,5 +236,129 @@ class ReportGeneratorService {
     ));
 
     await _saveAndSharePdf(pdf, 'Exam_Report_$groupName.pdf');
+  }
+
+  /// Generates a PDF report for Groups & Schedules
+  Future<void> generateGroupsSchedulesReport({
+    required List<Map<String, dynamic>> groupsData,
+  }) async {
+    final pdf = pw.Document();
+    
+    pdf.addPage(pw.MultiPage(
+      build: (context) => [
+        pw.Header(level: 0, child: pw.Text('Groups & Schedules Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
+        pw.SizedBox(height: 20),
+        pw.TableHelper.fromTextArray(
+          context: context,
+          data: [
+            ['Group Name', 'Timing', 'Teacher', 'Active'],
+            ...groupsData.map((record) => [
+              record['group_name']?.toString() ?? '',
+              record['timing']?.toString() ?? '',
+              record['teacher']?.toString() ?? '',
+              (record['is_active'] == true) ? 'Yes' : 'No',
+            ]),
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.red),
+          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
+        ),
+      ],
+    ));
+
+    await _saveAndSharePdf(pdf, 'Groups_Schedules_Report.pdf');
+  }
+
+  /// Generates a PDF report for Linked Parents Stats
+  Future<void> generateParentsReport({
+    required List<Map<String, dynamic>> parentsData,
+  }) async {
+    final pdf = pw.Document();
+    
+    pdf.addPage(pw.MultiPage(
+      build: (context) => [
+        pw.Header(level: 0, child: pw.Text('Linked Parents Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
+        pw.SizedBox(height: 20),
+        pw.TableHelper.fromTextArray(
+          context: context,
+          data: [
+            ['Parent Name', 'Linked Students', 'Email', 'Active Status'],
+            ...parentsData.map((record) => [
+              record['name']?.toString() ?? '',
+              record['students']?.toString() ?? '',
+              record['email']?.toString() ?? '',
+              record['status']?.toString() ?? '',
+            ]),
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.deepPurple),
+          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
+        ),
+      ],
+    ));
+
+    await _saveAndSharePdf(pdf, 'Parents_Report.pdf');
+  }
+
+  /// Generates a PDF report for Homework Completion Rates
+  Future<void> generateHomeworkReport({
+    required List<Map<String, dynamic>> homeworkData,
+  }) async {
+    final pdf = pw.Document();
+    
+    pdf.addPage(pw.MultiPage(
+      build: (context) => [
+        pw.Header(level: 0, child: pw.Text('Homework Completion Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
+        pw.SizedBox(height: 20),
+        pw.TableHelper.fromTextArray(
+          context: context,
+          data: [
+            ['Class/Group', 'Total Assignments', 'Completion Rate', 'Average Score'],
+            ...homeworkData.map((record) => [
+              record['group']?.toString() ?? '',
+              record['total']?.toString() ?? '0',
+              record['completion_rate']?.toString() ?? '0%',
+              record['avg_score']?.toString() ?? '0',
+            ]),
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.brown),
+          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
+        ),
+      ],
+    ));
+
+    await _saveAndSharePdf(pdf, 'Homework_Completion_Report.pdf');
+  }
+
+  /// Generates a PDF report for Curriculum Progress
+  Future<void> generateCurriculumReport({
+    required List<Map<String, dynamic>> curriculumData,
+  }) async {
+    final pdf = pw.Document();
+    
+    pdf.addPage(pw.MultiPage(
+      build: (context) => [
+        pw.Header(level: 0, child: pw.Text('Curriculum Progress Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
+        pw.SizedBox(height: 20),
+        pw.TableHelper.fromTextArray(
+          context: context,
+          data: [
+            ['Subject/Course', 'Total Modules', 'Completed Modules', 'Progress (%)'],
+            ...curriculumData.map((record) => [
+              record['subject']?.toString() ?? '',
+              record['total_modules']?.toString() ?? '0',
+              record['completed_modules']?.toString() ?? '0',
+              record['progress']?.toString() ?? '0%',
+            ]),
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey),
+          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
+        ),
+      ],
+    ));
+
+    await _saveAndSharePdf(pdf, 'Curriculum_Progress_Report.pdf');
   }
 }

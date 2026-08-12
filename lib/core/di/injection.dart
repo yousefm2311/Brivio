@@ -19,6 +19,7 @@ import '../localization/app_locale_controller.dart';
 import '../network/supabase_client_wrapper.dart';
 import '../notifications/push_notification_service.dart';
 import '../services/settings_service.dart';
+import '../services/report_generator_service.dart';
 
 final getIt = GetIt.instance;
 
@@ -57,6 +58,11 @@ Future<void> setupDependencyInjection({
     final localeController = AppLocaleController();
     await localeController.load();
     getIt.registerSingleton<AppLocaleController>(localeController);
+  }
+
+  if (!getIt.isRegistered<ReportGeneratorService>()) {
+    final reportGeneratorService = ReportGeneratorService();
+    getIt.registerSingleton<ReportGeneratorService>(reportGeneratorService);
   }
 
   if (AppConfig.hasFirebaseConfig &&

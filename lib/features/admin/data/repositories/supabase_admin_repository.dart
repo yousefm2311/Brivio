@@ -64,7 +64,32 @@ class SupabaseAdminRepository implements IAdminRepository {
         'period_end': endDate.toIso8601String(),
       },
     );
-    return AdminAnalytics.fromJson(response as Map<String, dynamic>);
+    
+    final Map<String, dynamic> data = Map<String, dynamic>.from(response as Map<String, dynamic>);
+    
+    // Mock Revenue Growth
+    data['revenue_growth'] = [
+      {'date': startDate.toIso8601String(), 'amount': 1500.0},
+      {'date': startDate.add(const Duration(days: 7)).toIso8601String(), 'amount': 1800.0},
+      {'date': startDate.add(const Duration(days: 14)).toIso8601String(), 'amount': 2200.0},
+      {'date': endDate.toIso8601String(), 'amount': 2500.0},
+    ];
+
+    // Mock Subject Performances
+    data['subject_performances'] = [
+      {'subject_name': 'Mathematics', 'average_score': 92.5},
+      {'subject_name': 'Physics', 'average_score': 88.0},
+      {'subject_name': 'Chemistry', 'average_score': 85.0},
+      {'subject_name': 'Literature', 'average_score': 79.5},
+    ];
+
+    // Mock Demographics
+    data['demographics'] = {
+      'total_males': 650,
+      'total_females': 350,
+    };
+
+    return AdminAnalytics.fromJson(data);
   }
 
   @override

@@ -3,9 +3,8 @@ import '../../../core/localization/app_localizations.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../design_system/components/glass_card.dart';
-import '../../../features/academy/presentation/screens/teacher_groups_screen.dart';
-import '../../../features/academy/presentation/screens/teacher_schedule_screen.dart';
-import '../../../features/curriculum/presentation/screens/teacher_curriculum_screen.dart';
+import '../screens/class_roster_screen.dart';
+import '../viewmodels/classes_viewmodel.dart';
 
 class ClassesTab extends StatefulWidget {
   final String teacherId;
@@ -16,18 +15,18 @@ class ClassesTab extends StatefulWidget {
   State<ClassesTab> createState() => _ClassesTabState();
 }
 
-class _ClassesTabState extends State<ClassesTab> with SingleTickerProviderStateMixin {
-  late TabController _tabCtrl;
+class _ClassesTabState extends State<ClassesTab> {
+  late final ClassesViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _viewModel = ClassesViewModel()..loadClasses();
   }
 
   @override
   void dispose() {
-    _tabCtrl.dispose();
+    _viewModel.dispose();
     super.dispose();
   }
 
@@ -35,74 +34,119 @@ class _ClassesTabState extends State<ClassesTab> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
     final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
 
-    return Column(
-      children: [
-        Container(
-          color: bgColor,
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FadeInSlide(
-                duration: const Duration(milliseconds: 400),
-                child: Text(
-                  context.tr('Classes'),
-                  style: AppTypography.displaySmall(textPrimary).copyWith(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.5),
-                ),
+    return Container(
+      color: bgColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Text(
+              context.tr('My Classes'),
+              style: AppTypography.displaySmall(textPrimary).copyWith(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
               ),
-              const SizedBox(height: 16),
-              FadeInSlide(
-                duration: const Duration(milliseconds: 500),
-                delay: const Duration(milliseconds: 100),
-                child: Container(
-                  height: 44,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: TabBar(
-                    controller: _tabCtrl,
-                    dividerColor: Colors.transparent,
-                    indicator: BoxDecoration(
-                      color: surfaceColor,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 2)),
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4)),
-                      ],
+            ),
+          ),
+          Expanded(
+            child: AnimatedBuilder(
+              animation: _viewModel,
+              builder: (context, child) {
+                if (_viewModel.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (_viewModel.classes.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No classes assigned.',
+                      style: AppTypography.bodyLarge(textSecondary),
                     ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    labelColor: textPrimary,
-                    unselectedLabelColor: textPrimary.withValues(alpha: 0.5),
-                    labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -0.2),
-                    unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -0.2),
-                    tabs: [
-                      Tab(text: context.tr('Groups')),
-                      Tab(text: context.tr('Schedule')),
-                      Tab(text: context.tr('Curriculum')),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  itemCount: _viewModel.classes.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final tClass = _viewModel.classes[index];
+                    return GlassCard(
+                      color: surfaceColor,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ClassRosterScreen(teacherClass: tClass),
+                          ),
+                        );
+                      },
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.class_,
+                              color: AppColors.primary,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tClass.name,
+                                  style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Icon(Icons.access_time, size: 14, color: textSecondary),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      tClass.time,
+                                      style: AppTypography.bodySmall(textSecondary),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(Icons.people, size: 14, color: textSecondary),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${tClass.students.length} Students',
+                                      style: AppTypography.bodySmall(textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.chevron_right, color: textSecondary),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabCtrl,
-            children: [
-              TeacherGroupsScreen(teacherId: widget.teacherId),
-              TeacherScheduleScreen(teacherId: widget.teacherId),
-              TeacherCurriculumScreen(teacherId: widget.teacherId),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

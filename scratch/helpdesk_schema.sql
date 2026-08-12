@@ -1,43 +1,42 @@
--- Phase 1.3: Helpdesk Module Support Tickets Schema
+-- Add group_id to support_tickets
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES public.groups(id) ON DELETE SET NULL;
 
-CREATE TABLE IF NOT EXISTS public.support_tickets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    subject TEXT NOT NULL,
-    description TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
-    priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- Create ticket_replies table
+CREATE TABLE IF NOT EXISTS public.ticket_replies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id UUID NOT NULL REFERENCES public.support_tickets(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Trigger to update 'updated_at'
-CREATE OR REPLACE FUNCTION update_support_tickets_modtime()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- RLS
+ALTER TABLE public.ticket_replies ENABLE ROW LEVEL SECURITY;
 
-DROP TRIGGER IF EXISTS trigger_update_support_tickets_modtime ON public.support_tickets;
+-- Allow users who can view/update the ticket to view/reply to the ticket
+-- For simplicity, if we assume support_tickets RLS is already correct, we can let owner view/insert
+CREATE POLICY "Enable read access for ticket owners/admins" ON public.ticket_replies
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.support_tickets t 
+      WHERE t.id = ticket_replies.ticket_id 
+        AND t.user_id = auth.uid()
+    ) OR 
+    (auth.jwt() ->> 'role' = 'admin') OR
+    (auth.jwt() ->> 'role' = 'teacher') OR
+    (auth.jwt() ->> 'role' = 'parent')
+  );
 
-CREATE TRIGGER trigger_update_support_tickets_modtime
-    BEFORE UPDATE ON public.support_tickets
-    FOR EACH ROW
-    EXECUTE FUNCTION update_support_tickets_modtime();
-
-ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Support tickets viewable by creator or admin"
-ON public.support_tickets FOR SELECT TO authenticated
-USING (user_id = auth.uid() OR public.is_admin_or_super());
-
-CREATE POLICY "Support tickets insertable by authenticated"
-ON public.support_tickets FOR INSERT TO authenticated
-WITH CHECK (user_id = auth.uid() OR public.is_admin_or_super());
-
-CREATE POLICY "Support tickets updatable by admin"
-ON public.support_tickets FOR UPDATE TO authenticated
-USING (public.is_admin_or_super())
-WITH CHECK (public.is_admin_or_super());
+CREATE POLICY "Enable insert access for ticket owners/admins" ON public.ticket_replies
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.support_tickets t 
+      WHERE t.id = ticket_replies.ticket_id 
+        AND t.user_id = auth.uid()
+    ) OR 
+    (auth.jwt() ->> 'role' = 'admin') OR
+    (auth.jwt() ->> 'role' = 'teacher') OR
+    (auth.jwt() ->> 'role' = 'parent')
+  );

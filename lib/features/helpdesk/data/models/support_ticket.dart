@@ -7,6 +7,7 @@ class SupportTicket {
   final String priority;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? groupId;
 
   SupportTicket({
     required this.id,
@@ -17,6 +18,7 @@ class SupportTicket {
     required this.priority,
     required this.createdAt,
     required this.updatedAt,
+    this.groupId,
   });
 
   factory SupportTicket.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class SupportTicket {
       priority: json['priority'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      groupId: json['group_id'] as String?,
     );
   }
 
@@ -42,6 +45,7 @@ class SupportTicket {
       'priority': priority,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      if (groupId != null) 'group_id': groupId,
     };
   }
 }

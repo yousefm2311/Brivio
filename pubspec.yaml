@@ -45,6 +45,7 @@ dependencies:
   pdf: ^3.13.0
   printing: ^5.15.0
   timeago: ^3.7.1
+  provider: ^6.1.5+1
 dev_dependencies:
   flutter_test:
     sdk: flutter

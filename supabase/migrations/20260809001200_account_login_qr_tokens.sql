@@ -42,7 +42,7 @@ CREATE OR REPLACE FUNCTION public.create_account_login_qr(p_profile_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_profile RECORD;
@@ -107,7 +107,7 @@ CREATE OR REPLACE FUNCTION public.resolve_account_login_qr(p_token TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_token_hash TEXT;

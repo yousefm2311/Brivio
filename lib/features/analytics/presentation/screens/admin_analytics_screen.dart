@@ -187,13 +187,19 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 24),
-                        _SubjectPerformanceRow(subject: 'Mathematics', score: 92, color: Colors.blue),
-                        const SizedBox(height: 16),
-                        _SubjectPerformanceRow(subject: 'Physics', score: 88, color: Colors.purple),
-                        const SizedBox(height: 16),
-                        _SubjectPerformanceRow(subject: 'Chemistry', score: 85, color: Colors.teal),
-                        const SizedBox(height: 16),
-                        _SubjectPerformanceRow(subject: 'Literature', score: 79, color: Colors.orange),
+                        if (analytics?.subjectPerformances != null)
+                          ...analytics!.subjectPerformances.map((perf) {
+                            final colors = [Colors.blue, Colors.purple, Colors.teal, Colors.orange];
+                            final colorIndex = analytics.subjectPerformances.indexOf(perf) % colors.length;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: _SubjectPerformanceRow(
+                                subject: perf.subjectName,
+                                score: perf.averageScore.toInt(),
+                                color: colors[colorIndex],
+                              ),
+                            );
+                          }),
                       ],
                     ),
                   ),
@@ -224,7 +230,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                                 width: 150,
                                 height: 150,
                                 child: CircularProgressIndicator(
-                                  value: 0.65,
+                                  value: analytics?.demographics.malePercentage ?? 0.65,
                                   strokeWidth: 12,
                                   backgroundColor: Colors.pink.withOpacity(0.2),
                                   color: Colors.blue,
@@ -234,7 +240,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    '65%',
+                                    '${((analytics?.demographics.malePercentage ?? 0.65) * 100).toInt()}%',
                                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                                   ),
                                   const Text('Male', style: TextStyle(color: Colors.grey)),

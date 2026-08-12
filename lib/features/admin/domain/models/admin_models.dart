@@ -43,12 +43,18 @@ class AdminAnalytics {
   final double attendanceRate;
   final int totalStudents;
   final int totalSessions;
+  final List<RevenueDataPoint> revenueGrowth;
+  final List<SubjectPerformance> subjectPerformances;
+  final StudentDemographics demographics;
 
   AdminAnalytics({
     required this.totalRevenue,
     required this.attendanceRate,
     required this.totalStudents,
     required this.totalSessions,
+    required this.revenueGrowth,
+    required this.subjectPerformances,
+    required this.demographics,
   });
 
   factory AdminAnalytics.fromJson(Map<String, dynamic> json) {
@@ -57,6 +63,62 @@ class AdminAnalytics {
       attendanceRate: (json['attendance_rate'] ?? 0).toDouble(),
       totalStudents: json['total_students'] ?? 0,
       totalSessions: json['total_sessions'] ?? 0,
+      revenueGrowth: (json['revenue_growth'] as List<dynamic>?)
+              ?.map((e) => RevenueDataPoint.fromJson(e))
+              .toList() ??
+          [],
+      subjectPerformances: (json['subject_performances'] as List<dynamic>?)
+              ?.map((e) => SubjectPerformance.fromJson(e))
+              .toList() ??
+          [],
+      demographics: json['demographics'] != null
+          ? StudentDemographics.fromJson(json['demographics'])
+          : StudentDemographics(totalMales: 0, totalFemales: 0),
+    );
+  }
+}
+
+class RevenueDataPoint {
+  final DateTime date;
+  final double amount;
+
+  RevenueDataPoint({required this.date, required this.amount});
+
+  factory RevenueDataPoint.fromJson(Map<String, dynamic> json) {
+    return RevenueDataPoint(
+      date: DateTime.parse(json['date']),
+      amount: (json['amount'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class SubjectPerformance {
+  final String subjectName;
+  final double averageScore;
+
+  SubjectPerformance({required this.subjectName, required this.averageScore});
+
+  factory SubjectPerformance.fromJson(Map<String, dynamic> json) {
+    return SubjectPerformance(
+      subjectName: json['subject_name'] ?? '',
+      averageScore: (json['average_score'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class StudentDemographics {
+  final int totalMales;
+  final int totalFemales;
+
+  StudentDemographics({required this.totalMales, required this.totalFemales});
+  
+  double get malePercentage => (totalMales + totalFemales) == 0 ? 0 : totalMales / (totalMales + totalFemales);
+  double get femalePercentage => (totalMales + totalFemales) == 0 ? 0 : totalFemales / (totalMales + totalFemales);
+
+  factory StudentDemographics.fromJson(Map<String, dynamic> json) {
+    return StudentDemographics(
+      totalMales: json['total_males'] ?? 0,
+      totalFemales: json['total_females'] ?? 0,
     );
   }
 }

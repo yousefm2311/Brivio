@@ -62,6 +62,27 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
     }
   }
 
+  Future<void> _createRole(String roleName, String description) async {
+    try {
+      await Supabase.instance.client.from('roles').insert({
+        'name': roleName,
+        'description': description,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Role "$roleName" created successfully')),
+        );
+        _loadRbacData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error creating role: $e')));
+      }
+    }
+  }
+
   void _showCreateRoleModal() {
     showModalBottomSheet(
       context: context,
@@ -69,14 +90,47 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => _CreateRoleSheet(
         onSave: (roleName, description) {
-          // Implement save logic here later
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Role "$roleName" created (UI only)')),
-          );
+          _createRole(roleName, description);
           Navigator.pop(context);
         },
       ),
     );
+  }
+
+  Future<void> _updateRolePermissions(
+    Map<String, dynamic> role,
+    List<String> selectedPerms,
+  ) async {
+    try {
+      final roleId = role['id'];
+
+      // Delete existing
+      await Supabase.instance.client
+          .from('role_permissions')
+          .delete()
+          .eq('role_id', roleId);
+
+      // Insert new
+      if (selectedPerms.isNotEmpty) {
+        final inserts = selectedPerms
+            .map((permId) => {'role_id': roleId, 'permission_id': permId})
+            .toList();
+
+        await Supabase.instance.client.from('role_permissions').insert(inserts);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Permissions updated for ${role['name']}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating permissions: $e')),
+        );
+      }
+    }
   }
 
   void _showAssignPermissionModal(Map<String, dynamic> role) {
@@ -88,9 +142,7 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
         role: role,
         allPermissions: _permissions,
         onSave: (selectedPerms) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Permissions updated for ${role['name']} (UI only)')),
-          );
+          _updateRolePermissions(role, selectedPerms);
           Navigator.pop(context);
         },
       ),
@@ -127,7 +179,7 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -137,10 +189,12 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
                 indicatorSize: TabBarIndicatorSize.tab,
                 indicator: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  color: AppColors.adminRole.withOpacity(0.15),
+                  color: AppColors.adminRole.withValues(alpha: 0.15),
                 ),
                 labelColor: AppColors.adminRole,
-                unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color,
+                unselectedLabelColor: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.color,
                 tabs: [
                   Tab(
                     icon: const Icon(Icons.shield_outlined),
@@ -191,7 +245,7 @@ class _RolesTabView extends StatelessWidget {
     if (roles.isEmpty) {
       return Center(child: Text('No system roles found.'));
     }
-    
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ListView.separated(
@@ -213,24 +267,25 @@ class _RolesTabView extends StatelessWidget {
                 leading: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.15),
+                    color: AppColors.success.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.admin_panel_settings, color: AppColors.success),
+                  child: const Icon(
+                    Icons.admin_panel_settings,
+                    color: AppColors.success,
+                  ),
                 ),
                 title: Text(
                   roleName,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: Text(
-                  (r['description'] as String?) ?? 'System Role',
-                ),
+                subtitle: Text((r['description'] as String?) ?? 'System Role'),
                 trailing: FilledButton.tonalIcon(
                   onPressed: () => onAssignPermissions(r),
                   icon: const Icon(Icons.edit_attributes),
                   label: const Text('Permissions'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.adminRole.withOpacity(0.1),
+                    backgroundColor: AppColors.adminRole.withValues(alpha: 0.1),
                     foregroundColor: AppColors.adminRole,
                   ),
                 ),
@@ -269,7 +324,7 @@ class _PermissionsTabView extends StatelessWidget {
       itemBuilder: (ctx, i) {
         final module = grouped.keys.elementAt(i);
         final perms = grouped[module]!;
-        
+
         return FadeInSlide(
           delay: Duration(milliseconds: 50 * i),
           child: Padding(
@@ -293,20 +348,35 @@ class _PermissionsTabView extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 GlassCard(
-                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                  borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                  color: isDark
+                      ? AppColors.darkSurface
+                      : AppColors.lightSurface,
+                  borderColor: isDark
+                      ? AppColors.darkBorder
+                      : AppColors.lightBorder,
                   child: ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: perms.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: isDark
+                          ? AppColors.darkBorder
+                          : AppColors.lightBorder,
+                    ),
                     itemBuilder: (context, index) {
                       final p = perms[index];
                       return Material(
                         color: Colors.transparent,
                         child: ListTile(
-                          leading: const Icon(Icons.lock_open, color: AppColors.adminRole),
-                          title: Text(p['code'] as String? ?? 'permission.code', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          leading: const Icon(
+                            Icons.lock_open,
+                            color: AppColors.adminRole,
+                          ),
+                          title: Text(
+                            p['code'] as String? ?? 'permission.code',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
                           subtitle: Text('Action: ${p['action']}'),
                           trailing: const PortalStatusChip(status: 'enforced'),
                         ),
@@ -346,7 +416,7 @@ class _CreateRoleSheetState extends State<_CreateRoleSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -365,7 +435,9 @@ class _CreateRoleSheetState extends State<_CreateRoleSheet> {
               children: [
                 Text(
                   'Create New Role',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -433,13 +505,44 @@ class _AssignPermissionSheet extends StatefulWidget {
 }
 
 class _AssignPermissionSheetState extends State<_AssignPermissionSheet> {
-  // In a real app, you would fetch currently assigned permissions
   final Set<String> _selectedIds = {};
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchExistingPermissions();
+  }
+
+  Future<void> _fetchExistingPermissions() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('role_permissions')
+          .select('permission_id')
+          .eq('role_id', widget.role['id']);
+
+      final ids = (res as List<dynamic>)
+          .map((e) => e['permission_id'].toString())
+          .toSet();
+      if (mounted) {
+        setState(() {
+          _selectedIds.addAll(ids);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return DraggableScrollableSheet(
       initialChildSize: 0.8,
       maxChildSize: 0.95,
@@ -463,11 +566,15 @@ class _AssignPermissionSheetState extends State<_AssignPermissionSheet> {
                         children: [
                           Text(
                             'Assign Permissions',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           Text(
                             'Role: ${(widget.role['name'] as String? ?? '').toUpperCase()}',
-                            style: TextStyle(color: AppColors.adminRole, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: AppColors.adminRole,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -481,33 +588,38 @@ class _AssignPermissionSheetState extends State<_AssignPermissionSheet> {
               ),
               const Divider(height: 1),
               Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: widget.allPermissions.length,
-                  itemBuilder: (ctx, i) {
-                    final p = widget.allPermissions[i];
-                    final id = p['id'].toString();
-                    final isSelected = _selectedIds.contains(id);
-                    
-                    return CheckboxListTile(
-                      value: isSelected,
-                      onChanged: (val) {
-                        setState(() {
-                          if (val == true) {
-                            _selectedIds.add(id);
-                          } else {
-                            _selectedIds.remove(id);
-                          }
-                        });
-                      },
-                      title: Text(p['code'] as String? ?? ''),
-                      subtitle: Text('Module: ${p['module']}'),
-                      secondary: const Icon(Icons.key, color: Colors.grey),
-                      activeColor: AppColors.adminRole,
-                    );
-                  },
-                ),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: widget.allPermissions.length,
+                        itemBuilder: (ctx, i) {
+                          final p = widget.allPermissions[i];
+                          final id = p['id'].toString();
+                          final isSelected = _selectedIds.contains(id);
+
+                          return CheckboxListTile(
+                            value: isSelected,
+                            onChanged: (val) {
+                              setState(() {
+                                if (val == true) {
+                                  _selectedIds.add(id);
+                                } else {
+                                  _selectedIds.remove(id);
+                                }
+                              });
+                            },
+                            title: Text(p['code'] as String? ?? ''),
+                            subtitle: Text('Module: ${p['module']}'),
+                            secondary: const Icon(
+                              Icons.key,
+                              color: Colors.grey,
+                            ),
+                            activeColor: AppColors.adminRole,
+                          );
+                        },
+                      ),
               ),
               Padding(
                 padding: const EdgeInsets.all(24),
@@ -517,7 +629,9 @@ class _AssignPermissionSheetState extends State<_AssignPermissionSheet> {
                     minimumSize: const Size(double.infinity, 56),
                     backgroundColor: AppColors.adminRole,
                   ),
-                  child: Text('Save Permissions (${_selectedIds.length} selected)'),
+                  child: Text(
+                    'Save Permissions (${_selectedIds.length} selected)',
+                  ),
                 ),
               ),
             ],

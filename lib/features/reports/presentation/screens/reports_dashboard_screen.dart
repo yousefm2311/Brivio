@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/services/report_generator_service.dart';
-import '../../../../design_system/components/glass_card.dart';
+
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
+import '../viewmodels/reports_dashboard_viewmodel.dart';
+import 'groups_schedules_report_screen.dart';
 
 class ReportsDashboardScreen extends StatefulWidget {
   const ReportsDashboardScreen({super.key});
@@ -14,7 +16,14 @@ class ReportsDashboardScreen extends StatefulWidget {
 
 class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
   final ReportGeneratorService _reportService = getIt<ReportGeneratorService>();
+  final ReportsDashboardViewModel _viewModel = ReportsDashboardViewModel();
   bool _isGenerating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel.loadData();
+  }
 
   Future<void> _generateReport(String title, Future<void> Function() generateAction) async {
     setState(() => _isGenerating = true);
@@ -37,17 +46,39 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Reports Dashboard'),
+        title: const Text('Reports Dashboard', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Stack(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppColors.cosmicGradient,
+        ),
+        child: SafeArea(
+          child: Stack(
         children: [
           ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              const PortalSectionTitle(
-                title: 'Available Reports',
-                subtitle: 'Generate and download premium reports for your institution.',
+              const Text(
+                'Available Reports',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Generate and download premium reports for your institution.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
               ),
               const SizedBox(height: 24),
               PortalMetricGrid(
@@ -59,10 +90,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                     accentColor: Colors.blue,
                     onTap: () => _generateReport('Student Grades Report', () => _reportService.generateGradesReport(
                       className: 'All Students',
-                      studentsData: [
-                        {'name': 'Alice', 'exam_score': 95, 'homework_score': 100, 'missing_assignments': 0},
-                        {'name': 'Bob', 'exam_score': 78, 'homework_score': 85, 'missing_assignments': 1},
-                      ],
+                      studentsData: _viewModel.studentsData,
                     )),
                   ),
                   PortalMetricCard(
@@ -72,10 +100,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                     accentColor: Colors.green,
                     onTap: () => _generateReport('Attendance Report', () => _reportService.generateAttendanceReport(
                       className: 'All Students',
-                      attendanceData: [
-                        {'name': 'Alice', 'present': 20, 'absent': 0, 'absence_dates': ''},
-                        {'name': 'Bob', 'present': 18, 'absent': 2, 'absence_dates': '2026-08-01, 2026-08-05'},
-                      ],
+                      attendanceData: _viewModel.attendanceData,
                     )),
                   ),
                   PortalMetricCard(
@@ -84,10 +109,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                     icon: Icons.monetization_on,
                     accentColor: Colors.orange,
                     onTap: () => _generateReport('Financial Report', () => _reportService.generateFinancialReport(
-                      financialData: [
-                        {'date': '2026-08-10', 'description': 'Tuition Fee - Alice', 'type': 'Inflow', 'amount': 500, 'notes': ''},
-                        {'date': '2026-08-11', 'description': 'Office Supplies', 'type': 'Outflow', 'amount': -50, 'notes': 'Stationery'},
-                      ],
+                      financialData: _viewModel.financialData,
                     )),
                   ),
                   PortalMetricCard(
@@ -96,10 +118,48 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                     icon: Icons.person,
                     accentColor: Colors.purple,
                     onTap: () => _generateReport('Teacher Metrics Report', () => _reportService.generateTeacherMetricsReport(
-                      teacherData: [
-                        {'name': 'Mr. Smith', 'classes_taught': 5, 'avg_attendance': 95.5},
-                        {'name': 'Mrs. Doe', 'classes_taught': 3, 'avg_attendance': 98.0},
-                      ],
+                      teacherData: _viewModel.teacherData,
+                    )),
+                  ),
+                  PortalMetricCard(
+                    label: 'Groups & Schedules',
+                    value: 'View',
+                    icon: Icons.schedule,
+                    accentColor: Colors.red,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const GroupsSchedulesReportScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  PortalMetricCard(
+                    label: 'Parents',
+                    value: 'Generate',
+                    icon: Icons.family_restroom,
+                    accentColor: Colors.deepPurple,
+                    onTap: () => _generateReport('Linked Parents Report', () => _reportService.generateParentsReport(
+                      parentsData: _viewModel.parentsData,
+                    )),
+                  ),
+                  PortalMetricCard(
+                    label: 'Homework',
+                    value: 'Generate',
+                    icon: Icons.menu_book,
+                    accentColor: Colors.brown,
+                    onTap: () => _generateReport('Homework Completion Report', () => _reportService.generateHomeworkReport(
+                      homeworkData: _viewModel.homeworkData,
+                    )),
+                  ),
+                  PortalMetricCard(
+                    label: 'Curriculum',
+                    value: 'Generate',
+                    icon: Icons.library_books,
+                    accentColor: Colors.blueGrey,
+                    onTap: () => _generateReport('Curriculum Progress Report', () => _reportService.generateCurriculumReport(
+                      curriculumData: _viewModel.curriculumData,
                     )),
                   ),
                 ],
@@ -114,6 +174,8 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
               ),
             ),
         ],
+          ),
+        ),
       ),
     );
   }
