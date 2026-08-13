@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -61,38 +62,76 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     Color(0xFFEAB308),
   ];
   Color _selectedColor = _inkColors.first;
-  bool _eraser = false;
+  double _boardStrokeWidth = 4;
+  _BoardTool _boardTool = _BoardTool.pen;
   _BoardStroke? _activeStroke;
-  bool _isFabMenuOpen = false;
+  int? _selectedBoardIndex;
+  Offset? _lastBoardDragPoint;
+  bool _isResizingBoardElement = false;
   bool _showBoard = false;
   bool _showCode = false;
   bool _showNotebook = false;
-  bool _isPanMode = false;
   late final TransformationController _boardTransformationController;
 
   void _startStroke(DragStartDetails details) {
+    final local = details.localPosition;
+    if (_boardTool == _BoardTool.select) {
+      setState(() {
+        _selectedBoardIndex = _hitTestBoardElement(local);
+        _lastBoardDragPoint = local;
+        _isResizingBoardElement = _selectedBoardIndex == null
+            ? false
+            : _isOnResizeHandle(_boardStrokes[_selectedBoardIndex!], local);
+      });
+      return;
+    }
+
+    if (_boardTool == _BoardTool.pan) return;
+
     setState(() {
       _activeStroke = _BoardStroke(
-        color: _eraser ? Colors.white : _selectedColor,
-        width: _eraser ? 18 : 4,
-        points: [details.localPosition],
+        kind: _boardTool.strokeKind,
+        color: _boardTool == _BoardTool.eraser ? Colors.white : _selectedColor,
+        width: _boardTool == _BoardTool.eraser
+            ? _boardStrokeWidth * 4
+            : _boardStrokeWidth,
+        points: _boardTool.isFreehand ? [local] : [local, local],
       );
+      _selectedBoardIndex = null;
     });
   }
 
   void _appendStroke(DragUpdateDetails details) {
+    final local = details.localPosition;
+    if (_boardTool == _BoardTool.select) {
+      _moveOrResizeSelectedBoardElement(local);
+      return;
+    }
+
     final stroke = _activeStroke;
     if (stroke == null) return;
     setState(() {
       _activeStroke = stroke.copyWith(
-        points: [...stroke.points, details.localPosition],
+        points: stroke.kind.isFreehand
+            ? [...stroke.points, local]
+            : [stroke.points.first, local],
       );
     });
   }
 
   void _endStroke([DragEndDetails? _]) {
+    if (_boardTool == _BoardTool.select) {
+      _lastBoardDragPoint = null;
+      _isResizingBoardElement = false;
+      return;
+    }
+
     final stroke = _activeStroke;
-    if (stroke == null || stroke.points.length < 2) {
+    if (stroke == null ||
+        (stroke.kind.isFreehand && stroke.points.length < 2) ||
+        (!stroke.kind.isFreehand &&
+            (stroke.points.length < 2 ||
+                (stroke.points.first - stroke.points.last).distance < 8))) {
       setState(() => _activeStroke = null);
       return;
     }
@@ -101,7 +140,37 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   }
 
   void _clearBoard() {
+    _selectedBoardIndex = null;
     _queueBoardSave([]);
+  }
+
+  int? _hitTestBoardElement(Offset point) {
+    for (var i = _boardStrokes.length - 1; i >= 0; i--) {
+      if (_boardStrokes[i].hitTest(point)) return i;
+    }
+    return null;
+  }
+
+  bool _isOnResizeHandle(_BoardStroke element, Offset point) {
+    if (element.kind.isFreehand || element.points.length < 2) return false;
+    return (element.points.last - point).distance <= 28;
+  }
+
+  void _moveOrResizeSelectedBoardElement(Offset local) {
+    final selectedIndex = _selectedBoardIndex;
+    final previous = _lastBoardDragPoint;
+    if (selectedIndex == null || previous == null) return;
+
+    final current = _boardStrokes[selectedIndex];
+    final delta = local - previous;
+    final updated = _isResizingBoardElement
+        ? current.copyWith(points: [current.points.first, local])
+        : current.copyWith(
+            points: current.points.map((point) => point + delta).toList(),
+          );
+    final next = [..._boardStrokes]..[selectedIndex] = updated;
+    _lastBoardDragPoint = local;
+    _queueBoardSave(next);
   }
 
   @override
@@ -720,9 +789,10 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                     onPanUpdate: _appendStroke,
                     onPanEnd: _endStroke,
                     isTransparent: false,
-                    isPanMode: _isPanMode,
+                    isPanMode: _boardTool == _BoardTool.pan,
                     transformationController: _boardTransformationController,
                     canvasSize: const Size(4000, 4000),
+                    selectedIndex: _selectedBoardIndex,
                   ),
                 ),
 
@@ -730,7 +800,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                 top: MediaQuery.of(context).padding.top + 16,
                 left: 16,
                 right: 16,
-                child: GlassCard(
+                child: _WorkspaceChromePanel(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
@@ -838,51 +908,58 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                 left: 0,
                 right: 0,
                 child: Center(
-                  child: GlassCard(
+                  child: _WorkspaceChromePanel(
                     padding: const EdgeInsets.all(4),
                     borderRadius: BorderRadius.circular(28),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (hasPdf)
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (hasPdf)
+                            _ToggleButton(
+                              title: 'PDF',
+                              icon: Icons.picture_as_pdf_outlined,
+                              isSelected: showPdf,
+                              onTap: () => setState(() {
+                                _showBoard = false;
+                                _showCode = false;
+                                _showNotebook = false;
+                              }),
+                            ),
                           _ToggleButton(
-                            title: 'PDF',
-                            isSelected: showPdf,
+                            title: 'Board',
+                            icon: Icons.draw_outlined,
+                            isSelected:
+                                _showBoard && !_showCode && !_showNotebook,
                             onTap: () => setState(() {
-                              _showBoard = false;
+                              _showBoard = true;
                               _showCode = false;
                               _showNotebook = false;
                             }),
                           ),
-                        _ToggleButton(
-                          title: 'Board',
-                          isSelected:
-                              _showBoard && !_showCode && !_showNotebook,
-                          onTap: () => setState(() {
-                            _showBoard = true;
-                            _showCode = false;
-                            _showNotebook = false;
-                          }),
-                        ),
-                        _ToggleButton(
-                          title: 'Notes',
-                          isSelected: _showNotebook,
-                          onTap: () => setState(() {
-                            _showNotebook = true;
-                            _showCode = false;
-                            _showBoard = false;
-                          }),
-                        ),
-                        _ToggleButton(
-                          title: 'Code',
-                          isSelected: _showCode,
-                          onTap: () => setState(() {
-                            _showCode = true;
-                            _showBoard = false;
-                            _showNotebook = false;
-                          }),
-                        ),
-                      ],
+                          _ToggleButton(
+                            title: 'Notes',
+                            icon: Icons.sticky_note_2_outlined,
+                            isSelected: _showNotebook,
+                            onTap: () => setState(() {
+                              _showNotebook = true;
+                              _showCode = false;
+                              _showBoard = false;
+                            }),
+                          ),
+                          _ToggleButton(
+                            title: 'Code',
+                            icon: Icons.code_rounded,
+                            isSelected: _showCode,
+                            onTap: () => setState(() {
+                              _showCode = true;
+                              _showBoard = false;
+                              _showNotebook = false;
+                            }),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -890,28 +967,25 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
 
               if (!_showCode && !_showNotebook)
                 Positioned(
-                  bottom: MediaQuery.of(context).padding.bottom + 24,
-                  right: 24,
+                  bottom: MediaQuery.of(context).padding.bottom + 78,
+                  left: 12,
+                  right: 12,
                   child: _FloatingToolMenu(
-                    isOpen: _isFabMenuOpen,
-                    onToggle: () =>
-                        setState(() => _isFabMenuOpen = !_isFabMenuOpen),
                     selectedColor: _selectedColor,
-                    eraser: _eraser,
+                    selectedTool: _boardTool,
+                    strokeWidth: _boardStrokeWidth,
                     onColorSelected: (c) => setState(() {
                       _selectedColor = c;
-                      _eraser = false;
-                      _isPanMode = false;
+                      _boardTool = _BoardTool.pen;
                     }),
-                    onToggleEraser: () => setState(() {
-                      _eraser = !_eraser;
-                      if (_eraser) _isPanMode = false;
+                    onToolSelected: (tool) => setState(() {
+                      _boardTool = tool;
+                      if (tool != _BoardTool.select) {
+                        _selectedBoardIndex = null;
+                      }
                     }),
-                    isPanMode: _isPanMode,
-                    onTogglePanMode: () => setState(() {
-                      _isPanMode = !_isPanMode;
-                      if (_isPanMode) _eraser = false;
-                    }),
+                    onStrokeWidthChanged: (value) =>
+                        setState(() => _boardStrokeWidth = value),
                     onClear: _clearBoard,
                     hasPdf: showPdf,
                     onPrevPage: () => _goToPage(-1),
@@ -930,11 +1004,13 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
 
 class _ToggleButton extends StatelessWidget {
   final String title;
+  final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _ToggleButton({
     required this.title,
+    required this.icon,
     required this.isSelected,
     required this.onTap,
   });
@@ -944,42 +1020,83 @@ class _ToggleButton extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final selectedColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final inactiveColor = isDark ? Colors.white70 : const Color(0xFF475569);
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected
-              ? (isDark
-                    ? Colors.white.withValues(alpha: 0.15)
-                    : Colors.black.withValues(alpha: 0.08))
-              : Colors.transparent,
+          color: isSelected ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
         ),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected
-                ? (isDark ? Colors.white : Colors.black)
-                : (isDark ? Colors.white70 : Colors.black54),
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 17,
+              color: isSelected ? Colors.white : inactiveColor,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? Colors.white : selectedColor,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
+class _WorkspaceChromePanel extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final BorderRadius borderRadius;
+
+  const _WorkspaceChromePanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+    this.borderRadius = const BorderRadius.all(Radius.circular(24)),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF101827) : Colors.white,
+        borderRadius: borderRadius,
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? .28 : .12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+  }
+}
+
 class _FloatingToolMenu extends StatelessWidget {
-  final bool isOpen;
-  final VoidCallback onToggle;
   final Color selectedColor;
-  final bool eraser;
+  final _BoardTool selectedTool;
+  final double strokeWidth;
   final ValueChanged<Color> onColorSelected;
-  final VoidCallback onToggleEraser;
-  final bool isPanMode;
-  final VoidCallback onTogglePanMode;
+  final ValueChanged<_BoardTool> onToolSelected;
+  final ValueChanged<double> onStrokeWidthChanged;
   final VoidCallback onClear;
   final bool hasPdf;
   final VoidCallback onPrevPage;
@@ -996,14 +1113,12 @@ class _FloatingToolMenu extends StatelessWidget {
   ];
 
   const _FloatingToolMenu({
-    required this.isOpen,
-    required this.onToggle,
     required this.selectedColor,
-    required this.eraser,
+    required this.selectedTool,
+    required this.strokeWidth,
     required this.onColorSelected,
-    required this.onToggleEraser,
-    required this.isPanMode,
-    required this.onTogglePanMode,
+    required this.onToolSelected,
+    required this.onStrokeWidthChanged,
     required this.onClear,
     required this.hasPdf,
     required this.onPrevPage,
@@ -1017,106 +1132,120 @@ class _FloatingToolMenu extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        if (isOpen) ...[
-          if (hasPdf) ...[
-            GlassCard(
-              borderRadius: BorderRadius.circular(20),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: currentPage > 1 ? onPrevPage : null,
-                    icon: const Icon(Icons.chevron_left_rounded),
-                    tooltip: 'Previous Page',
-                  ),
-                  Text(
-                    '$currentPage / $totalPages',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  IconButton(
-                    onPressed: currentPage < totalPages ? onNextPage : null,
-                    icon: const Icon(Icons.chevron_right_rounded),
-                    tooltip: 'Next Page',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          GlassCard(
-            borderRadius: BorderRadius.circular(24),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final color in _colors)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _ToolColorDot(
-                      color: color,
-                      isSelected: !eraser && selectedColor == color,
-                      onTap: () => onColorSelected(color),
-                    ),
-                  ),
-                Container(
-                  height: 1,
-                  width: 24,
-                  color: theme.dividerColor,
-                  margin: const EdgeInsets.only(bottom: 12),
-                ),
-                IconButton(
-                  onPressed: onToggleEraser,
-                  icon: Icon(
-                    Icons.cleaning_services_rounded,
-                    color: eraser && !isPanMode ? AppColors.primary : null,
-                  ),
-                  tooltip: 'Eraser',
-                ),
-                IconButton(
-                  onPressed: onTogglePanMode,
-                  icon: Icon(
-                    Icons.pan_tool_rounded,
-                    color: isPanMode ? AppColors.primary : null,
-                  ),
-                  tooltip: 'Pan Tool',
-                ),
-                IconButton(
-                  onPressed: onClear,
-                  icon: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: AppColors.error,
-                  ),
-                  tooltip: 'Clear Board',
-                ),
-              ],
-            ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF101827) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? .26 : .14),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
-          const SizedBox(height: 16),
         ],
-        FloatingActionButton(
-          onPressed: onToggle,
-          backgroundColor: isDark ? AppColors.darkSurface : AppColors.primary,
-          foregroundColor: isDark ? AppColors.primary : Colors.white,
-          elevation: isOpen ? 0 : 4,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            transitionBuilder: (child, anim) => RotationTransition(
-              turns: child.key == const ValueKey('close')
-                  ? Tween<double>(begin: -0.125, end: 0).animate(anim)
-                  : Tween<double>(begin: 0.125, end: 0).animate(anim),
-              child: ScaleTransition(scale: anim, child: child),
-            ),
-            child: isOpen
-                ? const Icon(Icons.close_rounded, key: ValueKey('close'))
-                : const Icon(Icons.edit_rounded, key: ValueKey('open')),
+      ),
+      child: SizedBox(
+        height: 58,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasPdf) ...[
+                IconButton(
+                  onPressed: currentPage > 1 ? onPrevPage : null,
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  tooltip: 'Previous Page',
+                ),
+                SizedBox(
+                  width: 58,
+                  child: Text(
+                    '$currentPage/$totalPages',
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                IconButton(
+                  onPressed: currentPage < totalPages ? onNextPage : null,
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  tooltip: 'Next Page',
+                ),
+                _ToolDivider(color: theme.dividerColor),
+              ],
+              _ToolIconButton(
+                tool: _BoardTool.select,
+                selectedTool: selectedTool,
+                onSelected: onToolSelected,
+              ),
+              _ToolIconButton(
+                tool: _BoardTool.pan,
+                selectedTool: selectedTool,
+                onSelected: onToolSelected,
+              ),
+              _ToolIconButton(
+                tool: _BoardTool.pen,
+                selectedTool: selectedTool,
+                onSelected: onToolSelected,
+              ),
+              _ToolIconButton(
+                tool: _BoardTool.rectangle,
+                selectedTool: selectedTool,
+                onSelected: onToolSelected,
+              ),
+              _ToolIconButton(
+                tool: _BoardTool.ellipse,
+                selectedTool: selectedTool,
+                onSelected: onToolSelected,
+              ),
+              _ToolIconButton(
+                tool: _BoardTool.line,
+                selectedTool: selectedTool,
+                onSelected: onToolSelected,
+              ),
+              _ToolIconButton(
+                tool: _BoardTool.arrow,
+                selectedTool: selectedTool,
+                onSelected: onToolSelected,
+              ),
+              _ToolIconButton(
+                tool: _BoardTool.eraser,
+                selectedTool: selectedTool,
+                onSelected: onToolSelected,
+              ),
+              _ToolDivider(color: theme.dividerColor),
+              _ColorPaletteButton(
+                colors: _colors,
+                selectedColor: selectedColor,
+                onColorSelected: onColorSelected,
+              ),
+              SizedBox(
+                width: 128,
+                child: Slider(
+                  min: 2,
+                  max: 16,
+                  divisions: 7,
+                  value: strokeWidth,
+                  onChanged: onStrokeWidthChanged,
+                ),
+              ),
+              IconButton(
+                onPressed: onClear,
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.error,
+                ),
+                tooltip: 'Clear Board',
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -1155,6 +1284,171 @@ class _ToolColorDot extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ColorPaletteButton extends StatelessWidget {
+  final List<Color> colors;
+  final Color selectedColor;
+  final ValueChanged<Color> onColorSelected;
+
+  const _ColorPaletteButton({
+    required this.colors,
+    required this.selectedColor,
+    required this.onColorSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<Color>(
+      tooltip: 'Ink colors',
+      onSelected: onColorSelected,
+      itemBuilder: (context) => colors
+          .map(
+            (color) => PopupMenuItem<Color>(
+              value: color,
+              child: Row(
+                children: [
+                  _ToolColorDot(
+                    color: color,
+                    isSelected: color == selectedColor,
+                    onTap: () => Navigator.pop(context, color),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(color == selectedColor ? 'Selected color' : 'Use color'),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+      child: Container(
+        width: 40,
+        height: 40,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: BoxDecoration(
+          color: selectedColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: selectedColor.withValues(alpha: .34),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: const Icon(Icons.palette_rounded, color: Colors.white, size: 20),
+      ),
+    );
+  }
+}
+
+class _ToolDivider extends StatelessWidget {
+  final Color color;
+
+  const _ToolDivider({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 32,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      color: color,
+    );
+  }
+}
+
+class _ToolIconButton extends StatelessWidget {
+  final _BoardTool tool;
+  final _BoardTool selectedTool;
+  final ValueChanged<_BoardTool> onSelected;
+
+  const _ToolIconButton({
+    required this.tool,
+    required this.selectedTool,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = tool == selectedTool;
+    return Tooltip(
+      message: tool.label,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: IconButton(
+          onPressed: () => onSelected(tool),
+          icon: Icon(tool.icon, size: 20),
+          color: selected ? Colors.white : null,
+          style: IconButton.styleFrom(
+            backgroundColor: selected ? AppColors.primary : Colors.transparent,
+            fixedSize: const Size(40, 40),
+            minimumSize: const Size(40, 40),
+            padding: EdgeInsets.zero,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _BoardTool {
+  select,
+  pan,
+  pen,
+  eraser,
+  rectangle,
+  ellipse,
+  line,
+  arrow;
+
+  bool get isFreehand => this == _BoardTool.pen || this == _BoardTool.eraser;
+
+  _BoardStrokeKind get strokeKind => switch (this) {
+    _BoardTool.rectangle => _BoardStrokeKind.rectangle,
+    _BoardTool.ellipse => _BoardStrokeKind.ellipse,
+    _BoardTool.line => _BoardStrokeKind.line,
+    _BoardTool.arrow => _BoardStrokeKind.arrow,
+    _ => _BoardStrokeKind.freehand,
+  };
+
+  IconData get icon => switch (this) {
+    _BoardTool.select => Icons.near_me_outlined,
+    _BoardTool.pan => Icons.pan_tool_alt_rounded,
+    _BoardTool.pen => Icons.edit_rounded,
+    _BoardTool.eraser => Icons.cleaning_services_rounded,
+    _BoardTool.rectangle => Icons.crop_square_rounded,
+    _BoardTool.ellipse => Icons.circle_outlined,
+    _BoardTool.line => Icons.horizontal_rule_rounded,
+    _BoardTool.arrow => Icons.arrow_outward_rounded,
+  };
+
+  String get label => switch (this) {
+    _BoardTool.select => 'Select / move / resize',
+    _BoardTool.pan => 'Pan and zoom',
+    _BoardTool.pen => 'Pen',
+    _BoardTool.eraser => 'Eraser',
+    _BoardTool.rectangle => 'Rectangle',
+    _BoardTool.ellipse => 'Circle / ellipse',
+    _BoardTool.line => 'Connector line',
+    _BoardTool.arrow => 'Arrow connector',
+  };
+}
+
+enum _BoardStrokeKind {
+  freehand,
+  rectangle,
+  ellipse,
+  line,
+  arrow;
+
+  bool get isFreehand => this == _BoardStrokeKind.freehand;
+
+  static _BoardStrokeKind parse(String? value) {
+    return _BoardStrokeKind.values.firstWhere(
+      (kind) => kind.name == value,
+      orElse: () => _BoardStrokeKind.freehand,
     );
   }
 }
@@ -1957,6 +2251,7 @@ class _NotebookPaneState extends State<_NotebookPane> {
   Color _selectedColor = _colors.first;
   bool _eraser = false;
   _BoardStroke? _activeStroke;
+  double _notesRatio = .58;
 
   List<_BoardStroke> get _strokes => widget.strokes;
 
@@ -1993,79 +2288,217 @@ class _NotebookPaneState extends State<_NotebookPane> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final panelColor = isDark ? const Color(0xFF101827) : Colors.white;
+    final borderColor = isDark
+        ? const Color(0xFF334155)
+        : const Color(0xFFE2E8F0);
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+
     return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: widget.controller,
-              expands: true,
-              maxLines: null,
-              minLines: null,
-              textAlignVertical: TextAlignVertical.top,
-              onChanged: widget.onChanged,
-              decoration: const InputDecoration(
-                labelText: 'Smart Notebook',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 240,
-            width: double.infinity,
-            child: _DrawingBoard(
-              strokes: _activeStroke == null
-                  ? _strokes
-                  : [..._strokes, _activeStroke!],
-              onPanStart: _startStroke,
-              onPanUpdate: _appendStroke,
-              onPanEnd: _endStroke,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
+      padding: EdgeInsets.fromLTRB(
+        16,
+        MediaQuery.of(context).padding.top + 92,
+        16,
+        MediaQuery.of(context).padding.bottom + 96,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final availableHeight = constraints.maxHeight;
+          final dividerHeight = 26.0;
+          final notesHeight = ((availableHeight - dividerHeight) * _notesRatio)
+              .clamp(140.0, availableHeight - dividerHeight - 140.0);
+          final boardHeight = availableHeight - dividerHeight - notesHeight;
+
+          return Column(
             children: [
-              ToggleButtons(
-                isSelected: [_eraser == false, _eraser == true],
-                onPressed: (index) => setState(() => _eraser = index == 1),
-                children: const [
-                  Tooltip(message: 'Pen', child: Icon(Icons.edit)),
-                  Tooltip(
-                    message: 'Eraser',
-                    child: Icon(Icons.cleaning_services),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 10),
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 160, maxWidth: 260),
-                child: Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final color in _colors)
-                      _ColorDot(
-                        color: color,
-                        isSelected: color == _selectedColor && !_eraser,
-                        onTap: () => setState(() {
-                          _selectedColor = color;
-                          _eraser = false;
-                        }),
+              SizedBox(
+                height: notesHeight,
+                child: _NotebookSection(
+                  title: 'Smart Notebook',
+                  icon: Icons.notes_rounded,
+                  color: panelColor,
+                  borderColor: borderColor,
+                  child: TextField(
+                    controller: widget.controller,
+                    expands: true,
+                    maxLines: null,
+                    minLines: null,
+                    textAlignVertical: TextAlignVertical.top,
+                    onChanged: widget.onChanged,
+                    style: TextStyle(color: textColor, height: 1.45),
+                    decoration: InputDecoration(
+                      hintText: 'Write lesson notes, questions, summaries...',
+                      border: InputBorder.none,
+                      hintStyle: TextStyle(
+                        color: textColor.withValues(alpha: .45),
                       ),
-                  ],
+                    ),
+                  ),
                 ),
               ),
-              IconButton(
-                tooltip: 'Clear board',
-                onPressed: () => widget.onBoardChanged([]),
-                icon: const Icon(Icons.delete_outline),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragUpdate: (details) {
+                  setState(() {
+                    _notesRatio =
+                        (_notesRatio + details.delta.dy / availableHeight)
+                            .clamp(.25, .78);
+                  });
+                },
+                child: SizedBox(
+                  height: dividerHeight,
+                  child: Center(
+                    child: Container(
+                      width: 64,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: borderColor,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: boardHeight,
+                child: _NotebookSection(
+                  title: 'Sketch Board',
+                  icon: Icons.gesture_rounded,
+                  color: panelColor,
+                  borderColor: borderColor,
+                  actions: [
+                    ToggleButtons(
+                      borderRadius: BorderRadius.circular(10),
+                      isSelected: [_eraser == false, _eraser == true],
+                      onPressed: (index) =>
+                          setState(() => _eraser = index == 1),
+                      children: const [
+                        Tooltip(
+                          message: 'Pen',
+                          child: Icon(Icons.edit, size: 18),
+                        ),
+                        Tooltip(
+                          message: 'Eraser',
+                          child: Icon(Icons.cleaning_services, size: 18),
+                        ),
+                      ],
+                    ),
+                    PopupMenuButton<Color>(
+                      tooltip: 'Sketch colors',
+                      onSelected: (color) => setState(() {
+                        _selectedColor = color;
+                        _eraser = false;
+                      }),
+                      itemBuilder: (context) => [
+                        for (final color in _colors)
+                          PopupMenuItem(
+                            value: color,
+                            child: Row(
+                              children: [
+                                _ColorDot(
+                                  color: color,
+                                  isSelected:
+                                      color == _selectedColor && !_eraser,
+                                  onTap: () => Navigator.pop(context, color),
+                                ),
+                                const SizedBox(width: 10),
+                                const Text('Use color'),
+                              ],
+                            ),
+                          ),
+                      ],
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: _selectedColor,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.palette_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Clear board',
+                      onPressed: () => widget.onBoardChanged([]),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: _DrawingBoard(
+                      strokes: _activeStroke == null
+                          ? _strokes
+                          : [..._strokes, _activeStroke!],
+                      onPanStart: _startStroke,
+                      onPanUpdate: _appendStroke,
+                      onPanEnd: _endStroke,
+                    ),
+                  ),
+                ),
               ),
             ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _NotebookSection extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final Color borderColor;
+  final Widget child;
+  final List<Widget> actions;
+
+  const _NotebookSection({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.borderColor,
+    required this.child,
+    this.actions = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 10, 6),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                ...actions,
+              ],
+            ),
+          ),
+          Divider(height: 1, color: borderColor),
+          Expanded(
+            child: Padding(padding: const EdgeInsets.all(12), child: child),
           ),
         ],
       ),
@@ -2082,6 +2515,7 @@ class _DrawingBoard extends StatelessWidget {
   final bool isPanMode;
   final TransformationController? transformationController;
   final Size? canvasSize;
+  final int? selectedIndex;
 
   const _DrawingBoard({
     required this.strokes,
@@ -2092,6 +2526,7 @@ class _DrawingBoard extends StatelessWidget {
     this.isPanMode = false,
     this.transformationController,
     this.canvasSize,
+    this.selectedIndex,
   });
 
   @override
@@ -2135,6 +2570,7 @@ class _DrawingBoard extends StatelessWidget {
                     painter: _NotebookSketchPainter(
                       strokes,
                       isTransparent: isTransparent,
+                      selectedIndex: selectedIndex,
                     ),
                   ),
                 ),
@@ -2150,8 +2586,13 @@ class _DrawingBoard extends StatelessWidget {
 class _NotebookSketchPainter extends CustomPainter {
   final List<_BoardStroke> strokes;
   final bool isTransparent;
+  final int? selectedIndex;
 
-  const _NotebookSketchPainter(this.strokes, {this.isTransparent = false});
+  const _NotebookSketchPainter(
+    this.strokes, {
+    this.isTransparent = false,
+    this.selectedIndex,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2167,7 +2608,8 @@ class _NotebookSketchPainter extends CustomPainter {
       }
     }
 
-    for (final stroke in strokes) {
+    for (var i = 0; i < strokes.length; i++) {
+      final stroke = strokes[i];
       if (stroke.points.length < 2) continue;
       final inkPaint = Paint()
         ..color = stroke.color
@@ -2175,19 +2617,87 @@ class _NotebookSketchPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
-      final path = Path()
-        ..moveTo(stroke.points.first.dx, stroke.points.first.dy);
-      for (final point in stroke.points.skip(1)) {
-        path.lineTo(point.dx, point.dy);
+      switch (stroke.kind) {
+        case _BoardStrokeKind.freehand:
+          final path = Path()
+            ..moveTo(stroke.points.first.dx, stroke.points.first.dy);
+          for (final point in stroke.points.skip(1)) {
+            path.lineTo(point.dx, point.dy);
+          }
+          canvas.drawPath(path, inkPaint);
+        case _BoardStrokeKind.rectangle:
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(stroke.bounds, const Radius.circular(10)),
+            inkPaint,
+          );
+        case _BoardStrokeKind.ellipse:
+          canvas.drawOval(stroke.bounds, inkPaint);
+        case _BoardStrokeKind.line:
+          canvas.drawLine(stroke.points.first, stroke.points.last, inkPaint);
+        case _BoardStrokeKind.arrow:
+          _drawArrow(canvas, stroke.points.first, stroke.points.last, inkPaint);
       }
-      canvas.drawPath(path, inkPaint);
+
+      if (i == selectedIndex) {
+        _drawSelection(canvas, stroke);
+      }
     }
+  }
+
+  void _drawSelection(Canvas canvas, _BoardStroke stroke) {
+    final bounds = stroke.selectionBounds.inflate(10);
+    final selectionPaint = Paint()
+      ..color = AppColors.primary
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(bounds, const Radius.circular(8)),
+      selectionPaint,
+    );
+    if (!stroke.kind.isFreehand && stroke.points.length >= 2) {
+      final handle = Rect.fromCircle(center: stroke.points.last, radius: 8);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(handle, const Radius.circular(3)),
+        Paint()..color = AppColors.primary,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(handle, const Radius.circular(3)),
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+    }
+  }
+
+  void _drawArrow(Canvas canvas, Offset start, Offset end, Paint paint) {
+    canvas.drawLine(start, end, paint);
+    final direction = end - start;
+    if (direction.distance < 1) return;
+    final angle = direction.direction;
+    const headLength = 20.0;
+    const headAngle = 0.55;
+    final p1 = Offset(
+      end.dx - headLength * math.cos(angle - headAngle),
+      end.dy - headLength * math.sin(angle - headAngle),
+    );
+    final p2 = Offset(
+      end.dx - headLength * math.cos(angle + headAngle),
+      end.dy - headLength * math.sin(angle + headAngle),
+    );
+    final path = Path()
+      ..moveTo(end.dx, end.dy)
+      ..lineTo(p1.dx, p1.dy)
+      ..moveTo(end.dx, end.dy)
+      ..lineTo(p2.dx, p2.dy);
+    canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant _NotebookSketchPainter oldDelegate) =>
       oldDelegate.strokes != strokes ||
-      oldDelegate.isTransparent != isTransparent;
+      oldDelegate.isTransparent != isTransparent ||
+      oldDelegate.selectedIndex != selectedIndex;
 }
 
 class _ColorDot extends StatelessWidget {
@@ -2225,12 +2735,14 @@ class _ColorDot extends StatelessWidget {
 }
 
 class _BoardStroke {
+  final _BoardStrokeKind kind;
   final Color color;
   final double width;
   final List<Offset> points;
   final bool isTeacher;
 
   const _BoardStroke({
+    this.kind = _BoardStrokeKind.freehand,
     required this.color,
     required this.width,
     required this.points,
@@ -2238,12 +2750,14 @@ class _BoardStroke {
   });
 
   _BoardStroke copyWith({
+    _BoardStrokeKind? kind,
     Color? color,
     double? width,
     List<Offset>? points,
     bool? isTeacher,
   }) {
     return _BoardStroke(
+      kind: kind ?? this.kind,
       color: color ?? this.color,
       width: width ?? this.width,
       points: points ?? this.points,
@@ -2252,6 +2766,7 @@ class _BoardStroke {
   }
 
   Map<String, dynamic> toJson() => {
+    'kind': kind.name,
     'color': color.toARGB32(),
     'width': width,
     'points': points.map((p) => {'x': p.dx, 'y': p.dy}).toList(),
@@ -2261,6 +2776,7 @@ class _BoardStroke {
   static _BoardStroke fromJson(Map<String, dynamic> json) {
     final rawPoints = json['points'] as List<dynamic>? ?? [];
     return _BoardStroke(
+      kind: _BoardStrokeKind.parse(json['kind'] as String?),
       color: Color(json['color'] as int? ?? 0xFF1E40AF),
       width: (json['width'] as num? ?? 4).toDouble(),
       points: rawPoints.map((p) {
@@ -2273,6 +2789,67 @@ class _BoardStroke {
       isTeacher:
           json['isTeacher'] as bool? ?? json['is_teacher'] as bool? ?? false,
     );
+  }
+
+  Rect get bounds {
+    if (points.isEmpty) return Rect.zero;
+    if (points.length == 1) {
+      return Rect.fromCircle(center: points.first, radius: width);
+    }
+    return Rect.fromPoints(points.first, points.last);
+  }
+
+  Rect get selectionBounds {
+    if (!kind.isFreehand) return bounds;
+    if (points.isEmpty) return Rect.zero;
+    var left = points.first.dx;
+    var right = points.first.dx;
+    var top = points.first.dy;
+    var bottom = points.first.dy;
+    for (final point in points.skip(1)) {
+      left = math.min(left, point.dx);
+      right = math.max(right, point.dx);
+      top = math.min(top, point.dy);
+      bottom = math.max(bottom, point.dy);
+    }
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+
+  bool hitTest(Offset point) {
+    if (points.length < 2) return false;
+    final tolerance = math.max(12.0, width + 8).toDouble();
+    switch (kind) {
+      case _BoardStrokeKind.freehand:
+        for (var i = 1; i < points.length; i++) {
+          if (_distanceToSegment(point, points[i - 1], points[i]) <=
+              tolerance) {
+            return true;
+          }
+        }
+        return false;
+      case _BoardStrokeKind.rectangle:
+      case _BoardStrokeKind.ellipse:
+        return selectionBounds.inflate(tolerance).contains(point);
+      case _BoardStrokeKind.line:
+      case _BoardStrokeKind.arrow:
+        return _distanceToSegment(point, points.first, points.last) <=
+            tolerance;
+    }
+  }
+
+  double _distanceToSegment(Offset p, Offset a, Offset b) {
+    final segment = b - a;
+    final lengthSquared = segment.dx * segment.dx + segment.dy * segment.dy;
+    if (lengthSquared == 0) return (p - a).distance;
+    final t =
+        (((p.dx - a.dx) * segment.dx) + ((p.dy - a.dy) * segment.dy)) /
+        lengthSquared;
+    final clamped = t.clamp(0.0, 1.0).toDouble();
+    final projection = Offset(
+      a.dx + segment.dx * clamped,
+      a.dy + segment.dy * clamped,
+    );
+    return (p - projection).distance;
   }
 }
 
@@ -2347,54 +2924,63 @@ class _CodeEditorShellState extends State<_CodeEditorShell> {
               borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
               border: Border(bottom: BorderSide(color: Color(0xFF374151))),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.code, size: 18, color: Color(0xFF93C5FD)),
-                const SizedBox(width: 8),
-                Text(
-                  widget.language.toUpperCase(),
-                  style: const TextStyle(
-                    color: Color(0xFFE5E7EB),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.code, size: 18, color: Color(0xFF93C5FD)),
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 82),
+                    child: Text(
+                      widget.language.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFE5E7EB),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
-                ),
-                const Spacer(),
-                Tooltip(
-                  message: 'Insert starter code',
-                  child: IconButton(
-                    onPressed: widget.onInsertSnippet,
-                    icon: const Icon(Icons.post_add),
-                    color: Colors.white,
+                  const SizedBox(width: 12),
+                  Tooltip(
+                    message: 'Insert starter code',
+                    child: IconButton(
+                      onPressed: widget.onInsertSnippet,
+                      icon: const Icon(Icons.post_add),
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                Tooltip(
-                  message: 'Format code',
-                  child: IconButton(
-                    onPressed: widget.onFormat,
-                    icon: const Icon(Icons.auto_fix_high),
-                    color: Colors.white,
+                  Tooltip(
+                    message: 'Format code',
+                    child: IconButton(
+                      onPressed: widget.onFormat,
+                      icon: const Icon(Icons.auto_fix_high),
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                Tooltip(
-                  message: 'Clear editor',
-                  child: IconButton(
-                    onPressed: widget.onClear,
-                    icon: const Icon(Icons.delete_outline),
-                    color: Colors.white,
+                  Tooltip(
+                    message: 'Clear editor',
+                    child: IconButton(
+                      onPressed: widget.onClear,
+                      icon: const Icon(Icons.delete_outline),
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                SizedBox(
-                  width: 120,
-                  child: Slider(
-                    min: 12,
-                    max: 20,
-                    divisions: 4,
-                    value: widget.fontSize,
-                    onChanged: widget.onFontSizeChanged,
+                  SizedBox(
+                    width: 96,
+                    child: Slider(
+                      min: 12,
+                      max: 20,
+                      divisions: 4,
+                      value: widget.fontSize,
+                      onChanged: widget.onFontSizeChanged,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           Expanded(

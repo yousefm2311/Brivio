@@ -41,17 +41,23 @@ class HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
 
     return CustomScrollView(
       slivers: [
         SliverAppBar(
-          backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+          backgroundColor: isDark
+              ? AppColors.darkBackground
+              : AppColors.lightBackground,
           surfaceTintColor: Colors.transparent,
           pinned: true,
           title: Text(
             context.tr('Teacher Portal'),
-            style: AppTypography.displaySmall(textPrimary).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
+            style: AppTypography.displaySmall(
+              textPrimary,
+            ).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
           ),
           actions: [
             IconButton(
@@ -63,12 +69,19 @@ class HomeTab extends StatelessWidget {
           ],
         ),
         if (isLoading)
-          const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.teacherRole)))
+          const SliverFillRemaining(
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.teacherRole),
+            ),
+          )
         else if (errorMessage != null)
           SliverFillRemaining(
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: PortalErrorBanner(message: errorMessage!, onRetry: onRetry),
+              child: PortalErrorBanner(
+                message: errorMessage!,
+                onRetry: onRetry,
+              ),
             ),
           )
         else
@@ -80,11 +93,14 @@ class HomeTab extends StatelessWidget {
                   duration: const Duration(milliseconds: 500),
                   child: Text(
                     '${context.tr("Welcome")}, ${user?.fullName ?? "Educator"}',
-                    style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                    style: AppTypography.titleLarge(textPrimary).copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Metrics grid
                 FadeInSlide(
                   duration: const Duration(milliseconds: 600),
@@ -122,7 +138,7 @@ class HomeTab extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
 
                 // Code Playground Shortcut
@@ -140,17 +156,27 @@ class HomeTab extends StatelessWidget {
                     },
                     child: GlassCard(
                       padding: const EdgeInsets.all(20),
-                      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                      color: isDark
+                          ? AppColors.darkSurface
+                          : AppColors.lightSurface,
+                      borderColor: isDark
+                          ? AppColors.darkBorder
+                          : AppColors.lightBorder,
                       child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.teacherRole.withValues(alpha: 0.1),
+                              color: AppColors.teacherRole.withValues(
+                                alpha: 0.1,
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.code, color: AppColors.teacherRole, size: 28),
+                            child: const Icon(
+                              Icons.code,
+                              color: AppColors.teacherRole,
+                              size: 28,
+                            ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -159,35 +185,57 @@ class HomeTab extends StatelessWidget {
                               children: [
                                 Text(
                                   'Code Playground',
-                                  style: AppTypography.titleMedium(isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary).copyWith(fontWeight: FontWeight.w800),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.titleMedium(
+                                    isDark
+                                        ? AppColors.darkTextPrimary
+                                        : AppColors.lightTextPrimary,
+                                  ).copyWith(fontWeight: FontWeight.w800),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Test lessons or practice coding',
-                                  style: AppTypography.caption(isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                                  'Test examples and preview visual execution for students',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.caption(
+                                    isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.lightTextSecondary,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_right, color: AppColors.teacherRole),
+                          const SizedBox(width: 8),
+                          const Tooltip(
+                            message: 'Open code playground',
+                            child: Icon(
+                              Icons.play_circle_fill_rounded,
+                              color: AppColors.teacherRole,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 FadeInSlide(
                   duration: const Duration(milliseconds: 500),
                   delay: const Duration(milliseconds: 200),
                   child: Text(
                     context.tr('Group Analytics'),
-                    style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                    style: AppTypography.titleLarge(textPrimary).copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 if (groupAnalytics.isEmpty)
                   FadeInSlide(
                     duration: const Duration(milliseconds: 600),
@@ -197,54 +245,30 @@ class HomeTab extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 32),
                         child: Text(
                           context.tr('No group analytics available yet.'),
-                          style: AppTypography.bodyMedium(isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                          style: AppTypography.bodyMedium(
+                            isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
+                          ),
                         ),
                       ),
                     ),
                   )
                 else
-                  ...groupAnalytics.asMap().entries.map((e) => FadeInSlide(
-                    duration: const Duration(milliseconds: 600),
-                    delay: Duration(milliseconds: 300 + (e.key * 100)),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _TeacherGroupAnalyticsCard(item: e.value),
+                  ...groupAnalytics.asMap().entries.map(
+                    (e) => FadeInSlide(
+                      duration: const Duration(milliseconds: 600),
+                      delay: Duration(milliseconds: 300 + (e.key * 100)),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _TeacherGroupAnalyticsCard(item: e.value),
+                      ),
                     ),
-                  )),
+                  ),
               ]),
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildMetricCard(BuildContext context, String title, String value, IconData icon, Color color, VoidCallback onTap) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return GestureDetector(
-      onTap: onTap,
-      child: GlassCard(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-        padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: (MediaQuery.sizeOf(context).width - 40 - 12) / 2 - 16 - 16,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(height: 12),
-              Text(value, style: AppTypography.displaySmall(isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary).copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 4),
-              Text(title, style: AppTypography.caption(isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary).copyWith(fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -257,8 +281,12 @@ class _TeacherGroupAnalyticsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return GlassCard(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -276,27 +304,41 @@ class _TeacherGroupAnalyticsCard extends StatelessWidget {
                   color: AppColors.teacherRole.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.insights_rounded, color: AppColors.teacherRole),
+                child: const Icon(
+                  Icons.insights_rounded,
+                  color: AppColors.teacherRole,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.groupName, style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w800)),
+                    Text(
+                      item.groupName,
+                      style: AppTypography.titleMedium(
+                        textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w800),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       [
                         if (item.groupCode.isNotEmpty) item.groupCode,
                         '${item.studentCount} ${context.tr("students")}',
                       ].join(' | '),
-                      style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500),
+                      style: AppTypography.caption(
+                        textSecondary,
+                      ).copyWith(fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
               ),
               PortalStatusChip(
-                status: item.attendanceRate >= 85 ? 'healthy' : item.attendanceRate >= 65 ? 'watch' : 'risk',
+                status: item.attendanceRate >= 85
+                    ? 'healthy'
+                    : item.attendanceRate >= 65
+                    ? 'watch'
+                    : 'risk',
               ),
             ],
           ),
@@ -305,10 +347,30 @@ class _TeacherGroupAnalyticsCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _AnalyticsMiniMetric(icon: Icons.event_available, label: context.tr('Attendance'), value: '${item.attendanceRate.toStringAsFixed(1)}%', color: AppColors.success),
-              _AnalyticsMiniMetric(icon: Icons.cancel, label: context.tr('Absences'), value: item.absentCount.toString(), color: AppColors.error),
-              _AnalyticsMiniMetric(icon: Icons.assignment_late, label: context.tr('Pending HW'), value: item.pendingHomeworkCount.toString(), color: AppColors.warning),
-              _AnalyticsMiniMetric(icon: Icons.quiz, label: context.tr('Exam Avg'), value: '${item.averageExamScore.toStringAsFixed(1)}%', color: AppColors.info),
+              _AnalyticsMiniMetric(
+                icon: Icons.event_available,
+                label: context.tr('Attendance'),
+                value: '${item.attendanceRate.toStringAsFixed(1)}%',
+                color: AppColors.success,
+              ),
+              _AnalyticsMiniMetric(
+                icon: Icons.cancel,
+                label: context.tr('Absences'),
+                value: item.absentCount.toString(),
+                color: AppColors.error,
+              ),
+              _AnalyticsMiniMetric(
+                icon: Icons.assignment_late,
+                label: context.tr('Pending HW'),
+                value: item.pendingHomeworkCount.toString(),
+                color: AppColors.warning,
+              ),
+              _AnalyticsMiniMetric(
+                icon: Icons.quiz,
+                label: context.tr('Exam Avg'),
+                value: '${item.averageExamScore.toStringAsFixed(1)}%',
+                color: AppColors.info,
+              ),
             ],
           ),
         ],
@@ -323,7 +385,12 @@ class _AnalyticsMiniMetric extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _AnalyticsMiniMetric({required this.icon, required this.label, required this.value, required this.color});
+  const _AnalyticsMiniMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -343,8 +410,18 @@ class _AnalyticsMiniMetric extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption(color)),
-                Text(value, style: AppTypography.titleMedium(color).copyWith(fontWeight: FontWeight.w800)),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption(color),
+                ),
+                Text(
+                  value,
+                  style: AppTypography.titleMedium(
+                    color,
+                  ).copyWith(fontWeight: FontWeight.w800),
+                ),
               ],
             ),
           ),

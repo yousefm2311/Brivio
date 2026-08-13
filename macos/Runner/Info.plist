@@ -26,6 +26,10 @@
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use biometrics to unlock your academy account on this device.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Use the camera to scan academy login QR codes.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Use your location only when required for attendance or academy operations.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>

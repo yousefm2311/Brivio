@@ -19,11 +19,16 @@ import '../network/supabase_client_wrapper.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  if (!AppConfig.hasFirebaseConfig) return;
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    if (Firebase.apps.isEmpty) {
+      if (AppConfig.hasFirebaseConfig) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      } else {
+        await Firebase.initializeApp();
+      }
+    }
   } catch (_) {
     return;
   }
@@ -56,13 +61,28 @@ class PushNotificationService {
 
   bool get isConfigured => AppConfig.hasFirebaseConfig && _initialized;
 
+  bool get _supportsFirebaseMessaging {
+    if (kIsWeb) return true;
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+  }
+
   Future<void> initialize() async {
-    if (_initialized || !AppConfig.hasFirebaseConfig) return;
+    if (_initialized || !_supportsFirebaseMessaging) {
+      return;
+    }
 
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      if (Firebase.apps.isEmpty) {
+        if (AppConfig.hasFirebaseConfig) {
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          );
+        } else {
+          await Firebase.initializeApp();
+        }
+      }
       messaging ??= FirebaseMessaging.instance;
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 

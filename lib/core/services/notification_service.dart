@@ -2,11 +2,17 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import '../../firebase_options.dart';
+import '../config/app_config.dart';
 import '../logging/app_logger.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  if (AppConfig.hasFirebaseConfig && Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
   AppLogger.info('Handling a background message: ${message.messageId}');
 }
 
@@ -16,13 +22,25 @@ class NotificationService {
   NotificationService._internal();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  
-  final _deepLinkController = StreamController<Map<String, dynamic>>.broadcast();
+
+  final _deepLinkController =
+      StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get deepLinkStream => _deepLinkController.stream;
 
   Future<void> init() async {
     try {
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      if (Firebase.apps.isEmpty) {
+        if (AppConfig.hasFirebaseConfig) {
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          );
+        } else {
+          await Firebase.initializeApp();
+        }
+      }
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
+      );
 
       NotificationSettings settings = await _messaging.requestPermission(
         alert: true,
@@ -34,7 +52,9 @@ class NotificationService {
         sound: true,
       );
 
-      AppLogger.info('User granted permission: ${settings.authorizationStatus}');
+      AppLogger.info(
+        'User granted permission: ${settings.authorizationStatus}',
+      );
 
       // Handle foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -42,7 +62,9 @@ class NotificationService {
         AppLogger.info('Message data: ${message.data}');
 
         if (message.notification != null) {
-          AppLogger.info('Message also contained a notification: ${message.notification}');
+          AppLogger.info(
+            'Message also contained a notification: ${message.notification}',
+          );
         }
       });
 

@@ -175,21 +175,29 @@ class HomeTab extends StatelessWidget {
                               children: [
                                 Text(
                                   'Code Playground',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: AppTypography.titleMedium(
                                     textPrimary,
                                   ).copyWith(fontWeight: FontWeight.w800),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Practice coding anytime',
+                                  'Run code and watch step-by-step visual explanations',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: AppTypography.caption(textSecondary),
                                 ),
                               ],
                             ),
                           ),
-                          const Icon(
-                            Icons.chevron_right,
-                            color: AppColors.primary,
+                          const SizedBox(width: 8),
+                          const Tooltip(
+                            message: 'Open code playground',
+                            child: Icon(
+                              Icons.play_circle_fill_rounded,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ],
                       ),

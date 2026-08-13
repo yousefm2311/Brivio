@@ -28,6 +28,10 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID to unlock your academy account on this device.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Use the camera to scan academy login QR codes.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Use your location only when required for attendance or academy operations.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -51,6 +55,10 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

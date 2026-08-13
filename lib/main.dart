@@ -5,8 +5,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:hive/hive.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:path_provider/path_provider.dart';
-import 'core/services/notification_service.dart';
+import 'core/config/app_config.dart';
 import 'core/error/supabase_error_handler.dart';
+import 'firebase_options.dart';
 
 import 'apps/admin/admin_dashboard.dart';
 import 'apps/parent/parent_dashboard.dart';
@@ -68,8 +69,7 @@ void main() async {
   };
 
   try {
-    await Firebase.initializeApp();
-    await NotificationService().init();
+    await _initializeFirebaseIfAvailable();
 
     final appDir = await getApplicationDocumentsDirectory();
     Hive.init(appDir.path);
@@ -80,6 +80,29 @@ void main() async {
   } catch (error, stackTrace) {
     AppLogger.error('Application startup failed', error, stackTrace);
     runApp(StartupFailureApp(error: error));
+  }
+}
+
+bool get _supportsFirebaseRuntime {
+  if (kIsWeb) return true;
+  return defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.macOS;
+}
+
+Future<void> _initializeFirebaseIfAvailable() async {
+  if (!_supportsFirebaseRuntime || Firebase.apps.isNotEmpty) return;
+  try {
+    if (AppConfig.hasFirebaseConfig) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } else {
+      await Firebase.initializeApp();
+    }
+  } catch (error, stackTrace) {
+    AppLogger.warning('Firebase is not configured for this runtime.');
+    AppLogger.error('Firebase startup skipped', error, stackTrace);
   }
 }
 
