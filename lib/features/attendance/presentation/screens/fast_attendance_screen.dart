@@ -6,7 +6,7 @@ import '../../domain/models/attendance_models.dart';
 import '../viewmodels/fast_attendance_viewmodel.dart';
 
 class FastAttendanceScreen extends StatefulWidget {
-  const FastAttendanceScreen({Key? key}) : super(key: key);
+  const FastAttendanceScreen({super.key});
 
   @override
   State<FastAttendanceScreen> createState() => _FastAttendanceScreenState();
@@ -61,18 +61,26 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: AppTypography.labelLarge(AppColors.darkTextSecondary)),
+              child: Text(
+                'Cancel',
+                style: AppTypography.labelLarge(AppColors.darkTextSecondary),
+              ),
             ),
             FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () {
                 _viewModel.logIncident(student.id, controller.text.trim());
                 Navigator.pop(context);
               },
-              child: Text('Save', style: AppTypography.labelLarge(Colors.white)),
+              child: Text(
+                'Save',
+                style: AppTypography.labelLarge(Colors.white),
+              ),
             ),
           ],
         );
@@ -85,7 +93,10 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: Text('Fast Attendance', style: AppTypography.titleLarge(AppColors.darkTextPrimary)),
+        title: Text(
+          'Fast Attendance',
+          style: AppTypography.titleLarge(AppColors.darkTextPrimary),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
@@ -118,7 +129,11 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
                           ),
                           alignment: Alignment.centerLeft,
                           padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: const Icon(Icons.check, color: Colors.white, size: 32),
+                          child: const Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 32,
+                          ),
                         ),
                         secondaryBackground: Container(
                           decoration: BoxDecoration(
@@ -127,13 +142,23 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
                           ),
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: const Icon(Icons.close, color: Colors.white, size: 32),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 32,
+                          ),
                         ),
                         confirmDismiss: (direction) async {
                           if (direction == DismissDirection.startToEnd) {
-                            _viewModel.markAttendance(student.id, AttendanceStatus.present);
+                            _viewModel.markAttendance(
+                              student.id,
+                              AttendanceStatus.present,
+                            );
                           } else if (direction == DismissDirection.endToStart) {
-                            _viewModel.markAttendance(student.id, AttendanceStatus.absent);
+                            _viewModel.markAttendance(
+                              student.id,
+                              AttendanceStatus.absent,
+                            );
                           }
                           return false; // Don't actually remove from the list
                         },
@@ -145,8 +170,14 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
                                 backgroundColor: AppColors.primarySubtle,
                                 radius: 24,
                                 child: Text(
-                                  student.name.isNotEmpty ? student.name.substring(0, 1).toUpperCase() : '?',
-                                  style: AppTypography.titleLarge(AppColors.primary),
+                                  student.name.isNotEmpty
+                                      ? student.name
+                                            .substring(0, 1)
+                                            .toUpperCase()
+                                      : '?',
+                                  style: AppTypography.titleLarge(
+                                    AppColors.primary,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -156,14 +187,21 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
                                   children: [
                                     Text(
                                       student.name,
-                                      style: AppTypography.titleMedium(AppColors.darkTextPrimary),
+                                      style: AppTypography.titleMedium(
+                                        AppColors.darkTextPrimary,
+                                      ),
                                     ),
-                                    if (student.incidentRecord != null && student.incidentRecord!.isNotEmpty)
+                                    if (student.incidentRecord != null &&
+                                        student.incidentRecord!.isNotEmpty)
                                       Padding(
-                                        padding: const EdgeInsets.only(top: 4.0),
+                                        padding: const EdgeInsets.only(
+                                          top: 4.0,
+                                        ),
                                         child: Text(
                                           'Incident: ${student.incidentRecord}',
-                                          style: AppTypography.bodySmall(AppColors.error),
+                                          style: AppTypography.bodySmall(
+                                            AppColors.error,
+                                          ),
                                         ),
                                       ),
                                   ],
@@ -173,17 +211,27 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
                                 Padding(
                                   padding: const EdgeInsets.only(right: 8.0),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: student.status == AttendanceStatus.present
+                                      color:
+                                          student.status ==
+                                              AttendanceStatus.present
                                           ? AppColors.successSubtle
                                           : AppColors.errorSubtle,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      student.status == AttendanceStatus.present ? 'Present' : 'Absent',
+                                      student.status == AttendanceStatus.present
+                                          ? 'Present'
+                                          : 'Absent',
                                       style: AppTypography.labelMedium(
-                                        student.status == AttendanceStatus.present ? AppColors.success : AppColors.error,
+                                        student.status ==
+                                                AttendanceStatus.present
+                                            ? AppColors.success
+                                            : AppColors.error,
                                       ),
                                     ),
                                   ),
@@ -204,22 +252,29 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
               ),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: _viewModel.isLoading ? null : () async {
-                  await _viewModel.submitAttendance();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Attendance submitted!', style: AppTypography.bodyMedium(Colors.white)),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                    Navigator.pop(context);
-                  }
-                },
+                onPressed: _viewModel.isLoading
+                    ? null
+                    : () async {
+                        await _viewModel.submitAttendance();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Attendance submitted!',
+                                style: AppTypography.bodyMedium(Colors.white),
+                              ),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                          Navigator.pop(context);
+                        }
+                      },
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 child: _viewModel.isLoading
                     ? const SizedBox(
@@ -230,7 +285,10 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : Text('Submit Attendance', style: AppTypography.labelLarge(Colors.white)),
+                    : Text(
+                        'Submit Attendance',
+                        style: AppTypography.labelLarge(Colors.white),
+                      ),
               ),
             ],
           ),

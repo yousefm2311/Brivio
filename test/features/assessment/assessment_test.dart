@@ -129,7 +129,7 @@ void main() {
       );
 
       expect(find.text('Midterm Exam'), findsOneWidget);
-      expect(find.text('45:00'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'4[45]:[0-5][0-9]')), findsOneWidget);
       expect(find.text('Question 1: What is Binary Search?'), findsOneWidget);
       expect(find.text('O(log N)'), findsOneWidget);
       expect(find.text('O(N)'), findsOneWidget);

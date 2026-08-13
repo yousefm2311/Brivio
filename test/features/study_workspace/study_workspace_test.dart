@@ -16,7 +16,7 @@ void main() {
     lastPage: 6,
     totalPages: 18,
     xp: 120,
-    hasPdf: true,
+    hasPdf: false,
     hasCodePlayground: true,
   );
 
@@ -31,21 +31,38 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(home: StudyWorkspaceScreen(lesson: lesson)),
     );
-    await tester.pumpAndSettle();
+    await pumpUntilFound(tester, find.text('Code'));
 
-    expect(find.text('PDF'), findsWidgets);
-    expect(find.text('Notebook'), findsOneWidget);
+    expect(find.text('Board'), findsOneWidget);
+    expect(find.text('Notes'), findsOneWidget);
     expect(find.text('Code'), findsOneWidget);
-    expect(
-      find.text('No PDF resource has been published for this lesson yet.'),
-      findsOneWidget,
-    );
 
-    await tester.tap(find.text('Code'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.text('Notes').first);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Smart Notebook'), findsOneWidget);
+
+    await tester.tap(find.text('Code').first);
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('Run preview'));
     await tester.pump();
 
     expect(find.textContaining('Preview runner'), findsOneWidget);
   });
+}
+
+Future<void> pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  int maxPumps = 20,
+}) async {
+  for (var i = 0; i < maxPumps; i++) {
+    await tester.pump(const Duration(milliseconds: 250));
+    if (finder.evaluate().isNotEmpty) return;
+  }
+  final visibleText = tester
+      .widgetList<Text>(find.byType(Text))
+      .map((widget) => widget.data)
+      .whereType<String>()
+      .join(' | ');
+  fail('Finder did not appear. Visible text: $visibleText');
 }

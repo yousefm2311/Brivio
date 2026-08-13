@@ -33,7 +33,8 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
 
     return PortalPageShell(
       title: 'Academy Analytics',
-      subtitle: 'Premium insights, revenue tracking, and student performance metrics.',
+      subtitle:
+          'Premium insights, revenue tracking, and student performance metrics.',
       icon: Icons.analytics,
       accentColor: Colors.deepPurple,
       actions: [
@@ -50,7 +51,12 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (_viewModel.errorMessage != null) {
-            return Center(child: Text(_viewModel.errorMessage!, style: const TextStyle(color: Colors.red)));
+            return Center(
+              child: Text(
+                _viewModel.errorMessage!,
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
           }
 
           final analytics = _viewModel.analytics;
@@ -100,175 +106,222 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                   ],
                 ),
               ),
-          const SizedBox(height: 24),
-          FadeInSlide(
-            delay: const Duration(milliseconds: 200),
-            child: GlassCard(
-              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-              borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              const SizedBox(height: 24),
+              FadeInSlide(
+                delay: const Duration(milliseconds: 200),
+                child: GlassCard(
+                  color: isDark
+                      ? AppColors.darkSurface
+                      : AppColors.lightSurface,
+                  borderColor: isDark
+                      ? AppColors.darkBorder
+                      : AppColors.lightBorder,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Revenue Growth',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: '1M', label: Text('1M')),
-                          ButtonSegment(value: '6M', label: Text('6M')),
-                          ButtonSegment(value: '1Y', label: Text('1Y')),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Revenue Growth',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          SegmentedButton<String>(
+                            segments: const [
+                              ButtonSegment(value: '1M', label: Text('1M')),
+                              ButtonSegment(value: '6M', label: Text('6M')),
+                              ButtonSegment(value: '1Y', label: Text('1Y')),
+                            ],
+                            selected: const {'6M'},
+                            onSelectionChanged: (val) {},
+                            style: SegmentedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
                         ],
-                        selected: const {'6M'},
-                        onSelectionChanged: (val) {},
-                        style: SegmentedButton.styleFrom(visualDensity: VisualDensity.compact),
+                      ),
+                      const SizedBox(height: 24),
+                      // Placeholder for a beautiful chart
+                      Container(
+                        height: 200,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.deepPurple.withValues(alpha: 0.1),
+                              Colors.deepPurple.withValues(alpha: 0.0),
+                            ],
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            // Grid lines
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: List.generate(
+                                5,
+                                (index) => Divider(
+                                  color: Colors.grey.withValues(alpha: 0.2),
+                                ),
+                              ),
+                            ),
+                            // Mock smooth curve
+                            CustomPaint(
+                              size: const Size(double.infinity, 200),
+                              painter: _MockChartPainter(
+                                color: Colors.deepPurple,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  // Placeholder for a beautiful chart
-                  Container(
-                    height: 200,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.deepPurple.withOpacity(0.1),
-                          Colors.deepPurple.withOpacity(0.0),
-                        ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: FadeInSlide(
+                      delay: const Duration(milliseconds: 300),
+                      child: GlassCard(
+                        color: isDark
+                            ? AppColors.darkSurface
+                            : AppColors.lightSurface,
+                        borderColor: isDark
+                            ? AppColors.darkBorder
+                            : AppColors.lightBorder,
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Top Performing Subjects',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 24),
+                            if (analytics?.subjectPerformances != null)
+                              ...analytics!.subjectPerformances.map((perf) {
+                                final colors = [
+                                  Colors.blue,
+                                  Colors.purple,
+                                  Colors.teal,
+                                  Colors.orange,
+                                ];
+                                final colorIndex =
+                                    analytics.subjectPerformances.indexOf(
+                                      perf,
+                                    ) %
+                                    colors.length;
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16.0),
+                                  child: _SubjectPerformanceRow(
+                                    subject: perf.subjectName,
+                                    score: perf.averageScore.toInt(),
+                                    color: colors[colorIndex],
+                                  ),
+                                );
+                              }),
+                          ],
+                        ),
                       ),
                     ),
-                    child: Stack(
-                      children: [
-                        // Grid lines
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(
-                            5,
-                            (index) => Divider(color: Colors.grey.withOpacity(0.2)),
-                          ),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 1,
+                    child: FadeInSlide(
+                      delay: const Duration(milliseconds: 400),
+                      child: GlassCard(
+                        color: isDark
+                            ? AppColors.darkSurface
+                            : AppColors.lightSurface,
+                        borderColor: isDark
+                            ? AppColors.darkBorder
+                            : AppColors.lightBorder,
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Student Demographics',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 24),
+                            Center(
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 150,
+                                    height: 150,
+                                    child: CircularProgressIndicator(
+                                      value:
+                                          analytics
+                                              ?.demographics
+                                              .malePercentage ??
+                                          0.65,
+                                      strokeWidth: 12,
+                                      backgroundColor: Colors.pink.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '${((analytics?.demographics.malePercentage ?? 0.65) * 100).toInt()}%',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .headlineMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                      const Text(
+                                        'Male',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _LegendItem(label: 'Male', color: Colors.blue),
+                                _LegendItem(
+                                  label: 'Female',
+                                  color: Colors.pink.withValues(alpha: 0.8),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        // Mock smooth curve
-                        CustomPaint(
-                          size: const Size(double.infinity, 200),
-                          painter: _MockChartPainter(color: Colors.deepPurple),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 2,
-                child: FadeInSlide(
-                  delay: const Duration(milliseconds: 300),
-                  child: GlassCard(
-                    color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                    borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Top Performing Subjects',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 24),
-                        if (analytics?.subjectPerformances != null)
-                          ...analytics!.subjectPerformances.map((perf) {
-                            final colors = [Colors.blue, Colors.purple, Colors.teal, Colors.orange];
-                            final colorIndex = analytics.subjectPerformances.indexOf(perf) % colors.length;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16.0),
-                              child: _SubjectPerformanceRow(
-                                subject: perf.subjectName,
-                                score: perf.averageScore.toInt(),
-                                color: colors[colorIndex],
-                              ),
-                            );
-                          }),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                flex: 1,
-                child: FadeInSlide(
-                  delay: const Duration(milliseconds: 400),
-                  child: GlassCard(
-                    color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                    borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Student Demographics',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 24),
-                        Center(
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              SizedBox(
-                                width: 150,
-                                height: 150,
-                                child: CircularProgressIndicator(
-                                  value: analytics?.demographics.malePercentage ?? 0.65,
-                                  strokeWidth: 12,
-                                  backgroundColor: Colors.pink.withOpacity(0.2),
-                                  color: Colors.blue,
-                                ),
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '${((analytics?.demographics.malePercentage ?? 0.65) * 100).toInt()}%',
-                                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-                                  ),
-                                  const Text('Male', style: TextStyle(color: Colors.grey)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _LegendItem(label: 'Male', color: Colors.blue),
-                            _LegendItem(label: 'Female', color: Colors.pink.withOpacity(0.8)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
             ],
-          ),
-        ],
-      );
-    },
-  ),
-);
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -282,7 +335,11 @@ class _LegendItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 8),
         Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       ],
@@ -295,7 +352,11 @@ class _SubjectPerformanceRow extends StatelessWidget {
   final int score;
   final Color color;
 
-  const _SubjectPerformanceRow({required this.subject, required this.score, required this.color});
+  const _SubjectPerformanceRow({
+    required this.subject,
+    required this.score,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -303,7 +364,10 @@ class _SubjectPerformanceRow extends StatelessWidget {
       children: [
         Expanded(
           flex: 2,
-          child: Text(subject, style: const TextStyle(fontWeight: FontWeight.w600)),
+          child: Text(
+            subject,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
         ),
         Expanded(
           flex: 5,
@@ -312,7 +376,7 @@ class _SubjectPerformanceRow extends StatelessWidget {
             child: LinearProgressIndicator(
               value: score / 100,
               minHeight: 8,
-              backgroundColor: color.withOpacity(0.2),
+              backgroundColor: color.withValues(alpha: 0.2),
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
@@ -338,9 +402,24 @@ class _MockChartPainter extends CustomPainter {
 
     final path = Path();
     path.moveTo(0, size.height * 0.8);
-    path.quadraticBezierTo(size.width * 0.2, size.height * 0.9, size.width * 0.4, size.height * 0.5);
-    path.quadraticBezierTo(size.width * 0.6, size.height * 0.1, size.width * 0.8, size.height * 0.3);
-    path.quadraticBezierTo(size.width * 0.9, size.height * 0.4, size.width, size.height * 0.2);
+    path.quadraticBezierTo(
+      size.width * 0.2,
+      size.height * 0.9,
+      size.width * 0.4,
+      size.height * 0.5,
+    );
+    path.quadraticBezierTo(
+      size.width * 0.6,
+      size.height * 0.1,
+      size.width * 0.8,
+      size.height * 0.3,
+    );
+    path.quadraticBezierTo(
+      size.width * 0.9,
+      size.height * 0.4,
+      size.width,
+      size.height * 0.2,
+    );
 
     canvas.drawPath(path, paint);
 
@@ -354,7 +433,7 @@ class _MockChartPainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [color.withOpacity(0.3), color.withOpacity(0.0)],
+        colors: [color.withValues(alpha: 0.3), color.withValues(alpha: 0.0)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     canvas.drawPath(fillPath, fillPaint);
@@ -384,7 +463,7 @@ class _AnalyticsSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return GlassCard(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
@@ -398,7 +477,7 @@ class _AnalyticsSummaryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -406,7 +485,9 @@ class _AnalyticsSummaryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isPositive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                  color: isPositive
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(

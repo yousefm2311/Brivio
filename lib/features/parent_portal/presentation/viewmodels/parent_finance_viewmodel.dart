@@ -51,7 +51,7 @@ class ParentFinanceViewModel extends ChangeNotifier {
   ];
   List<Invoice> get invoices => _invoices;
 
-  List<PaymentHistory> _paymentHistory = [
+  final List<PaymentHistory> _paymentHistory = [
     PaymentHistory(
       id: 'PAY-89234',
       description: 'Spring Term Tuition',
@@ -78,14 +78,18 @@ class ParentFinanceViewModel extends ChangeNotifier {
           date: DateTime.now(),
         ),
       );
-      
-      _invoices = _invoices.map((inv) => Invoice(
-        id: inv.id,
-        title: inv.title,
-        amount: inv.amount,
-        dueDate: inv.dueDate,
-        isPaid: true,
-      )).toList();
+
+      _invoices = _invoices
+          .map(
+            (inv) => Invoice(
+              id: inv.id,
+              title: inv.title,
+              amount: inv.amount,
+              dueDate: inv.dueDate,
+              isPaid: true,
+            ),
+          )
+          .toList();
 
       _outstandingBalance = 0;
       notifyListeners();

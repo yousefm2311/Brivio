@@ -26,11 +26,13 @@ void main() {
     'MainAppSelector renders unified LoginScreen when unauthenticated',
     (WidgetTester tester) async {
       await tester.pumpWidget(const MainAppSelector());
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 800));
 
-      expect(find.text('Welcome Back'), findsOneWidget);
-      expect(find.text('Academy Platform Portal'), findsOneWidget);
+      expect(find.text('Sign In'), findsWidgets);
+      expect(find.text('Academy Platform'), findsOneWidget);
       expect(find.byType(TextField), findsNWidgets(2));
+
+      await tester.pump(const Duration(seconds: 1));
     },
   );
 }

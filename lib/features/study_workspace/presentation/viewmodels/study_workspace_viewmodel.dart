@@ -80,7 +80,9 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
 
     Directory? appDir;
     try {
-      appDir = await getApplicationDocumentsDirectory();
+      appDir = await getApplicationDocumentsDirectory().timeout(
+        const Duration(seconds: 2),
+      );
     } catch (_) {}
 
     // Use Hive for fallback or migration

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../viewmodels/parent_finance_viewmodel.dart';
 
 class ParentFinanceScreen extends StatefulWidget {
-  const ParentFinanceScreen({Key? key}) : super(key: key);
+  const ParentFinanceScreen({super.key});
 
   @override
   State<ParentFinanceScreen> createState() => _ParentFinanceScreenState();
@@ -28,7 +28,7 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
   void _onViewModelChange() {
     setState(() {});
   }
-  
+
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
@@ -51,10 +51,7 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1E3C72),
-              Color(0xFF2A5298),
-            ],
+            colors: [Color(0xFF1E3C72), Color(0xFF2A5298)],
           ),
         ),
         child: SafeArea(
@@ -65,11 +62,11 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
               const SizedBox(height: 24),
               _buildSectionTitle('Invoices'),
               const SizedBox(height: 12),
-              ..._viewModel.invoices.map((i) => _buildInvoiceCard(i)).toList(),
+              ..._viewModel.invoices.map((i) => _buildInvoiceCard(i)),
               const SizedBox(height: 24),
               _buildSectionTitle('Payment History'),
               const SizedBox(height: 12),
-              ..._viewModel.paymentHistory.map((p) => _buildPaymentCard(p)).toList(),
+              ..._viewModel.paymentHistory.map((p) => _buildPaymentCard(p)),
             ],
           ),
         ),
@@ -86,10 +83,7 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
           children: [
             const Text(
               'Outstanding Balance',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
             const SizedBox(height: 8),
             Text(
@@ -113,7 +107,7 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
                       }
                     : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.2),
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -153,7 +147,10 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
           contentPadding: const EdgeInsets.all(16),
           title: Text(
             invoice.title,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 8.0),
@@ -178,7 +175,9 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: invoice.isPaid ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+                  color: invoice.isPaid
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : Colors.orange.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: invoice.isPaid ? Colors.green : Colors.orange,
@@ -187,7 +186,9 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
                 child: Text(
                   invoice.isPaid ? 'PAID' : 'PENDING',
                   style: TextStyle(
-                    color: invoice.isPaid ? Colors.greenAccent : Colors.orangeAccent,
+                    color: invoice.isPaid
+                        ? Colors.greenAccent
+                        : Colors.orangeAccent,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
@@ -209,14 +210,17 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
           leading: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.check_circle, color: Colors.greenAccent),
           ),
           title: Text(
             payment.description,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           subtitle: Text(
             _formatDate(payment.date),
@@ -224,7 +228,10 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
           ),
           trailing: Text(
             '-\$${payment.amount.toStringAsFixed(2)}',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),
@@ -235,7 +242,7 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
 class _GlassmorphicContainer extends StatelessWidget {
   final Widget child;
 
-  const _GlassmorphicContainer({Key? key, required this.child}) : super(key: key);
+  const _GlassmorphicContainer({required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -245,9 +252,9 @@ class _GlassmorphicContainer extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
           ),
           child: child,
         ),
