@@ -4,16 +4,17 @@ class ParentRepository {
   final SupabaseClient _supabaseClient;
 
   ParentRepository({SupabaseClient? supabaseClient})
-      : _supabaseClient = supabaseClient ?? Supabase.instance.client;
+    : _supabaseClient = supabaseClient ?? Supabase.instance.client;
 
   Future<void> linkChildWithId(String studentId) async {
     final parentId = _supabaseClient.auth.currentUser?.id;
     if (parentId == null) throw Exception('User not logged in');
 
-    await _supabaseClient.from('parent_student_links').insert({
+    await _supabaseClient.from('parent_students').upsert({
       'parent_id': parentId,
       'student_id': studentId,
-      'status': 'active',
+      'relationship_type': 'guardian',
+      'is_primary': false,
     });
   }
 
@@ -22,11 +23,10 @@ class ParentRepository {
     if (parentId == null) throw Exception('User not logged in');
 
     final response = await _supabaseClient
-        .from('parent_student_links')
+        .from('parent_students')
         .select('*, student:student_id(*)')
-        .eq('parent_id', parentId)
-        .eq('status', 'active');
-    
+        .eq('parent_id', parentId);
+
     return List<Map<String, dynamic>>.from(response);
   }
 }
