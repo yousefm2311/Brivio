@@ -7,6 +7,7 @@ import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../widgets/account_login_qr_dialog.dart';
+import '../widgets/account_password_dialog.dart';
 
 class ParentManagementScreen extends StatefulWidget {
   const ParentManagementScreen({super.key});
@@ -50,7 +51,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     try {
       final res = await _parentRepo.fetchParents();
       final sRes = await _studentRepo.fetchStudents();
-      
+
       final Map<String, List<Student>> linked = {};
       final futures = res.data.map((p) async {
         try {
@@ -92,9 +93,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Full Name'),
-                ),
+                decoration: InputDecoration(labelText: context.tr('Full Name')),
               ),
             ],
           ),
@@ -146,80 +145,131 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
   void _showProvisionParentDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
+    bool obscurePassword = true;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Provision New Parent Account')),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: InputDecoration(labelText: context.tr('Full Name')),
-              ),
-              TextField(
-                controller: emailCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Email Address'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: Text(context.tr('Provision New Parent Account')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Full Name'),
+                  ),
                 ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-            ],
+                TextField(
+                  controller: emailCtrl,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Email Address'),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passwordCtrl,
+                  obscureText: obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Password (optional)'),
+                    helperText: context.tr(
+                      'Leave empty if the parent will set it after QR login.',
+                    ),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      onPressed: () => setStateDialog(
+                        () => obscurePassword = !obscurePassword,
+                      ),
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty ||
-                  emailCtrl.text.trim().isEmpty) {
-                return;
-              }
-
-              final nav = Navigator.of(ctx);
-              try {
-                final response = await Supabase.instance.client.rpc(
-                  'provision_privileged_user',
-                  params: {
-                    'p_email': emailCtrl.text.trim(),
-                    'p_full_name': nameCtrl.text.trim(),
-                    'p_role': 'parent',
-                  },
-                );
-
-                if (response == null || (response is Map && response['success'] != true)) {
-                  throw Exception('Provisioning failed.');
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.tr('Cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty ||
+                    emailCtrl.text.trim().isEmpty) {
+                  return;
                 }
-
-                nav.pop();
-                _loadParents();
-                if (mounted) {
+                if (passwordCtrl.text.isNotEmpty &&
+                    passwordCtrl.text.length < 6) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Parent account provisioned successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Provisioning error: $e'),
+                      content: Text('Password must be at least 6 characters.'),
                       backgroundColor: Colors.red,
                     ),
                   );
+                  return;
                 }
-              }
-            },
-            child: Text(context.tr('Provision Parent')),
-          ),
-        ],
+
+                final nav = Navigator.of(ctx);
+                try {
+                  final response = await Supabase.instance.client.functions
+                      .invoke(
+                        'provision-user',
+                        body: {
+                          'email': emailCtrl.text.trim(),
+                          'fullName': nameCtrl.text.trim(),
+                          'role': 'parent',
+                          if (passwordCtrl.text.isNotEmpty)
+                            'password': passwordCtrl.text,
+                        },
+                      );
+
+                  if (response.status < 200 || response.status >= 300) {
+                    final data = response.data;
+                    final message = data is Map
+                        ? data['error']?.toString()
+                        : null;
+                    throw Exception(message ?? 'Provisioning failed.');
+                  }
+                  final data = Map<String, dynamic>.from(response.data as Map);
+                  if (data['success'] != true) {
+                    throw Exception('Provisioning failed.');
+                  }
+
+                  nav.pop();
+                  _loadParents();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Parent account provisioned successfully!',
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Provisioning error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text(context.tr('Provision Parent')),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -334,6 +384,17 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     );
   }
 
+  void _showPasswordDialog(Parent parent) {
+    showDialog(
+      context: context,
+      builder: (_) => AccountPasswordDialog(
+        profileId: parent.profileId,
+        displayName: parent.fullName,
+        email: parent.email,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _parents.where((p) {
@@ -384,13 +445,16 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                 itemBuilder: (ctx, i) {
                   final p = filtered[i];
                   final linked = _linkedStudents[p.id] ?? [];
-                  final childrenNames = linked.map((s) => s.fullName).join(', ');
-                  
+                  final childrenNames = linked
+                      .map((s) => s.fullName)
+                      .join(', ');
+
                   return PortalListCard(
                     icon: Icons.family_restroom,
                     accentColor: AppColors.parentRole,
                     title: p.fullName,
-                    subtitle: '${context.tr('Email')}: ${p.email}'
+                    subtitle:
+                        '${context.tr('Email')}: ${p.email}'
                         '${childrenNames.isNotEmpty ? '\n${context.tr('Children')}: $childrenNames' : ''}',
                     trailing: [
                       IconButton(
@@ -398,18 +462,35 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                         onPressed: () => _showLoginQr(p),
                         icon: const Icon(Icons.qr_code_2),
                       ),
+                      IconButton(
+                        tooltip: context.tr('Set Password'),
+                        onPressed: () => _showPasswordDialog(p),
+                        icon: const Icon(Icons.password),
+                      ),
                       if (p.status == 'suspended')
                         IconButton(
                           tooltip: context.tr('Activate Parent'),
                           onPressed: () async {
                             try {
-                              await Supabase.instance.client.rpc('activate_user', params: {'user_uid': p.profileId});
+                              await Supabase.instance.client.rpc(
+                                'activate_user',
+                                params: {'user_uid': p.profileId},
+                              );
                               _loadParents();
                             } catch (err) {
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to activate: $err')));
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to activate: $err'),
+                                  ),
+                                );
+                              }
                             }
                           },
-                          icon: const Icon(Icons.check_circle, color: Colors.green),
+                          icon: const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                          ),
                         )
                       else
                         IconButton(
@@ -419,22 +500,39 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                               context: context,
                               builder: (ctx) => AlertDialog(
                                 title: const Text('Suspend Parent'),
-                                content: const Text('Are you sure you want to suspend this parent?'),
+                                content: const Text(
+                                  'Are you sure you want to suspend this parent?',
+                                ),
                                 actions: [
-                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                                   TextButton(
-                                    onPressed: () => Navigator.pop(ctx, true), 
-                                    child: const Text('Suspend', style: TextStyle(color: Colors.red)),
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text(
+                                      'Suspend',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
                                   ),
                                 ],
                               ),
                             );
                             if (confirm == true) {
                               try {
-                                await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': p.profileId});
+                                await Supabase.instance.client.rpc(
+                                  'suspend_user',
+                                  params: {'user_uid': p.profileId},
+                                );
                                 _loadParents();
                               } catch (err) {
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to suspend: $err')));
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to suspend: $err'),
+                                    ),
+                                  );
+                                }
                               }
                             }
                           },
@@ -452,26 +550,44 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: const Text('Delete Parent'),
-                              content: const Text('Are you sure you want to permanently delete this parent?'),
+                              content: const Text(
+                                'Are you sure you want to permanently delete this parent?',
+                              ),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                                 TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true), 
-                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text(
+                                    'Delete',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
                                 ),
                               ],
                             ),
                           );
                           if (confirm == true) {
                             try {
-                              await Supabase.instance.client.rpc('hard_delete_user', params: {'target_user_id': p.profileId});
+                              await Supabase.instance.client.rpc(
+                                'hard_delete_user',
+                                params: {'target_user_id': p.profileId},
+                              );
                               _loadParents();
                             } catch (e) {
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e')),
+                                );
+                              }
                             }
                           }
                         },
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
                       ),
                       FilledButton.icon(
                         onPressed: () => _showLinkStudentDialog(p),

@@ -11,6 +11,7 @@ interface ProvisionRequest {
   fullName: string;
   role: 'super_admin' | 'admin' | 'staff' | 'teacher' | 'student' | 'parent';
   branchId?: string;
+  password?: string;
 }
 
 serve(async (req: Request) => {
@@ -58,7 +59,7 @@ serve(async (req: Request) => {
     }
 
     const payload: ProvisionRequest = await req.json();
-    const { email, fullName, role, branchId } = payload;
+    const { email, fullName, role, branchId, password } = payload;
 
     if (!email || !fullName || !role) {
       return new Response(
@@ -89,31 +90,54 @@ serve(async (req: Request) => {
       );
     }
 
-    // 6. Step A: Provision Auth User via Supabase Auth Admin Invitation API
-    const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName, role },
-    });
-
     let newUserId: string;
 
-    if (inviteError || !inviteData.user) {
-      // Fallback to createUser if invitation service throws in local mock mode
+    if (password && password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: 'Password must be at least 6 characters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (password) {
       const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
         email,
-        password: 'Password123!',
+        password,
         email_confirm: true,
         user_metadata: { full_name: fullName, role },
       });
 
       if (createError || !createData.user) {
         return new Response(
-          JSON.stringify({ error: createError?.message || inviteError?.message || 'Failed to create Auth user' }),
+          JSON.stringify({ error: createError?.message || 'Failed to create Auth user' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       newUserId = createData.user.id;
     } else {
-      newUserId = inviteData.user.id;
+      const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+        data: { full_name: fullName, role },
+      });
+
+      if (inviteError || !inviteData.user) {
+        const generatedPassword = crypto.randomUUID() + crypto.randomUUID();
+        const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
+          email,
+          password: generatedPassword,
+          email_confirm: true,
+          user_metadata: { full_name: fullName, role, password_reset_required: true },
+        });
+
+        if (createError || !createData.user) {
+          return new Response(
+            JSON.stringify({ error: createError?.message || inviteError?.message || 'Failed to create Auth user' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        newUserId = createData.user.id;
+      } else {
+        newUserId = inviteData.user.id;
+      }
     }
 
     // 7. Step B: Setup Profile and Domain Entities in Database

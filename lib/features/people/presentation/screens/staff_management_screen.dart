@@ -6,6 +6,8 @@ import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
+import '../widgets/account_login_qr_dialog.dart';
+import '../widgets/account_password_dialog.dart';
 
 class StaffManagementScreen extends StatefulWidget {
   const StaffManagementScreen({super.key});
@@ -62,7 +64,9 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
   }
 
   void _showEditStaffDialog(Map<String, dynamic> staff) {
-    final nameCtrl = TextEditingController(text: staff['full_name'] as String? ?? '');
+    final nameCtrl = TextEditingController(
+      text: staff['full_name'] as String? ?? '',
+    );
     String targetRole = staff['role'] as String? ?? 'staff';
     if (targetRole != 'staff' && targetRole != 'admin') targetRole = 'staff';
 
@@ -82,10 +86,8 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   ),
                 ),
                 DropdownButtonFormField<String>(
-                  value: targetRole,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Role'),
-                  ),
+                  initialValue: targetRole,
+                  decoration: InputDecoration(labelText: context.tr('Role')),
                   items: [
                     DropdownMenuItem(
                       value: 'staff',
@@ -154,8 +156,10 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
   void _showProvisionStaffDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
     String targetRole = 'staff';
     String? selectedBranchId = _branches.isNotEmpty ? _branches.first.id : null;
+    bool obscurePassword = true;
 
     showDialog(
       context: context,
@@ -178,6 +182,28 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     labelText: context.tr('Email Address'),
                   ),
                   keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passwordCtrl,
+                  obscureText: obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Password (optional)'),
+                    helperText: context.tr(
+                      'Leave empty if this account will set it after QR login.',
+                    ),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      onPressed: () => setStateDialog(
+                        () => obscurePassword = !obscurePassword,
+                      ),
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                    ),
+                  ),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: targetRole,
@@ -229,21 +255,42 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     emailCtrl.text.trim().isEmpty) {
                   return;
                 }
+                if (passwordCtrl.text.isNotEmpty &&
+                    passwordCtrl.text.length < 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Password must be at least 6 characters.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
 
                 final nav = Navigator.of(ctx);
                 try {
-                  final response = await Supabase.instance.client.rpc(
-                    'provision_privileged_user',
-                    params: {
-                      'p_email': emailCtrl.text.trim(),
-                      'p_full_name': nameCtrl.text.trim(),
-                      'p_role': targetRole,
-                      if (selectedBranchId != null)
-                        'p_branch_id': selectedBranchId,
-                    },
-                  );
+                  final response = await Supabase.instance.client.functions
+                      .invoke(
+                        'provision-user',
+                        body: {
+                          'email': emailCtrl.text.trim(),
+                          'fullName': nameCtrl.text.trim(),
+                          'role': targetRole,
+                          'branchId': selectedBranchId,
+                          if (passwordCtrl.text.isNotEmpty)
+                            'password': passwordCtrl.text,
+                        },
+                      );
 
-                  if (response == null || (response is Map && response['success'] != true)) {
+                  if (response.status < 200 || response.status >= 300) {
+                    final data = response.data;
+                    final message = data is Map
+                        ? data['error']?.toString()
+                        : null;
+                    throw Exception(message ?? 'Provisioning failed.');
+                  }
+
+                  final data = Map<String, dynamic>.from(response.data as Map);
+                  if (data['success'] != true) {
                     throw Exception('Provisioning failed.');
                   }
 
@@ -263,7 +310,9 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Provisioning error: $e'),
+                        content: Text(
+                          'Provisioning error: ${_friendlyFunctionError(e)}',
+                        ),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -274,6 +323,37 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _friendlyFunctionError(Object error) {
+    final text = error.toString();
+    if (text.contains('Requested function was not found') ||
+        text.contains('status: 404')) {
+      return 'Supabase function is not deployed yet. Deploy provision-user and try again.';
+    }
+    return text;
+  }
+
+  void _showLoginQr(Map<String, dynamic> staff) {
+    showDialog(
+      context: context,
+      builder: (_) => AccountLoginQrDialog(
+        profileId: staff['id']?.toString() ?? '',
+        displayName: staff['full_name']?.toString() ?? 'Staff Member',
+        email: staff['email']?.toString() ?? '',
+      ),
+    );
+  }
+
+  void _showPasswordDialog(Map<String, dynamic> staff) {
+    showDialog(
+      context: context,
+      builder: (_) => AccountPasswordDialog(
+        profileId: staff['id']?.toString() ?? '',
+        displayName: staff['full_name']?.toString() ?? 'Staff Member',
+        email: staff['email']?.toString() ?? '',
       ),
     );
   }
@@ -319,16 +399,31 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
               subtitle:
                   '${context.tr('Email')}: ${p['email']} | ${context.tr('Role')}: ${context.l10n.t(p['role'] as String? ?? "staff").toUpperCase()}',
               trailing: [
+                IconButton(
+                  tooltip: context.tr('Login QR'),
+                  onPressed: () => _showLoginQr(p),
+                  icon: const Icon(Icons.qr_code_2),
+                ),
+                IconButton(
+                  tooltip: context.tr('Set Password'),
+                  onPressed: () => _showPasswordDialog(p),
+                  icon: const Icon(Icons.password),
+                ),
                 if (p['status'] == 'suspended')
                   IconButton(
                     tooltip: context.tr('Activate Staff'),
                     onPressed: () async {
                       try {
-                        await Supabase.instance.client.rpc('activate_user', params: {'user_uid': p['id']});
+                        await Supabase.instance.client.rpc(
+                          'activate_user',
+                          params: {'user_uid': p['id']},
+                        );
                         _loadStaff();
                       } catch (err) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to activate: $err')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to activate: $err')),
+                          );
                         }
                       }
                     },
@@ -342,27 +437,42 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                         context: context,
                         builder: (ctx) => AlertDialog(
                           title: const Text('Suspend Staff'),
-                          content: const Text('Are you sure you want to suspend this staff member?'),
+                          content: const Text(
+                            'Are you sure you want to suspend this staff member?',
+                          ),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                             TextButton(
-                              onPressed: () => Navigator.pop(ctx, true), 
-                              child: const Text('Suspend', style: TextStyle(color: Colors.red)),
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text(
+                                'Suspend',
+                                style: TextStyle(color: Colors.red),
+                              ),
                             ),
                           ],
-                      ),
-                    );
-                    if (confirm == true) {
-                      try {
-                        await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': p['id']});
-                        _loadStaff();
-                      } catch (e) {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        ),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await Supabase.instance.client.rpc(
+                            'suspend_user',
+                            params: {'user_uid': p['id']},
+                          );
+                          _loadStaff();
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
+                        }
                       }
-                    }
-                  },
-                  icon: const Icon(Icons.block, color: Colors.orange),
-                ),
+                    },
+                    icon: const Icon(Icons.block, color: Colors.orange),
+                  ),
                 IconButton(
                   tooltip: context.tr('Edit Staff'),
                   onPressed: () => _showEditStaffDialog(p),
@@ -375,22 +485,37 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                       context: context,
                       builder: (ctx) => AlertDialog(
                         title: const Text('Delete Staff'),
-                        content: const Text('Are you sure you want to permanently delete this staff member?'),
+                        content: const Text(
+                          'Are you sure you want to permanently delete this staff member?',
+                        ),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                           TextButton(
-                            onPressed: () => Navigator.pop(ctx, true), 
-                            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.red),
+                            ),
                           ),
                         ],
                       ),
                     );
                     if (confirm == true) {
                       try {
-                        await Supabase.instance.client.rpc('hard_delete_user', params: {'target_user_id': p['id']});
+                        await Supabase.instance.client.rpc(
+                          'hard_delete_user',
+                          params: {'target_user_id': p['id']},
+                        );
                         _loadStaff();
                       } catch (e) {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        if (mounted) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
                       }
                     }
                   },

@@ -30,7 +30,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -133,21 +134,43 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         });
       }
     } else {
-      // Fallback manual password flow
-      setState(() {
-        _emailController.text = result.email;
-        _pendingQrToken = result.token;
-        _qrMessage =
-            'QR code verified for ${result.fullName}. Enter your account password to sign in.';
-      });
+      await _openAccountQrPasswordSetup(result);
+    }
+  }
+
+  Future<void> _openAccountQrPasswordSetup(_QrLoginResult result) async {
+    final password = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _QrPasswordSetupDialog(result: result),
+    );
+    if (password == null || !mounted) return;
+
+    setState(() {
+      _emailController.text = result.email;
+      _pendingQrToken = null;
+      _qrMessage = 'Password saved. Signing in for ${result.fullName}...';
+    });
+
+    await widget.viewModel.signIn(email: result.email, password: password);
+
+    if (!mounted) return;
+    if (widget.viewModel.state.status == AuthStatus.authenticated) {
+      widget.onLoginSuccess?.call();
+    } else {
+      setState(() => _qrMessage = null);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return ListenableBuilder(
       listenable: widget.viewModel,
@@ -155,43 +178,55 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         final state = widget.viewModel.state;
 
         return Scaffold(
-          backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+          backgroundColor: isDark
+              ? AppColors.darkBackground
+              : AppColors.lightBackground,
           body: Stack(
             children: [
               // Animated ambient background
               if (isDark) ...[
-                Builder(builder: (context) {
-                  _roleCircle ??= Container(
-                    width: 400,
-                    height: 400,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _roleColor.withValues(alpha: 0.15),
-                    ),
-                  );
-                  _purpleCircle ??= Container(
-                    width: 500,
-                    height: 500,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.purple.withValues(alpha: 0.12),
-                    ),
-                  );
-                  return const SizedBox();
-                }),
+                Builder(
+                  builder: (context) {
+                    _roleCircle ??= Container(
+                      width: 400,
+                      height: 400,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _roleColor.withValues(alpha: 0.15),
+                      ),
+                    );
+                    _purpleCircle ??= Container(
+                      width: 500,
+                      height: 500,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.purple.withValues(alpha: 0.12),
+                      ),
+                    );
+                    return const SizedBox();
+                  },
+                ),
                 AnimatedBuilder(
                   animation: _ambientCtrl,
                   builder: (context, child) {
                     return Stack(
                       children: [
                         Positioned(
-                          top: -150 + math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
-                          left: -100 + math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
+                          top:
+                              -150 +
+                              math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
+                          left:
+                              -100 +
+                              math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
                           child: _roleCircle!,
                         ),
                         Positioned(
-                          bottom: -200 + math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
-                          right: -100 + math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
+                          bottom:
+                              -200 +
+                              math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
+                          right:
+                              -100 +
+                              math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
                           child: _purpleCircle!,
                         ),
                       ],
@@ -211,7 +246,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               SafeArea(
                 child: Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 24,
+                    ),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 440),
                       child: Column(
@@ -230,8 +268,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             delay: const Duration(milliseconds: 150),
                             child: GlassCard(
                               padding: const EdgeInsets.all(28),
-                              color: isDark ? AppColors.darkSurface.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.8),
-                              borderColor: isDark ? AppColors.glassBorder : AppColors.lightGlassBorder,
+                              color: isDark
+                                  ? AppColors.darkSurface.withValues(alpha: 0.6)
+                                  : Colors.white.withValues(alpha: 0.8),
+                              borderColor: isDark
+                                  ? AppColors.glassBorder
+                                  : AppColors.lightGlassBorder,
                               blur: 30,
                               child: Form(
                                 key: _formKey,
@@ -241,18 +283,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   children: [
                                     Text(
                                       'Sign In',
-                                      style: AppTypography.displayMedium(textPrimary).copyWith(letterSpacing: -0.5),
+                                      style: AppTypography.displayMedium(
+                                        textPrimary,
+                                      ).copyWith(letterSpacing: -0.5),
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
                                       widget.targetRole == null
                                           ? 'Enter your credentials to access the platform.'
                                           : 'Sign in to your ${widget.targetRole!.displayName.toLowerCase()} workspace.',
-                                      style: AppTypography.bodyMedium(textSecondary),
+                                      style: AppTypography.bodyMedium(
+                                        textSecondary,
+                                      ),
                                     ),
                                     const SizedBox(height: 24),
-                                    
-                                    if (state.status == AuthStatus.error && state.failure != null) ...[
+
+                                    if (state.status == AuthStatus.error &&
+                                        state.failure != null) ...[
                                       _AppleAlertBanner(
                                         message: state.failure!.message,
                                         isError: true,
@@ -266,7 +313,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       ),
                                       const SizedBox(height: 16),
                                     ],
-                                    
+
                                     CustomTextField(
                                       label: 'Email',
                                       hint: 'name@domain.com',
@@ -274,8 +321,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       keyboardType: TextInputType.emailAddress,
                                       prefixIcon: Icons.alternate_email_rounded,
                                       validator: (value) {
-                                        if (value == null || value.trim().isEmpty) return 'Please enter your email';
-                                        if (!value.contains('@')) return 'Please enter a valid email address';
+                                        if (value == null ||
+                                            value.trim().isEmpty) {
+                                          return 'Please enter your email';
+                                        }
+                                        if (!value.contains('@')) {
+                                          return 'Please enter a valid email address';
+                                        }
                                         return null;
                                       },
                                     ),
@@ -288,44 +340,70 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       prefixIcon: Icons.lock_outline_rounded,
                                       suffixIcon: IconButton(
                                         icon: Icon(
-                                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                          _obscurePassword
+                                              ? Icons.visibility_outlined
+                                              : Icons.visibility_off_outlined,
                                           color: textSecondary,
                                           size: 18,
                                         ),
-                                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                        onPressed: () => setState(
+                                          () => _obscurePassword =
+                                              !_obscurePassword,
+                                        ),
                                       ),
                                       validator: (value) {
-                                        if (value == null || value.trim().isEmpty) return 'Please enter your password';
-                                        if (value.length < 6) return 'Password must be at least 6 characters';
+                                        if (value == null ||
+                                            value.trim().isEmpty) {
+                                          return 'Please enter your password';
+                                        }
+                                        if (value.length < 6) {
+                                          return 'Password must be at least 6 characters';
+                                        }
                                         return null;
                                       },
                                     ),
                                     const SizedBox(height: 28),
                                     PrimaryButton(
                                       text: 'Sign In',
-                                      isLoading: state.status == AuthStatus.loading,
+                                      isLoading:
+                                          state.status == AuthStatus.loading,
                                       onPressed: _handleLogin,
                                       icon: Icons.arrow_forward_rounded,
                                       color: _roleColor,
                                       gradient: LinearGradient(
                                         colors: [
                                           _roleColor,
-                                          HSLColor.fromColor(_roleColor).withLightness(math.max(0.0, HSLColor.fromColor(_roleColor).lightness - 0.1)).toColor(),
+                                          HSLColor.fromColor(_roleColor)
+                                              .withLightness(
+                                                math.max(
+                                                  0.0,
+                                                  HSLColor.fromColor(
+                                                        _roleColor,
+                                                      ).lightness -
+                                                      0.1,
+                                                ),
+                                              )
+                                              .toColor(),
                                         ],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                       ),
                                     ),
-                                    
+
                                     if (widget.targetRole == UserRole.student ||
                                         widget.targetRole == UserRole.parent ||
                                         widget.targetRole == UserRole.teacher ||
+                                        widget.targetRole == UserRole.staff ||
+                                        widget.targetRole == UserRole.admin ||
                                         widget.targetRole == null) ...[
                                       const SizedBox(height: 16),
                                       GhostButton(
                                         text: 'Sign in with QR Code',
                                         icon: Icons.qr_code_scanner_rounded,
-                                        onPressed: state.status == AuthStatus.loading ? null : _openQrLoginScanner,
+                                        onPressed:
+                                            state.status == AuthStatus.loading
+                                            ? null
+                                            : _openQrLoginScanner,
                                         color: textPrimary,
                                       ),
                                     ],
@@ -352,10 +430,7 @@ class _AppleHeroPanel extends StatelessWidget {
   final Color roleColor;
   final UserRole? role;
 
-  const _AppleHeroPanel({
-    required this.roleColor,
-    required this.role,
-  });
+  const _AppleHeroPanel({required this.roleColor, required this.role});
 
   @override
   Widget build(BuildContext context) {
@@ -367,7 +442,17 @@ class _AppleHeroPanel extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           borderRadius: BorderRadius.circular(24),
           gradient: LinearGradient(
-            colors: [roleColor, HSLColor.fromColor(roleColor).withLightness(math.max(0.0, HSLColor.fromColor(roleColor).lightness - 0.1)).toColor()],
+            colors: [
+              roleColor,
+              HSLColor.fromColor(roleColor)
+                  .withLightness(
+                    math.max(
+                      0.0,
+                      HSLColor.fromColor(roleColor).lightness - 0.1,
+                    ),
+                  )
+                  .toColor(),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -380,7 +465,11 @@ class _AppleHeroPanel extends StatelessWidget {
         const SizedBox(height: 24),
         Text(
           'Academy Platform',
-          style: AppTypography.hero(Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary).copyWith(fontSize: 32),
+          style: AppTypography.hero(
+            Theme.of(context).brightness == Brightness.dark
+                ? AppColors.darkTextPrimary
+                : AppColors.lightTextPrimary,
+          ).copyWith(fontSize: 32),
           textAlign: TextAlign.center,
         ),
         if (role != null) ...[
@@ -389,7 +478,7 @@ class _AppleHeroPanel extends StatelessWidget {
             label: '${role!.displayName} Workspace',
             status: ChipStatus.info,
           ),
-        ]
+        ],
       ],
     );
   }
@@ -399,10 +488,7 @@ class _AppleAlertBanner extends StatelessWidget {
   final String message;
   final bool isError;
 
-  const _AppleAlertBanner({
-    required this.message,
-    required this.isError,
-  });
+  const _AppleAlertBanner({required this.message, required this.isError});
 
   @override
   Widget build(BuildContext context) {
@@ -428,14 +514,191 @@ class _AppleAlertBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: AppTypography.bodyMedium(accentColor).copyWith(
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
+              style: AppTypography.bodyMedium(
+                accentColor,
+              ).copyWith(fontWeight: FontWeight.w500, fontSize: 13),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _QrPasswordSetupDialog extends StatefulWidget {
+  final _QrLoginResult result;
+
+  const _QrPasswordSetupDialog({required this.result});
+
+  @override
+  State<_QrPasswordSetupDialog> createState() => _QrPasswordSetupDialogState();
+}
+
+class _QrPasswordSetupDialogState extends State<_QrPasswordSetupDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
+  bool _obscure = true;
+  bool _isSaving = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _savePassword() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await Supabase.instance.client.functions.invoke(
+        'complete-account-login-qr',
+        body: {
+          'token': widget.result.token,
+          'password': _passwordController.text,
+        },
+      );
+
+      if (response.status < 200 || response.status >= 300) {
+        final data = response.data;
+        final message = data is Map ? data['error']?.toString() : null;
+        throw Exception(message ?? 'QR password setup failed.');
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context, _passwordController.text);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = _friendlyQrSetupError(e);
+        _isSaving = false;
+      });
+    }
+  }
+
+  String _friendlyQrSetupError(Object error) {
+    final text = error.toString();
+    if (text.contains('Requested function was not found') ||
+        text.contains('status: 404')) {
+      return 'QR password setup service is not deployed yet. Deploy the complete-account-login-qr Supabase function, then try again.';
+    }
+    return text;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
+    return AlertDialog(
+      title: const Text('Set Your Password'),
+      content: SizedBox(
+        width: 380,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: AppColors.primary.withValues(alpha: .14),
+                    child: const Icon(Icons.qr_code_2),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.result.fullName,
+                          style: AppTypography.titleMedium(textPrimary),
+                        ),
+                        Text(
+                          widget.result.email,
+                          style: AppTypography.bodySmall(textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: _obscure,
+                decoration: InputDecoration(
+                  labelText: 'New Password',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.length < 6) {
+                    return 'Password must be at least 6 characters.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _confirmController,
+                obscureText: _obscure,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm Password',
+                  prefixIcon: Icon(Icons.verified_user_outlined),
+                ),
+                validator: (value) {
+                  if (value != _passwordController.text) {
+                    return 'Passwords do not match.';
+                  }
+                  return null;
+                },
+              ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: _isSaving ? null : _savePassword,
+          icon: _isSaving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.login_rounded),
+          label: const Text('Continue'),
+        ),
+      ],
     );
   }
 }
@@ -556,7 +819,9 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
@@ -565,8 +830,15 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
         child: Container(
           height: MediaQuery.of(context).size.height * .75,
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.9),
-            border: Border(top: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, width: 0.5)),
+            color: isDark
+                ? AppColors.darkSurface.withValues(alpha: 0.8)
+                : Colors.white.withValues(alpha: 0.9),
+            border: Border(
+              top: BorderSide(
+                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                width: 0.5,
+              ),
+            ),
           ),
           child: Column(
             children: [
@@ -592,7 +864,9 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       style: IconButton.styleFrom(
-                        backgroundColor: isDark ? Colors.white12 : Colors.black12,
+                        backgroundColor: isDark
+                            ? Colors.white12
+                            : Colors.black12,
                       ),
                       icon: const Icon(Icons.close_rounded, size: 20),
                     ),
@@ -614,7 +888,9 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
                           Container(
                             color: Colors.black54,
                             alignment: Alignment.center,
-                            child: const CircularProgressIndicator(color: Colors.white),
+                            child: const CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
                           ),
                       ],
                     ),
@@ -624,10 +900,15 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
               Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(
-                  _errorMessage ?? 'Position the QR code within the frame to sign in.',
+                  _errorMessage ??
+                      'Position the QR code within the frame to sign in.',
                   textAlign: TextAlign.center,
                   style: AppTypography.bodyMedium(
-                    _errorMessage != null ? AppColors.error : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                    _errorMessage != null
+                        ? AppColors.error
+                        : (isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary),
                   ),
                 ),
               ),

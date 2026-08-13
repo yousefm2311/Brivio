@@ -7,6 +7,7 @@ import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../widgets/account_login_qr_dialog.dart';
+import '../widgets/account_password_dialog.dart';
 import '../../../../core/services/report_generator_service.dart';
 
 class TeacherManagementScreen extends StatefulWidget {
@@ -71,8 +72,11 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   void _showEditTeacherDialog(Teacher teacher) {
     final nameCtrl = TextEditingController(text: teacher.fullName);
     final specCtrl = TextEditingController(text: teacher.specialization ?? '');
-    String? selectedBranchId = teacher.primaryBranchId?.isEmpty == true ? null : teacher.primaryBranchId;
-    if (selectedBranchId != null && !_branches.any((b) => b.id == selectedBranchId)) {
+    String? selectedBranchId = teacher.primaryBranchId.isEmpty
+        ? null
+        : teacher.primaryBranchId;
+    if (selectedBranchId != null &&
+        !_branches.any((b) => b.id == selectedBranchId)) {
       selectedBranchId = null;
     }
 
@@ -99,18 +103,26 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                 ),
                 if (_branches.isNotEmpty)
                   DropdownButtonFormField<String>(
-                    value: selectedBranchId,
+                    initialValue: selectedBranchId,
                     decoration: InputDecoration(
                       labelText: context.tr('Branch Assignment'),
                     ),
-                    items: _branches
-                        .map(
-                          (b) => DropdownMenuItem<String>(
-                            value: b.id,
-                            child: Text(b.name),
+                    items:
+                        _branches
+                            .map(
+                              (b) => DropdownMenuItem<String>(
+                                value: b.id,
+                                child: Text(b.name),
+                              ),
+                            )
+                            .toList()
+                          ..insert(
+                            0,
+                            const DropdownMenuItem(
+                              value: null,
+                              child: Text('No Branch Assigned'),
+                            ),
                           ),
-                        )
-                        .toList()..insert(0, const DropdownMenuItem(value: null, child: Text('No Branch Assigned'))),
                     onChanged: (v) =>
                         setStateDialog(() => selectedBranchId = v),
                   ),
@@ -132,12 +144,13 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                       .from('profiles')
                       .update({'full_name': nameCtrl.text.trim()})
                       .eq('id', teacher.profileId);
-                  
+
                   await Supabase.instance.client
                       .from('teachers')
                       .update({
                         'specialization': specCtrl.text.trim(),
-                        if (selectedBranchId != null) 'primary_branch_id': selectedBranchId,
+                        if (selectedBranchId != null)
+                          'primary_branch_id': selectedBranchId,
                       })
                       .eq('id', teacher.id);
 
@@ -173,7 +186,9 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   void _showProvisionTeacherDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
     String? selectedBranchId = _branches.isNotEmpty ? _branches.first.id : null;
+    bool obscurePassword = true;
 
     showDialog(
       context: context,
@@ -196,6 +211,28 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     labelText: context.tr('Email Address'),
                   ),
                   keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passwordCtrl,
+                  obscureText: obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Password (optional)'),
+                    helperText: context.tr(
+                      'Leave empty if the teacher will set it after QR login.',
+                    ),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      onPressed: () => setStateDialog(
+                        () => obscurePassword = !obscurePassword,
+                      ),
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                    ),
+                  ),
                 ),
                 if (_branches.isNotEmpty)
                   DropdownButtonFormField<String>(
@@ -228,21 +265,41 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     emailCtrl.text.trim().isEmpty) {
                   return;
                 }
+                if (passwordCtrl.text.isNotEmpty &&
+                    passwordCtrl.text.length < 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Password must be at least 6 characters.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
 
                 final nav = Navigator.of(ctx);
                 try {
-                  final response = await Supabase.instance.client.rpc(
-                    'provision_privileged_user',
-                    params: {
-                      'p_email': emailCtrl.text.trim(),
-                      'p_full_name': nameCtrl.text.trim(),
-                      'p_role': 'teacher',
-                      if (selectedBranchId != null)
-                        'p_branch_id': selectedBranchId,
-                    },
-                  );
+                  final response = await Supabase.instance.client.functions
+                      .invoke(
+                        'provision-user',
+                        body: {
+                          'email': emailCtrl.text.trim(),
+                          'fullName': nameCtrl.text.trim(),
+                          'role': 'teacher',
+                          'branchId': selectedBranchId,
+                          if (passwordCtrl.text.isNotEmpty)
+                            'password': passwordCtrl.text,
+                        },
+                      );
 
-                  if (response == null || (response is Map && response['success'] != true)) {
+                  if (response.status < 200 || response.status >= 300) {
+                    final data = response.data;
+                    final message = data is Map
+                        ? data['error']?.toString()
+                        : null;
+                    throw Exception(message ?? 'Provisioning failed.');
+                  }
+                  final data = Map<String, dynamic>.from(response.data as Map);
+                  if (data['success'] != true) {
                     throw Exception('Provisioning failed.');
                   }
 
@@ -288,24 +345,43 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     );
   }
 
+  void _showPasswordDialog(Teacher teacher) {
+    showDialog(
+      context: context,
+      builder: (_) => AccountPasswordDialog(
+        profileId: teacher.profileId,
+        displayName: teacher.fullName,
+        email: teacher.email,
+      ),
+    );
+  }
+
   Future<void> _exportTeacherData() async {
     try {
       final service = ReportGeneratorService();
-      final rosterData = _teachers.map((t) => {
-        'name': t.fullName,
-        'email': t.email,
-        'specialization': t.specialization ?? 'N/A',
-        'status': t.status,
-      }).toList();
-      
+      final rosterData = _teachers
+          .map(
+            (t) => {
+              'name': t.fullName,
+              'email': t.email,
+              'specialization': t.specialization ?? 'N/A',
+              'status': t.status,
+            },
+          )
+          .toList();
+
       await service.generateTeacherRosterReport(teachersData: rosterData);
-      
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Teacher report generated.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Teacher report generated.')),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate report: $e')),
+        );
       }
     }
   }
@@ -377,21 +453,40 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                         onPressed: () => _showLoginQr(t),
                         icon: const Icon(Icons.qr_code_2),
                       ),
+                      IconButton(
+                        tooltip: context.tr('Set Password'),
+                        onPressed: () => _showPasswordDialog(t),
+                        icon: const Icon(Icons.password),
+                      ),
                       if (t.status == 'suspended')
                         IconButton(
                           tooltip: context.tr('Activate User'),
                           onPressed: () async {
                             try {
-                              await Supabase.instance.client.rpc('activate_user', params: {'user_uid': t.profileId});
+                              await Supabase.instance.client.rpc(
+                                'activate_user',
+                                params: {'user_uid': t.profileId},
+                              );
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Teacher activated')));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Teacher activated'),
+                                  ),
+                                );
                                 _loadTeachers();
                               }
                             } catch (e) {
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e')),
+                                );
+                              }
                             }
                           },
-                          icon: const Icon(Icons.check_circle, color: Colors.green),
+                          icon: const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                          ),
                         )
                       else
                         IconButton(
@@ -401,23 +496,43 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                               context: context,
                               builder: (ctx) => AlertDialog(
                                 title: const Text('Suspend Teacher'),
-                                content: const Text('Are you sure you want to suspend this teacher?'),
+                                content: const Text(
+                                  'Are you sure you want to suspend this teacher?',
+                                ),
                                 actions: [
-                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Suspend', style: TextStyle(color: Colors.red))),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text(
+                                      'Suspend',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
                                 ],
                               ),
                             );
                             if (confirm == true) {
                               try {
-                                await Supabase.instance.client.rpc('suspend_user', params: {'user_uid': t.profileId});
+                                await Supabase.instance.client.rpc(
+                                  'suspend_user',
+                                  params: {'user_uid': t.profileId},
+                                );
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Teacher suspended')));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Teacher suspended'),
+                                    ),
+                                  );
                                   _loadTeachers();
                                 }
                               } catch (e) {
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: $e')),
+                                  );
                                 }
                               }
                             }
@@ -436,26 +551,44 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: const Text('Delete Teacher'),
-                              content: const Text('Are you sure you want to permanently delete this teacher?'),
+                              content: const Text(
+                                'Are you sure you want to permanently delete this teacher?',
+                              ),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                                 TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true), 
-                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text(
+                                    'Delete',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
                                 ),
                               ],
                             ),
                           );
                           if (confirm == true) {
                             try {
-                              await Supabase.instance.client.rpc('hard_delete_user', params: {'target_user_id': t.profileId});
+                              await Supabase.instance.client.rpc(
+                                'hard_delete_user',
+                                params: {'target_user_id': t.profileId},
+                              );
                               _loadTeachers();
                             } catch (e) {
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e')),
+                                );
+                              }
                             }
                           }
                         },
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
                       ),
                     ],
                   );
