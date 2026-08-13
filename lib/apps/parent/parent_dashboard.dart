@@ -44,6 +44,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
   StudentLearningSnapshot? _learningSnapshot;
   FinancialSummary? _financialSummary;
   List<Invoice> _invoices = [];
+  List<_ParentExamItem> _examItems = [];
   List<_ParentAttendanceItem> _attendance = [];
   List<_ParentLeaveItem> _leaveRequests = [];
   List<AppNotification> _notifications = [];
@@ -152,6 +153,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         learningRepo.fetchSnapshotForStudent(child.id),
         paymentRepo.fetchStudentFinancialSummary(child.id),
         invoiceRepo.fetchInvoicesForStudent(child.id),
+        _safeList(_fetchExamFeed(child.id)),
         _safeList(_fetchAttendance(child.id)),
         _safeList(_fetchLeaveRequests(child.id)),
         notificationRepo.getNotifications(),
@@ -159,7 +161,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
       if (!mounted || _selectedChild?.id != child.id) return;
       final childNotifications = _filterNotificationsForChild(
-        results[6] as List<AppNotification>,
+        results[7] as List<AppNotification>,
         child.id,
       );
       setState(() {
@@ -167,8 +169,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _learningSnapshot = results[1] as StudentLearningSnapshot;
         _financialSummary = results[2] as FinancialSummary;
         _invoices = results[3] as List<Invoice>;
-        _attendance = results[4] as List<_ParentAttendanceItem>;
-        _leaveRequests = results[5] as List<_ParentLeaveItem>;
+        _examItems = results[4] as List<_ParentExamItem>;
+        _attendance = results[5] as List<_ParentAttendanceItem>;
+        _leaveRequests = results[6] as List<_ParentLeaveItem>;
         _notifications = childNotifications;
         _unreadCount = childNotifications.where((n) => !n.isRead).length;
         _isChildLoading = false;
@@ -196,6 +199,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       _learningSnapshot = null;
       _financialSummary = null;
       _invoices = [];
+      _examItems = [];
       _attendance = [];
       _leaveRequests = [];
       _notifications = [];
@@ -228,6 +232,16 @@ class _ParentDashboardState extends State<ParentDashboard> {
     );
     return (response as List)
         .map((row) => _ParentLeaveItem.fromJson(row as Map))
+        .toList();
+  }
+
+  Future<List<_ParentExamItem>> _fetchExamFeed(String studentId) async {
+    final response = await _wrapper.client.rpc(
+      'get_parent_child_exam_feed',
+      params: {'p_student_id': studentId},
+    );
+    return (response as List)
+        .map((row) => _ParentExamItem.fromJson(row as Map))
         .toList();
   }
 
@@ -441,11 +455,16 @@ class _ParentDashboardState extends State<ParentDashboard> {
       3 => _buildPaymentsPage(),
       4 => _buildMonthlyReportPage(),
       5 => _buildNotificationsPage(),
-      6 => const ParentHelpdeskScreen(),
+      6 => _boundedPortalPage(const ParentHelpdeskScreen()),
       7 => _buildAccountPage(),
-      8 => const AppSettingsPanel(),
+      8 => _boundedPortalPage(const AppSettingsPanel()),
       _ => _buildOverviewPage(),
     };
+  }
+
+  Widget _boundedPortalPage(Widget child) {
+    final height = MediaQuery.sizeOf(context).height;
+    return SizedBox(height: height * 0.78, child: child);
   }
 
   Widget _buildAccountPage() {
@@ -622,6 +641,41 @@ class _ParentDashboardState extends State<ParentDashboard> {
                   value: metric.value,
                   icon: Icons.insights,
                   accentColor: AppColors.studentRole,
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 18),
+        const PortalSectionTitle(
+          title: 'Exams & grades',
+          subtitle: 'Published exams, attempts, scores, and answer review.',
+        ),
+        const SizedBox(height: 8),
+        _InfoList(
+          isEmpty: _examItems.isEmpty,
+          emptyText: 'No exams are visible for this child yet.',
+          children: _examItems
+              .map(
+                (item) => PortalListCard(
+                  icon: Icons.quiz,
+                  accentColor: item.canReview
+                      ? AppColors.success
+                      : item.attemptCount > 0
+                      ? AppColors.warning
+                      : AppColors.info,
+                  title: item.title,
+                  subtitle:
+                      '${item.groupName} | ${item.durationMinutes} min | ${item.attemptCount}/${item.maxAttempts} attempts',
+                  trailing: [
+                    if (item.scoreLabel != null)
+                      PortalStatusChip(status: item.scoreLabel!),
+                    PortalStatusChip(
+                      status: item.lastAttemptStatus ?? item.status,
+                    ),
+                  ],
+                  onTap: item.canReview
+                      ? () => _showParentExamReview(item)
+                      : null,
                 ),
               )
               .toList(),
@@ -992,6 +1046,190 @@ class _ParentDashboardState extends State<ParentDashboard> {
     });
   }
 
+  Future<void> _showParentExamReview(_ParentExamItem item) async {
+    final child = _selectedChild;
+    if (child == null) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    late final dynamic raw;
+    try {
+      raw = await _wrapper.client.rpc(
+        'get_parent_child_exam_review',
+        params: {'p_student_id': child.id, 'p_exam_id': item.id},
+      );
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load exam review: $e')));
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    final review = Map<String, dynamic>.from(raw as Map);
+    final released = review['released'] == true;
+    final answers = (review['answers'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720, maxHeight: 760),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: released
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              review['title']?.toString() ?? item.title,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Score: ${review['score'] ?? 0} / ${review['max_score'] ?? 0}',
+                        style: const TextStyle(
+                          color: AppColors.parentRole,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if ((review['teacher_feedback']?.toString() ?? '')
+                          .trim()
+                          .isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text('Teacher feedback: ${review['teacher_feedback']}'),
+                      ],
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: answers.isEmpty
+                            ? const Center(child: Text('No answers found.'))
+                            : ListView.separated(
+                                itemCount: answers.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (_, index) {
+                                  final answer = answers[index];
+                                  final isCorrect =
+                                      answer['is_correct'] == true;
+                                  final color = isCorrect
+                                      ? AppColors.success
+                                      : AppColors.error;
+                                  return DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.08),
+                                      border: Border.all(
+                                        color: color.withValues(alpha: 0.35),
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Icon(
+                                                isCorrect
+                                                    ? Icons.check_circle
+                                                    : Icons.cancel,
+                                                color: color,
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  answer['prompt']
+                                                          ?.toString() ??
+                                                      '',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Student answer: ${answer['student_answer'] ?? '-'}',
+                                          ),
+                                          Text(
+                                            'Correct answer: ${answer['correct_answer'] ?? '-'}',
+                                          ),
+                                          Text(
+                                            'Points: ${answer['points_awarded'] ?? 0} / ${answer['max_points'] ?? 0}',
+                                          ),
+                                          if ((answer['explanation']
+                                                      ?.toString() ??
+                                                  '')
+                                              .trim()
+                                              .isNotEmpty)
+                                            Text(
+                                              'Explanation: ${answer['explanation']}',
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.lock_clock, size: 42),
+                      const SizedBox(height: 12),
+                      Text(
+                        review['message']?.toString() ??
+                            'Results are not released yet.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildNextLessonCard() {
     final lesson = _learningSnapshot?.nextLesson;
     if (lesson == null) {
@@ -1328,6 +1566,71 @@ class _ParentMonthlyReport {
       completedLessons: completedLessons,
       remainingBalanceMinor: remaining,
       recommendations: recommendations,
+    );
+  }
+}
+
+class _ParentExamItem {
+  final String id;
+  final String title;
+  final String? description;
+  final String? groupId;
+  final String groupName;
+  final int durationMinutes;
+  final int maxAttempts;
+  final String status;
+  final String? lastAttemptStatus;
+  final int attemptCount;
+  final double? lastScore;
+  final double? maxScore;
+
+  const _ParentExamItem({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.groupId,
+    required this.groupName,
+    required this.durationMinutes,
+    required this.maxAttempts,
+    required this.status,
+    required this.lastAttemptStatus,
+    required this.attemptCount,
+    required this.lastScore,
+    required this.maxScore,
+  });
+
+  bool get canReview =>
+      lastAttemptStatus == 'submitted' ||
+      lastAttemptStatus == 'graded' ||
+      lastAttemptStatus == 'expired';
+
+  String? get scoreLabel {
+    if (lastScore == null) return null;
+    final score = lastScore == lastScore!.roundToDouble()
+        ? lastScore!.toStringAsFixed(0)
+        : lastScore!.toStringAsFixed(1);
+    final max = maxScore == null
+        ? ''
+        : maxScore == maxScore!.roundToDouble()
+        ? ' / ${maxScore!.toStringAsFixed(0)}'
+        : ' / ${maxScore!.toStringAsFixed(1)}';
+    return '$score$max';
+  }
+
+  factory _ParentExamItem.fromJson(Map json) {
+    return _ParentExamItem(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Exam',
+      description: json['description']?.toString(),
+      groupId: json['group_id']?.toString(),
+      groupName: json['group_name']?.toString() ?? 'Group',
+      durationMinutes: (json['duration_minutes'] as num? ?? 30).toInt(),
+      maxAttempts: (json['max_attempts'] as num? ?? 1).toInt(),
+      status: json['status']?.toString() ?? 'published',
+      lastAttemptStatus: json['last_attempt_status']?.toString(),
+      attemptCount: (json['attempt_count'] as num? ?? 0).toInt(),
+      lastScore: (json['last_score'] as num?)?.toDouble(),
+      maxScore: (json['max_score'] as num?)?.toDouble(),
     );
   }
 }

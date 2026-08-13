@@ -10,6 +10,8 @@ import '../../features/academy/domain/models/academy_models.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../features/communication/domain/models/notification.dart';
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
+import '../../features/communication/presentation/screens/notification_center_screen.dart';
+import '../../features/communication/presentation/viewmodels/notification_center_viewmodel.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/classes_tab.dart';
 import 'tabs/workspace_tab.dart';
@@ -40,6 +42,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   List<AppNotification> _notifications = [];
   int _unreadCount = 0;
   StreamSubscription<AppNotification>? _notificationSubscription;
+  late final NotificationCenterViewModel _notificationCenterViewModel;
 
   int get unreadCount => _unreadCount;
   List<AppNotification> get notifications => _notifications;
@@ -47,6 +50,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   @override
   void initState() {
     super.initState();
+    _notificationCenterViewModel = NotificationCenterViewModel(
+      getIt<INotificationRepository>(),
+    );
+    _notificationCenterViewModel.addListener(_syncNotificationCenterState);
     _subscribeToNotifications();
     _loadTeacherMetrics();
   }
@@ -54,7 +61,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   @override
   void dispose() {
     _notificationSubscription?.cancel();
+    _notificationCenterViewModel.removeListener(_syncNotificationCenterState);
+    _notificationCenterViewModel.dispose();
     super.dispose();
+  }
+
+  void _syncNotificationCenterState() {
+    if (!mounted) return;
+    setState(() {
+      _notifications = _notificationCenterViewModel.notifications;
+      _unreadCount = _notificationCenterViewModel.unreadCount;
+    });
   }
 
   void _subscribeToNotifications() {
@@ -231,6 +248,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       ClassesTab(teacherId: teacherId),
       WorkspaceTab(teacherId: teacherId),
       AnalyticsTab(profileId: widget.authViewModel.currentUser!.id),
+      NotificationCenterScreen(viewModel: _notificationCenterViewModel),
       AccountTab(teacherId: teacherId, authViewModel: widget.authViewModel),
     ];
 
@@ -284,6 +302,15 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       icon: const Icon(Icons.analytics_outlined),
                       selectedIcon: const Icon(Icons.analytics_rounded),
                       label: Text(context.tr('Analytics')),
+                    ),
+                    NavigationRailDestination(
+                      icon: Badge(
+                        isLabelVisible: _unreadCount > 0,
+                        label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
+                        child: const Icon(Icons.notifications_none_rounded),
+                      ),
+                      selectedIcon: const Icon(Icons.notifications_rounded),
+                      label: Text(context.tr('Notifications')),
                     ),
                     NavigationRailDestination(
                       icon: const Icon(Icons.person_outline_rounded),
@@ -350,6 +377,18 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       color: AppColors.teacherRole,
                     ),
                     label: context.tr('Analytics'),
+                  ),
+                  NavigationDestination(
+                    icon: Badge(
+                      isLabelVisible: _unreadCount > 0,
+                      label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
+                      child: const Icon(Icons.notifications_none_rounded),
+                    ),
+                    selectedIcon: const Icon(
+                      Icons.notifications_rounded,
+                      color: AppColors.teacherRole,
+                    ),
+                    label: context.tr('Notifications'),
                   ),
                   NavigationDestination(
                     icon: const Icon(Icons.person_outline_rounded),

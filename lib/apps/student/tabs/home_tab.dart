@@ -15,10 +15,7 @@ import '../../../features/code_playground/presentation/screens/code_playground_s
 import '../student_dashboard_models.dart';
 
 String _formatMoney(int amountMinor, String currency) {
-  final format = NumberFormat.currency(
-    symbol: '$currency ',
-    decimalDigits: 2,
-  );
+  final format = NumberFormat.currency(symbol: '$currency ', decimalDigits: 2);
   return format.format(amountMinor / 100);
 }
 
@@ -53,8 +50,12 @@ class HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
     final nextLesson = snapshot?.nextLesson;
     final gamification = snapshot?.gamification;
 
@@ -67,13 +68,18 @@ class HomeTab extends StatelessWidget {
         slivers: [
           // ── Large Title App Bar ──
           SliverAppBar(
-            backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+            backgroundColor: isDark
+                ? AppColors.darkBackground
+                : AppColors.lightBackground,
             surfaceTintColor: Colors.transparent,
             floating: true,
             pinned: false,
             expandedHeight: 120,
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsetsDirectional.only(start: 24, bottom: 8),
+              titlePadding: const EdgeInsetsDirectional.only(
+                start: 24,
+                bottom: 8,
+              ),
               title: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -83,7 +89,9 @@ class HomeTab extends StatelessWidget {
                     duration: const Duration(milliseconds: 500),
                     child: Text(
                       context.tr('Good morning,'),
-                      style: AppTypography.caption(textSecondary).copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: AppTypography.caption(
+                        textSecondary,
+                      ).copyWith(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ),
                   FadeInSlide(
@@ -140,8 +148,12 @@ class HomeTab extends StatelessWidget {
                     },
                     child: GlassCard(
                       padding: const EdgeInsets.all(20),
-                      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                      color: isDark
+                          ? AppColors.darkSurface
+                          : AppColors.lightSurface,
+                      borderColor: isDark
+                          ? AppColors.darkBorder
+                          : AppColors.lightBorder,
                       child: Row(
                         children: [
                           Container(
@@ -150,7 +162,11 @@ class HomeTab extends StatelessWidget {
                               color: AppColors.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.code, color: AppColors.primary, size: 28),
+                            child: const Icon(
+                              Icons.code,
+                              color: AppColors.primary,
+                              size: 28,
+                            ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -159,7 +175,9 @@ class HomeTab extends StatelessWidget {
                               children: [
                                 Text(
                                   'Code Playground',
-                                  style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w800),
+                                  style: AppTypography.titleMedium(
+                                    textPrimary,
+                                  ).copyWith(fontWeight: FontWeight.w800),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
@@ -169,7 +187,10 @@ class HomeTab extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_right, color: AppColors.primary),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: AppColors.primary,
+                          ),
                         ],
                       ),
                     ),
@@ -183,7 +204,10 @@ class HomeTab extends StatelessWidget {
                   delay: const Duration(milliseconds: 200),
                   child: Text(
                     context.tr('Overview'),
-                    style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                    style: AppTypography.titleLarge(textPrimary).copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -199,7 +223,7 @@ class HomeTab extends StatelessWidget {
                     onLessons: () => onNavigate(1),
                     onCourses: () => onNavigate(1),
                     onNotifications: () => onNavigate(3),
-                    onBilling: () => onNavigate(3),
+                    onBilling: () => onNavigate(4),
                   ),
                 ),
                 const SizedBox(height: 28),
@@ -214,11 +238,16 @@ class HomeTab extends StatelessWidget {
                       children: [
                         Text(
                           context.tr('Due Soon'),
-                          style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                          style: AppTypography.titleLarge(textPrimary).copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                          ),
                         ),
                         TextButton(
                           onPressed: () => onNavigate(2),
-                          style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                          ),
                           child: Text(context.tr('See All')),
                         ),
                       ],
@@ -228,7 +257,10 @@ class HomeTab extends StatelessWidget {
                   FadeInSlide(
                     duration: const Duration(milliseconds: 600),
                     delay: const Duration(milliseconds: 380),
-                    child: _PendingHomeworkCard(homework: pendingHomework.first, onTap: () => onNavigate(2)),
+                    child: _PendingHomeworkCard(
+                      homework: pendingHomework.first,
+                      onTap: () => onNavigate(2),
+                    ),
                   ),
                   const SizedBox(height: 28),
                 ],
@@ -240,7 +272,10 @@ class HomeTab extends StatelessWidget {
                     delay: const Duration(milliseconds: 300),
                     child: Text(
                       context.tr('Learning progress'),
-                      style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                      style: AppTypography.titleLarge(textPrimary).copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -259,7 +294,10 @@ class HomeTab extends StatelessWidget {
                     delay: const Duration(milliseconds: 350),
                     child: Text(
                       context.tr('Study Metrics'),
-                      style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                      style: AppTypography.titleLarge(textPrimary).copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -281,20 +319,30 @@ class HomeTab extends StatelessWidget {
                       Expanded(
                         child: Text(
                           context.tr('Enrolled Groups'),
-                          style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                          style: AppTypography.titleLarge(textPrimary).copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                          ),
                         ),
                       ),
                       GestureDetector(
                         onTap: () => onNavigate(1),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(100),
                           ),
                           child: Text(
                             context.tr('See all'),
-                            style: AppTypography.labelLarge(AppColors.primary).copyWith(fontSize: 12, fontWeight: FontWeight.w700),
+                            style: AppTypography.labelLarge(AppColors.primary)
+                                .copyWith(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
                           ),
                         ),
                       ),
@@ -307,7 +355,10 @@ class HomeTab extends StatelessWidget {
                   delay: const Duration(milliseconds: 450),
                   child: SizedBox(
                     height: 340,
-                    child: GroupListWidget(groups: enrolledGroups, isLoading: isLoading),
+                    child: GroupListWidget(
+                      groups: enrolledGroups,
+                      isLoading: isLoading,
+                    ),
                   ),
                 ),
               ]),
@@ -325,7 +376,12 @@ class _NextLessonHero extends StatelessWidget {
   final StudentGamificationSummary? gamification;
   final VoidCallback? onOpen;
 
-  const _NextLessonHero({required this.isLoading, required this.lesson, required this.gamification, required this.onOpen});
+  const _NextLessonHero({
+    required this.isLoading,
+    required this.lesson,
+    required this.gamification,
+    required this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -341,12 +397,22 @@ class _NextLessonHero extends StatelessWidget {
           gradient: LinearGradient(
             colors: [
               AppColors.primary,
-              HSLColor.fromColor(AppColors.primary).withLightness(math.max(0.0, HSLColor.fromColor(AppColors.primary).lightness - 0.12)).toColor(),
+              HSLColor.fromColor(AppColors.primary)
+                  .withLightness(
+                    math.max(
+                      0.0,
+                      HSLColor.fromColor(AppColors.primary).lightness - 0.12,
+                    ),
+                  )
+                  .toColor(),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 0.8),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.15),
+            width: 0.8,
+          ),
           boxShadow: [
             BoxShadow(
               color: AppColors.primary.withValues(alpha: isDark ? 0.4 : 0.2),
@@ -362,37 +428,65 @@ class _NextLessonHero extends StatelessWidget {
             // Level badge
             if (gamification != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(100),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 14),
+                    const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Level ${gamification!.level} · ${gamification!.streakDays}d streak',
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.2),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
                     ),
                   ],
                 ),
               ),
             const SizedBox(height: 18),
             Text(
-              isLoading ? context.tr('Loading…') : (lesson?.title ?? context.tr('No lesson available')),
-              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.6, height: 1.2),
+              isLoading
+                  ? context.tr('Loading…')
+                  : (lesson?.title ?? context.tr('No lesson available')),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
+                height: 1.2,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
               isLoading
                   ? ''
                   : lesson == null
-                      ? context.tr('Enroll in a group and wait for a published lesson.')
-                      : '${lesson!.unitName}  ·  ${lesson!.estimatedMinutes} min',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                  ? context.tr(
+                      'Enroll in a group and wait for a published lesson.',
+                    )
+                  : '${lesson!.unitName}  ·  ${lesson!.estimatedMinutes} min',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             if (!isLoading && lesson != null) ...[
               const SizedBox(height: 18),
@@ -401,7 +495,10 @@ class _NextLessonHero extends StatelessWidget {
                   Container(
                     height: 6,
                     width: double.infinity,
-                    decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   FractionallySizedBox(
                     widthFactor: lesson!.progress.clamp(0.0, 1.0),
@@ -410,7 +507,12 @@ class _NextLessonHero extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
-                        boxShadow: [BoxShadow(color: Colors.white.withValues(alpha: 0.4), blurRadius: 6)],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -419,7 +521,11 @@ class _NextLessonHero extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 '${lesson!.progressPercentage}% ${context.tr("Completed Lessons")}',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
             const SizedBox(height: 24),
@@ -431,13 +537,20 @@ class _NextLessonHero extends StatelessWidget {
                   backgroundColor: Colors.white,
                   foregroundColor: AppColors.primary,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 onPressed: onOpen,
                 icon: const Icon(Icons.play_arrow_rounded, size: 20),
                 label: Text(
-                  onOpen == null ? context.tr('No lesson ready') : context.tr('Start Lesson'),
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                  onOpen == null
+                      ? context.tr('No lesson ready')
+                      : context.tr('Start Lesson'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
                 ),
               ),
             ),
@@ -516,8 +629,12 @@ class _GamificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
     final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
@@ -537,12 +654,16 @@ class _GamificationCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                  ),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   '${summary.level}',
-                  style: AppTypography.titleLarge(AppColors.primary).copyWith(fontWeight: FontWeight.w900, fontSize: 24),
+                  style: AppTypography.titleLarge(
+                    AppColors.primary,
+                  ).copyWith(fontWeight: FontWeight.w900, fontSize: 24),
                 ),
               ),
               const SizedBox(width: 16),
@@ -552,7 +673,11 @@ class _GamificationCard extends StatelessWidget {
                   children: [
                     Text(
                       '${summary.totalXp} XP',
-                      style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.5),
+                      style: AppTypography.titleMedium(textPrimary).copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                        letterSpacing: -0.5,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Stack(
@@ -566,13 +691,21 @@ class _GamificationCard extends StatelessWidget {
                           ),
                         ),
                         FractionallySizedBox(
-                          widthFactor: (summary.levelProgressPercentage / 100).clamp(0.0, 1.0),
+                          widthFactor: (summary.levelProgressPercentage / 100)
+                              .clamp(0.0, 1.0),
                           child: Container(
                             height: 8,
                             decoration: BoxDecoration(
                               color: AppColors.primary,
                               borderRadius: BorderRadius.circular(10),
-                              boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 6)],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                  blurRadius: 6,
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -589,11 +722,15 @@ class _GamificationCard extends StatelessWidget {
             children: [
               Text(
                 '${summary.xpToNextLevel} XP ${context.tr("to next level")}',
-                style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600),
+                style: AppTypography.caption(
+                  textSecondary,
+                ).copyWith(fontWeight: FontWeight.w600),
               ),
               Text(
                 '${summary.levelProgressPercentage.toInt()}%',
-                style: AppTypography.caption(AppColors.primary).copyWith(fontWeight: FontWeight.w800),
+                style: AppTypography.caption(
+                  AppColors.primary,
+                ).copyWith(fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -611,8 +748,12 @@ class _StudyMetricsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -632,16 +773,41 @@ class _StudyMetricsGrid extends StatelessWidget {
             return GlassCard(
               padding: const EdgeInsets.all(16),
               color: isDark ? AppColors.darkCard : AppColors.lightCard,
-              borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              borderColor: isDark
+                  ? AppColors.darkBorder
+                  : AppColors.lightBorder,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(m.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500)),
+                  Text(
+                    m.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption(
+                      textSecondary,
+                    ).copyWith(fontWeight: FontWeight.w500),
+                  ),
                   const SizedBox(height: 6),
-                  Text(m.value, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5, fontSize: 22)),
+                  Text(
+                    m.value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.titleLarge(textPrimary).copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      fontSize: 22,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(m.helper, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption(textSecondary).copyWith(fontSize: 11)),
+                  Text(
+                    m.helper,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption(
+                      textSecondary,
+                    ).copyWith(fontSize: 11),
+                  ),
                 ],
               ),
             );
@@ -661,8 +827,12 @@ class _PendingHomeworkCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
     final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
@@ -680,7 +850,10 @@ class _PendingHomeworkCard extends StatelessWidget {
                 color: AppColors.warning.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.assignment_late_rounded, color: AppColors.warning),
+              child: const Icon(
+                Icons.assignment_late_rounded,
+                color: AppColors.warning,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -689,19 +862,27 @@ class _PendingHomeworkCard extends StatelessWidget {
                 children: [
                   Text(
                     homework.homework.title,
-                    style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w800),
+                    style: AppTypography.titleMedium(
+                      textPrimary,
+                    ).copyWith(fontWeight: FontWeight.w800),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${context.tr("Due")}: ${DateFormat.yMMMd().format(homework.homework.dueAt)}',
-                    style: AppTypography.caption(textSecondary).copyWith(color: AppColors.warning),
+                    style: AppTypography.caption(
+                      textSecondary,
+                    ).copyWith(color: AppColors.warning),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.warning),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: AppColors.warning,
+            ),
           ],
         ),
       ),

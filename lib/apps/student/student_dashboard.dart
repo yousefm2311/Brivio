@@ -21,6 +21,8 @@ import '../../features/communication/data/repositories/supabase_notification_rep
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
 import '../../features/communication/domain/models/announcement.dart';
 import '../../features/communication/domain/models/notification.dart';
+import '../../features/communication/presentation/screens/notification_center_screen.dart';
+import '../../features/communication/presentation/viewmodels/notification_center_viewmodel.dart';
 import '../../core/notifications/push_notification_service.dart';
 import '../../features/payments/data/repositories/supabase_payment_repositories.dart';
 import '../../features/payments/domain/models/payment_models.dart';
@@ -64,10 +66,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<StudentLeaveItem> _leaveItems = [];
   int _unreadCount = 0;
   StreamSubscription<AppNotification>? _notificationSubscription;
+  late final NotificationCenterViewModel _notificationCenterViewModel;
 
   @override
   void initState() {
     super.initState();
+    _notificationCenterViewModel = NotificationCenterViewModel(
+      getIt<INotificationRepository>(),
+    );
+    _notificationCenterViewModel.addListener(_syncNotificationCenterState);
     _subscribeToNotifications();
     _loadAll();
   }
@@ -75,7 +82,17 @@ class _StudentDashboardState extends State<StudentDashboard> {
   @override
   void dispose() {
     _notificationSubscription?.cancel();
+    _notificationCenterViewModel.removeListener(_syncNotificationCenterState);
+    _notificationCenterViewModel.dispose();
     super.dispose();
+  }
+
+  void _syncNotificationCenterState() {
+    if (!mounted) return;
+    setState(() {
+      _notifications = _notificationCenterViewModel.notifications;
+      _unreadCount = _notificationCenterViewModel.unreadCount;
+    });
   }
 
   void _subscribeToNotifications() {
@@ -610,6 +627,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         onScanQr: _scanAttendanceQr,
         onOpenBoard: _openSessionBoard,
       ),
+      NotificationCenterScreen(viewModel: _notificationCenterViewModel),
       AccountTab(
         profile: user,
         role: widget.authViewModel.userRole?.displayName ?? 'Student',
@@ -681,8 +699,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       icon: Badge(
                         isLabelVisible: _unreadCount > 0,
                         label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
-                        child: const Icon(Icons.person_outline_rounded),
+                        child: const Icon(Icons.notifications_none_rounded),
                       ),
+                      selectedIcon: const Icon(Icons.notifications_rounded),
+                      label: Text(context.tr('Notifications')),
+                    ),
+                    NavigationRailDestination(
+                      icon: const Icon(Icons.person_outline_rounded),
                       selectedIcon: const Icon(Icons.person_rounded),
                       label: Text(context.tr('Account')),
                     ),
@@ -742,8 +765,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
                     icon: Badge(
                       isLabelVisible: _unreadCount > 0,
                       label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
-                      child: const Icon(Icons.person_outline_rounded),
+                      child: const Icon(Icons.notifications_none_rounded),
                     ),
+                    selectedIcon: const Icon(
+                      Icons.notifications_rounded,
+                      color: AppColors.primary,
+                    ),
+                    label: context.tr('Notifications'),
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.person_outline_rounded),
                     selectedIcon: const Icon(
                       Icons.person_rounded,
                       color: AppColors.primary,
