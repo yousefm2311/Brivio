@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/app/academy_material_app.dart';
+import '../../core/auth/auth_loading_screen.dart';
 import '../../core/di/injection.dart';
+import '../../design_system/tokens/colors.dart';
 import '../../core/security/access_denied_screen.dart';
 import '../../features/auth/domain/models/user_role.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
@@ -41,8 +43,11 @@ class _TeacherAppState extends State<TeacherApp> {
 
           if (state.status == AuthStatus.initial ||
               state.status == AuthStatus.loading) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+            return const AuthLoadingScreen(
+              title: 'Opening teacher portal',
+              subtitle: 'Preparing classes, workspace, and secure access.',
+              icon: Icons.co_present_rounded,
+              accentColor: AppColors.teacherRole,
             );
           }
 

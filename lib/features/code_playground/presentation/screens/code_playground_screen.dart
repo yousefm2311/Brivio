@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 
@@ -19,6 +22,8 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
   bool _isRunning = false;
   bool _isTerminalExpanded = false;
   String _terminalOutput = '';
+  String _runStage = '';
+  _SortVisualization? _sortVisualization;
   double _fontSize = 15;
 
   void _runCode() async {
@@ -34,7 +39,9 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
     setState(() {
       _isRunning = true;
       _isTerminalExpanded = true;
-      _terminalOutput = 'Running...';
+      _runStage = 'Preparing sandbox';
+      _terminalOutput = 'Preparing sandbox...';
+      _sortVisualization = _SortVisualization.fromCode(code);
     });
 
     String compilerId;
@@ -56,29 +63,36 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
     }
 
     try {
-      final response = await http.post(
-        Uri.parse('https://godbolt.org/api/compiler/$compilerId/compile'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          "source": code,
-          "compiler": compilerId,
-          "options": {
-            "userArguments": "",
-            "executeParameters": {"args": [], "stdin": ""},
-            "compilerOptions": {"executorRequest": true},
-            "filters": {"execute": true},
-            "tools": [],
-            "libraries": [],
-          },
-        }),
-      );
+      await Future<void>.delayed(const Duration(milliseconds: 220));
+      if (mounted) {
+        setState(() => _runStage = 'Compiling');
+      }
+      final response = await http
+          .post(
+            Uri.parse('https://godbolt.org/api/compiler/$compilerId/compile'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              "source": code,
+              "compiler": compilerId,
+              "options": {
+                "userArguments": "",
+                "executeParameters": {"args": [], "stdin": ""},
+                "compilerOptions": {"executorRequest": true},
+                "filters": {"execute": true},
+                "tools": [],
+                "libraries": [],
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
 
       if (mounted) {
         setState(() {
           _isRunning = false;
+          _runStage = 'Finished';
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             String output = '';
@@ -117,7 +131,10 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
       if (mounted) {
         setState(() {
           _isRunning = false;
-          _terminalOutput = 'Error connecting to execution API:\n$e';
+          _runStage = 'Stopped';
+          _terminalOutput = e is TimeoutException
+              ? 'Execution timed out after 20 seconds. Try smaller input or run again.'
+              : 'Error connecting to execution API:\n$e';
         });
       }
     }
@@ -248,9 +265,9 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                           size: 18,
                         ),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Run',
-                        style: TextStyle(
+                      Text(
+                        context.tr('Run'),
+                        style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.bold,
                         ),
@@ -299,7 +316,7 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                     top: Radius.circular(32),
                   ),
                   color: AppColors.darkSurface.withValues(alpha: 0.85),
-                  height: 300,
+                  height: _sortVisualization == null ? 320 : 430,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -317,13 +334,24 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Terminal Output',
-                            style: TextStyle(
-                              color: AppColors.darkTextSecondary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                context.tr('Terminal Output'),
+                                style: const TextStyle(
+                                  color: AppColors.darkTextSecondary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              if (_runStage.isNotEmpty) ...[
+                                const SizedBox(width: 10),
+                                _RunStagePill(
+                                  label: _runStage,
+                                  isRunning: _isRunning,
+                                ),
+                              ],
+                            ],
                           ),
                           IconButton(
                             icon: const Icon(
@@ -340,6 +368,16 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
+                      if (_sortVisualization != null) ...[
+                        SizedBox(
+                          height: 122,
+                          child: _SortVisualizer(
+                            visualization: _sortVisualization!,
+                            isRunning: _isRunning,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                       Expanded(
                         child: SingleChildScrollView(
                           child: Text(
@@ -362,6 +400,236 @@ class _CodePlaygroundScreenState extends State<CodePlaygroundScreen> {
       ),
     );
   }
+}
+
+class _RunStagePill extends StatelessWidget {
+  final String label;
+  final bool isRunning;
+
+  const _RunStagePill({required this.label, required this.isRunning});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: (isRunning ? AppColors.warning : AppColors.success).withValues(
+          alpha: 0.12,
+        ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: (isRunning ? AppColors.warning : AppColors.success).withValues(
+            alpha: 0.28,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isRunning)
+            const SizedBox(
+              width: 10,
+              height: 10,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          if (isRunning) const SizedBox(width: 6),
+          Text(
+            context.tr(label),
+            style: TextStyle(
+              color: isRunning ? AppColors.warning : AppColors.success,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SortVisualizer extends StatefulWidget {
+  final _SortVisualization visualization;
+  final bool isRunning;
+
+  const _SortVisualizer({required this.visualization, required this.isRunning});
+
+  @override
+  State<_SortVisualizer> createState() => _SortVisualizerState();
+}
+
+class _SortVisualizerState extends State<_SortVisualizer> {
+  Timer? _timer;
+  int _stepIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SortVisualizer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.visualization != widget.visualization ||
+        oldWidget.isRunning != widget.isRunning) {
+      _timer?.cancel();
+      _stepIndex = 0;
+      _start();
+    }
+  }
+
+  void _start() {
+    if (!widget.isRunning || widget.visualization.steps.length <= 1) return;
+    _timer = Timer.periodic(const Duration(milliseconds: 420), (_) {
+      if (!mounted) return;
+      setState(() {
+        _stepIndex = (_stepIndex + 1) % widget.visualization.steps.length;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final step = widget
+        .visualization
+        .steps[_stepIndex.clamp(0, widget.visualization.steps.length - 1)];
+    final maxValue = step.values.fold<int>(1, (max, v) => v > max ? v : max);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1220),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF243044)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.auto_graph,
+                  color: AppColors.primary,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    step.message,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.darkTextSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (var i = 0; i < step.values.length; i++) ...[
+                    Expanded(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        height: 24 + (step.values[i] / maxValue) * 54,
+                        decoration: BoxDecoration(
+                          color: step.highlighted.contains(i)
+                              ? AppColors.warning
+                              : AppColors.primary,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.topCenter,
+                        padding: const EdgeInsets.only(top: 5),
+                        child: Text(
+                          '${step.values[i]}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (i < step.values.length - 1) const SizedBox(width: 6),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SortVisualization {
+  final List<_SortStep> steps;
+
+  const _SortVisualization(this.steps);
+
+  static _SortVisualization? fromCode(String code) {
+    if (!code.toLowerCase().contains('sort')) return null;
+    final match = RegExp(r'\[([0-9,\s-]+)\]').firstMatch(code);
+    if (match == null) return null;
+    final values = match
+        .group(1)!
+        .split(',')
+        .map((value) => int.tryParse(value.trim()))
+        .whereType<int>()
+        .where((value) => value >= 0)
+        .take(10)
+        .toList();
+    if (values.length < 2) return null;
+
+    final steps = <_SortStep>[
+      _SortStep(List<int>.from(values), const {}, 'Visualizer: initial list'),
+    ];
+    final working = List<int>.from(values);
+    for (var i = 0; i < working.length; i++) {
+      for (var j = 0; j < working.length - i - 1; j++) {
+        steps.add(
+          _SortStep(List<int>.from(working), {
+            j,
+            j + 1,
+          }, 'Compare ${working[j]} and ${working[j + 1]}'),
+        );
+        if (working[j] > working[j + 1]) {
+          final temp = working[j];
+          working[j] = working[j + 1];
+          working[j + 1] = temp;
+          steps.add(
+            _SortStep(List<int>.from(working), {
+              j,
+              j + 1,
+            }, 'Swap into ascending order'),
+          );
+        }
+      }
+    }
+    steps.add(_SortStep(List<int>.from(working), const {}, 'Sorted result'));
+    return _SortVisualization(steps);
+  }
+}
+
+class _SortStep {
+  final List<int> values;
+  final Set<int> highlighted;
+  final String message;
+
+  const _SortStep(this.values, this.highlighted, this.message);
 }
 
 class _HomeCodeEditor extends StatelessWidget {
@@ -411,17 +679,17 @@ class _HomeCodeEditor extends StatelessWidget {
                 ),
                 const Spacer(),
                 IconButton(
-                  tooltip: 'Starter code',
+                  tooltip: context.tr('Starter code'),
                   onPressed: onInsertStarter,
                   icon: const Icon(Icons.post_add, color: Colors.white),
                 ),
                 IconButton(
-                  tooltip: 'Format',
+                  tooltip: context.tr('Format'),
                   onPressed: onFormat,
                   icon: const Icon(Icons.auto_fix_high, color: Colors.white),
                 ),
                 IconButton(
-                  tooltip: 'Clear',
+                  tooltip: context.tr('Clear'),
                   onPressed: onClear,
                   icon: const Icon(Icons.delete_outline, color: Colors.white),
                 ),

@@ -14,10 +14,12 @@ import 'apps/staff/staff_dashboard.dart';
 import 'apps/student/student_dashboard.dart';
 import 'apps/teacher/teacher_dashboard.dart';
 import 'core/app/academy_material_app.dart';
+import 'core/auth/auth_loading_screen.dart';
 import 'core/di/injection.dart';
 import 'core/logging/app_logger.dart';
 import 'core/security/access_denied_screen.dart';
 import 'core/services/settings_service.dart';
+import 'design_system/tokens/colors.dart';
 import 'design_system/theme/app_theme.dart';
 import 'features/auth/domain/models/user_role.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
@@ -277,7 +279,8 @@ class _BiometricGateState extends State<BiometricGate> {
       if (!mounted) return;
       setState(() {
         _checking = false;
-        _errorMessage = error.toString();
+        _errorMessage =
+            'Secure unlock is temporarily unavailable. You can try again or sign out.';
       });
     }
   }
@@ -286,56 +289,69 @@ class _BiometricGateState extends State<BiometricGate> {
   Widget build(BuildContext context) {
     if (_unlocked) return widget.child;
 
+    if (_checking) {
+      return const AuthLoadingScreen(
+        title: 'Secure unlock',
+        subtitle: 'Checking your fingerprint and preparing the academy portal.',
+        icon: Icons.fingerprint_rounded,
+        accentColor: AppColors.primary,
+      );
+    }
+
     return Scaffold(
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
+          constraints: const BoxConstraints(maxWidth: 420),
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.fingerprint, size: 64),
-                const SizedBox(height: 16),
-                Text(
-                  'Biometric unlock',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.fingerprint_rounded,
+                      size: 64,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Biometric unlock',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _errorMessage ?? 'Unlock was not completed.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _checking = true;
+                              _errorMessage = null;
+                            });
+                            _unlock();
+                          },
+                          icon: const Icon(Icons.fingerprint),
+                          label: const Text('Try again'),
+                        ),
+                        TextButton(
+                          onPressed: widget.onSignOut,
+                          child: const Text('Sign out'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _checking
-                      ? 'Checking device authentication...'
-                      : _errorMessage ?? 'Unlock was not completed.',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                if (_checking)
-                  const CircularProgressIndicator()
-                else
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      FilledButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _checking = true;
-                            _errorMessage = null;
-                          });
-                          _unlock();
-                        },
-                        icon: const Icon(Icons.fingerprint),
-                        label: const Text('Try again'),
-                      ),
-                      TextButton(
-                        onPressed: widget.onSignOut,
-                        child: const Text('Sign out'),
-                      ),
-                    ],
-                  ),
-              ],
+              ),
             ),
           ),
         ),

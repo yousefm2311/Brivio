@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../../../../core/error/supabase_error_handler.dart';
 import '../../domain/models/notification.dart';
 import '../../domain/repositories/i_notification_repository.dart';
 
@@ -29,7 +30,7 @@ class NotificationCenterViewModel extends ChangeNotifier {
       _unreadCount = await _notificationRepository.getUnreadCount();
       _subscribeRealtime();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = SupabaseErrorHandler.parseError(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -52,14 +53,12 @@ class NotificationCenterViewModel extends ChangeNotifier {
       await _notificationRepository.markRead(notificationId);
       final idx = _notifications.indexWhere((n) => n.id == notificationId);
       if (idx >= 0 && !_notifications[idx].isRead) {
-        _notifications[idx] = _notifications[idx].copyWith(
-          isRead: true,
-        );
+        _notifications[idx] = _notifications[idx].copyWith(isRead: true);
         if (_unreadCount > 0) _unreadCount--;
         notifyListeners();
       }
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = SupabaseErrorHandler.parseError(e);
       notifyListeners();
     }
   }
@@ -73,7 +72,7 @@ class NotificationCenterViewModel extends ChangeNotifier {
       _unreadCount = 0;
       notifyListeners();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = SupabaseErrorHandler.parseError(e);
       notifyListeners();
     }
   }

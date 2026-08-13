@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/di/injection.dart';
+import '../../core/error/supabase_error_handler.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/notifications/push_notification_service.dart';
@@ -128,7 +129,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = SupabaseErrorHandler.parseError(e);
         _isLoading = false;
       });
     }
@@ -179,7 +180,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = SupabaseErrorHandler.parseError(e);
         _isChildLoading = false;
       });
     }
@@ -335,7 +336,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = SupabaseErrorHandler.parseError(e);
         _isChildLoading = false;
       });
     }

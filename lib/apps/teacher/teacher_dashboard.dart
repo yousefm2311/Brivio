@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/di/injection.dart';
+import '../../core/error/supabase_error_handler.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../design_system/tokens/colors.dart';
@@ -68,9 +69,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   void _syncNotificationCenterState() {
     if (!mounted) return;
-    setState(() {
-      _notifications = _notificationCenterViewModel.notifications;
-      _unreadCount = _notificationCenterViewModel.unreadCount;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _notifications = _notificationCenterViewModel.notifications;
+        _unreadCount = _notificationCenterViewModel.unreadCount;
+      });
     });
   }
 
@@ -175,7 +179,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = SupabaseErrorHandler.parseError(e);
           _isLoading = false;
         });
       }

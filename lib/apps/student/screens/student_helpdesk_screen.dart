@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../features/helpdesk/data/repositories/helpdesk_repository.dart';
 import '../../../../features/helpdesk/data/models/support_ticket.dart';
 import '../../../../features/helpdesk/data/models/ticket_reply.dart';
@@ -57,32 +58,29 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _TicketDetailsSheet(
-        ticket: ticket,
-        repo: _repo,
-      ),
+      builder: (context) => _TicketDetailsSheet(ticket: ticket, repo: _repo),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
-      title: 'Helpdesk',
-      subtitle: 'Manage your support tickets and requests',
+      title: context.tr('Helpdesk'),
+      subtitle: context.tr('Manage your support tickets and requests'),
       icon: Icons.headset_mic,
       accentColor: AppColors.primary,
       actions: [
         PortalAction(
           icon: Icons.add,
-          label: 'Create Ticket',
+          label: context.tr('Create Ticket'),
           onPressed: _showCreateDialog,
         ),
       ],
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _tickets.isEmpty
-              ? _buildEmptyState()
-              : _buildTicketsList(),
+          ? _buildEmptyState()
+          : _buildTicketsList(),
     );
   }
 
@@ -98,18 +96,20 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
             iconSize: 32,
           ),
           const SizedBox(height: 16),
-          const Text(
-            'No tickets yet',
-            style: TextStyle(
+          Text(
+            context.tr('No tickets yet'),
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: AppColors.darkTextPrimary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Create a ticket to get help with your courses or account.',
-            style: TextStyle(color: AppColors.darkTextSecondary),
+          Text(
+            context.tr(
+              'Create a ticket to get help with your courses or account.',
+            ),
+            style: const TextStyle(color: AppColors.darkTextSecondary),
           ),
         ],
       ),
@@ -169,7 +169,7 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Priority: ${ticket.priority} \u2022 ${_formatDate(ticket.createdAt)}',
+                      '${context.tr('Priority')}: ${context.tr(ticket.priority)} \u2022 ${_formatDate(ticket.createdAt)}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.darkTextTertiary,
@@ -258,31 +258,28 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SectionHeader(title: 'Create Support Ticket'),
+            SectionHeader(title: context.tr('Create Support Ticket')),
             const SizedBox(height: 16),
             _buildTextField(
               controller: _subjectCtrl,
-              label: 'Subject',
-              hint: 'Briefly describe the issue',
+              label: context.tr('Subject'),
+              hint: context.tr('Briefly describe the issue'),
             ),
             const SizedBox(height: 12),
             _buildTextField(
               controller: _descCtrl,
-              label: 'Description',
-              hint: 'Provide details...',
+              label: context.tr('Description'),
+              hint: context.tr('Provide details...'),
               maxLines: 4,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _selectedGroup,
               dropdownColor: AppColors.darkSurface,
-              decoration: _inputDecoration('Related Group/Class'),
+              decoration: _inputDecoration(context.tr('Related Group/Class')),
               style: const TextStyle(color: AppColors.darkTextPrimary),
               items: _mockGroups.entries.map((e) {
-                return DropdownMenuItem(
-                  value: e.key,
-                  child: Text(e.value),
-                );
+                return DropdownMenuItem(value: e.key, child: Text(e.value));
               }).toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _selectedGroup = val);
@@ -292,13 +289,10 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
             DropdownButtonFormField<String>(
               initialValue: _selectedPriority,
               dropdownColor: AppColors.darkSurface,
-              decoration: _inputDecoration('Priority'),
+              decoration: _inputDecoration(context.tr('Priority')),
               style: const TextStyle(color: AppColors.darkTextPrimary),
               items: ['Low', 'Normal', 'High', 'Urgent'].map((p) {
-                return DropdownMenuItem(
-                  value: p,
-                  child: Text(p),
-                );
+                return DropdownMenuItem(value: p, child: Text(context.tr(p)));
               }).toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _selectedPriority = val);
@@ -324,7 +318,10 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Submit Ticket', style: TextStyle(fontWeight: FontWeight.bold)),
+                  : Text(
+                      context.tr('Submit Ticket'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
             ),
           ],
         ),
@@ -407,7 +404,10 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
     if (_replyCtrl.text.isEmpty) return;
     setState(() => _isReplying = true);
     try {
-      final newReply = await widget.repo.addReply(widget.ticket.id, _replyCtrl.text);
+      final newReply = await widget.repo.addReply(
+        widget.ticket.id,
+        _replyCtrl.text,
+      );
       setState(() {
         _replies.add(newReply);
         _replyCtrl.clear();
@@ -447,7 +447,9 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,10 +500,10 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
 
   Widget _buildRepliesList() {
     if (_replies.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'No replies yet',
-          style: TextStyle(color: AppColors.darkTextSecondary),
+          context.tr('No replies yet'),
+          style: const TextStyle(color: AppColors.darkTextSecondary),
         ),
       );
     }
@@ -531,10 +533,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
               children: [
                 Text(
                   reply.message,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -562,7 +561,9 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
       ),
       decoration: BoxDecoration(
         color: AppColors.darkBackground,
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
       ),
       child: Row(
         children: [
@@ -571,7 +572,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
               controller: _replyCtrl,
               style: const TextStyle(color: AppColors.darkTextPrimary),
               decoration: InputDecoration(
-                hintText: 'Type your reply...',
+                hintText: context.tr('Type your reply...'),
                 hintStyle: const TextStyle(color: AppColors.darkTextTertiary),
                 filled: true,
                 fillColor: Colors.white.withValues(alpha: 0.05),

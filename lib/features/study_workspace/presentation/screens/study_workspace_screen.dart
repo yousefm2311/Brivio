@@ -605,8 +605,54 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
           return Scaffold(
             resizeToAvoidBottomInset: false,
             backgroundColor: bgColor,
-            body: const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+            body: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: GlassCard(
+                    padding: const EdgeInsets.all(24),
+                    color: isDark
+                        ? AppColors.darkSurface
+                        : AppColors.lightSurface,
+                    borderColor: isDark
+                        ? AppColors.darkBorder
+                        : AppColors.lightBorder,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.menu_book_rounded,
+                          color: AppColors.primary,
+                          size: 44,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          context.tr(
+                            _viewModel.loadError ?? _viewModel.loadingMessage,
+                          ),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isDark
+                                ? AppColors.darkTextPrimary
+                                : AppColors.lightTextPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        if (_viewModel.loadError == null)
+                          const LinearProgressIndicator()
+                        else
+                          FilledButton.icon(
+                            onPressed: () => unawaited(_viewModel.load()),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           );
         }

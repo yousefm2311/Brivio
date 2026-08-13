@@ -41,6 +41,44 @@ class AppLocalizations {
     'retry': 'Retry',
     'refresh': 'Refresh',
     'sign_out': 'Sign out',
+    'Opening student portal': 'Opening student portal',
+    'Checking your session, preferences, and secure access.':
+        'Checking your session, preferences, and secure access.',
+    'Opening teacher portal': 'Opening teacher portal',
+    'Preparing classes, workspace, and secure access.':
+        'Preparing classes, workspace, and secure access.',
+    'Opening guardian portal': 'Opening guardian portal',
+    'Loading linked children, alerts, and secure access.':
+        'Loading linked children, alerts, and secure access.',
+    'Opening admin dashboard': 'Opening admin dashboard',
+    'Loading management tools, permissions, and secure access.':
+        'Loading management tools, permissions, and secure access.',
+    'Opening staff portal': 'Opening staff portal',
+    'Loading operations, permissions, and secure access.':
+        'Loading operations, permissions, and secure access.',
+    'Secure unlock': 'Secure unlock',
+    'Checking your fingerprint and preparing the academy portal.':
+        'Checking your fingerprint and preparing the academy portal.',
+    'Preparing lesson workspace...': 'Preparing lesson workspace...',
+    'Loading your notes and saved board...':
+        'Loading your notes and saved board...',
+    'Downloading lesson PDF...': 'Downloading lesson PDF...',
+    'Syncing teacher board and your workspace...':
+        'Syncing teacher board and your workspace...',
+    'Run': 'Run',
+    'Terminal Output': 'Terminal Output',
+    'Starter code': 'Starter code',
+    'Format': 'Format',
+    'Preparing sandbox': 'Preparing sandbox',
+    'Compiling': 'Compiling',
+    'Finished': 'Finished',
+    'Stopped': 'Stopped',
+    'The PDF could not be downloaded. Please check the file link and try again.':
+        'The PDF could not be downloaded. Please check the file link and try again.',
+    'The PDF download took too long. Please check your connection and try again.':
+        'The PDF download took too long. Please check your connection and try again.',
+    'The PDF could not be opened. Please check your connection and try again.':
+        'The PDF could not be opened. Please check your connection and try again.',
     'startup_failed': 'Startup failed',
     'academy_platform': 'Academy Platform',
     'admin_dashboard': 'Academy - Admin Dashboard',
@@ -673,6 +711,48 @@ class AppLocalizations {
     'Discount cannot exceed final price': 'Discount cannot exceed final price',
     'Send request': 'Send request',
     'Adjustment request sent.': 'Adjustment request sent.',
+    'Helpdesk': 'Helpdesk',
+    'Helpdesk Ticketing': 'Helpdesk Ticketing',
+    'Manage your support tickets and requests':
+        'Manage your support tickets and requests',
+    'Manage support requests for you and your children.':
+        'Manage support requests for you and your children.',
+    'Manage your technical support requests.':
+        'Manage your technical support requests.',
+    'Manage user support requests and technical issues.':
+        'Manage user support requests and technical issues.',
+    'Create Ticket': 'Create Ticket',
+    'New Ticket': 'New Ticket',
+    'Create Support Ticket': 'Create Support Ticket',
+    'No tickets yet': 'No tickets yet',
+    'Create a ticket to get help with your courses or account.':
+        'Create a ticket to get help with your courses or account.',
+    'No tickets found in this category.': 'No tickets found in this category.',
+    'Unable to load support tickets. Please try again.':
+        'Unable to load support tickets. Please try again.',
+    'Briefly describe the issue': 'Briefly describe the issue',
+    'Provide details...': 'Provide details...',
+    'Related Group/Class': 'Related Group/Class',
+    'Submit Ticket': 'Submit Ticket',
+    'No replies yet': 'No replies yet',
+    'Type your reply...': 'Type your reply...',
+    'Open': 'Open',
+    'In Progress': 'In Progress',
+    'Closed': 'Closed',
+    'User ID': 'User ID',
+    'Submitted': 'Submitted',
+    'Activity': 'Activity',
+    'System': 'System',
+    'Ticket logged successfully.': 'Ticket logged successfully.',
+    'Reply feature is coming soon!': 'Reply feature is coming soon!',
+    'low': 'low',
+    'normal': 'normal',
+    'high': 'high',
+    'urgent': 'urgent',
+    'Low': 'Low',
+    'Normal': 'Normal',
+    'High': 'High',
+    'Urgent': 'Urgent',
   };
 
   static const Map<String, String> _ar = {
@@ -694,31 +774,75 @@ class AppLocalizations {
     'retry': 'إعادة المحاولة',
     'refresh': 'تحديث',
     'sign_out': 'تسجيل الخروج',
+    'Opening student portal': 'فتح تطبيق الطالب',
+    'Checking your session, preferences, and secure access.':
+        'جاري فحص الجلسة والإعدادات وتأمين الدخول.',
+    'Opening teacher portal': 'فتح تطبيق المدرس',
+    'Preparing classes, workspace, and secure access.':
+        'جاري تجهيز الفصول ومساحة العمل وتأمين الدخول.',
+    'Opening guardian portal': 'فتح تطبيق ولي الأمر',
+    'Loading linked children, alerts, and secure access.':
+        'جاري تحميل الأبناء المرتبطين والتنبيهات وتأمين الدخول.',
+    'Opening admin dashboard': 'فتح لوحة تحكم الإدارة',
+    'Loading management tools, permissions, and secure access.':
+        'جاري تحميل أدوات الإدارة والصلاحيات وتأمين الدخول.',
+    'Opening staff portal': 'فتح تطبيق الموظفين',
+    'Loading operations, permissions, and secure access.':
+        'جاري تحميل العمليات والصلاحيات وتأمين الدخول.',
+    'Secure unlock': 'فتح آمن',
+    'Checking your fingerprint and preparing the academy portal.':
+        'جاري فحص البصمة وتجهيز التطبيق.',
+    'Preparing lesson workspace...': 'جاري تجهيز مساحة الدرس...',
+    'Loading your notes and saved board...':
+        'جاري تحميل ملاحظاتك والبورد المحفوظ...',
+    'Downloading lesson PDF...': 'جاري تحميل ملف الدرس...',
+    'Syncing teacher board and your workspace...':
+        'جاري مزامنة شرح المدرس ومساحتك...',
+    'Run': 'تشغيل',
+    'Terminal Output': 'نتيجة التشغيل',
+    'Starter code': 'كود جاهز',
+    'Format': 'تنسيق',
+    'Preparing sandbox': 'تجهيز بيئة التشغيل',
+    'Compiling': 'جاري الترجمة',
+    'Finished': 'انتهى',
+    'Stopped': 'توقف',
+    'The PDF could not be downloaded. Please check the file link and try again.':
+        'تعذر تحميل ملف الدرس. تأكد من رابط الملف وحاول مرة أخرى.',
+    'The PDF download took too long. Please check your connection and try again.':
+        'استغرق تحميل ملف الدرس وقتا طويلا. تأكد من الاتصال وحاول مرة أخرى.',
+    'The PDF could not be opened. Please check your connection and try again.':
+        'تعذر فتح ملف الدرس. تأكد من الاتصال وحاول مرة أخرى.',
     'startup_failed': 'فشل تشغيل التطبيق',
     'academy_platform': 'منصة الأكاديمية',
     'admin_dashboard': 'الأكاديمية - لوحة الإدارة',
     'student_portal': 'الأكاديمية - تطبيق الطالب',
     'Appearance': 'المظهر',
     'Theme Mode': 'وضع المظهر',
-    'Choose between Light, Dark, or System theme.': 'اختر بين المظهر الفاتح، الداكن أو التلقائي للنظام.',
+    'Choose between Light, Dark, or System theme.':
+        'اختر بين المظهر الفاتح، الداكن أو التلقائي للنظام.',
     'Auto': 'تلقائي',
     'Light': 'فاتح',
     'Dark': 'داكن',
     'Animation Quality': 'جودة الحركة (الأنيميشن)',
-    'Use 120fps fluid animations': 'تفعيل حركة فائقة النعومة بمعدل 120 إطار بالثانية',
+    'Use 120fps fluid animations':
+        'تفعيل حركة فائقة النعومة بمعدل 120 إطار بالثانية',
     'Localization': 'اللغة والمنطقة',
     'Time Zone': 'المنطقة الزمنية',
     'Automatic': 'تلقائي',
     'Notifications & Alerts': 'الإشعارات والتنبيهات',
     'Email Digest': 'الملخص البريدي',
-    'Receive daily summary of activities': 'استلام ملخص يومي بالأنشطة على البريد الإلكتروني',
+    'Receive daily summary of activities':
+        'استلام ملخص يومي بالأنشطة على البريد الإلكتروني',
     'Security & Privacy': 'الأمان والخصوصية',
     'Two-Factor Authentication': 'المصادقة الثنائية (2FA)',
-    'Require 2FA for all admin logins': 'طلب المصادقة الثنائية عند كل تسجيل دخول للإدارة',
+    'Require 2FA for all admin logins':
+        'طلب المصادقة الثنائية عند كل تسجيل دخول للإدارة',
     'Data Collection': 'جمع بيانات الاستخدام',
-    'Send anonymous usage data to improve the app': 'إرسال بيانات استخدام مجهولة الهوية لتحسين التطبيق',
+    'Send anonymous usage data to improve the app':
+        'إرسال بيانات استخدام مجهولة الهوية لتحسين التطبيق',
     'Biometric Login': 'تسجيل الدخول بالبصمة',
-    'Use FaceID/TouchID for quick access': 'استخدام بصمة الوجه/الإصبع للدخول السريع',
+    'Use FaceID/TouchID for quick access':
+        'استخدام بصمة الوجه/الإصبع للدخول السريع',
     'Student Portal': 'تطبيق الطالب',
     'Welcome back': 'مرحباً بعودتك',
     'Active Courses': 'المجموعات النشطة',
@@ -1372,6 +1496,48 @@ class AppLocalizations {
         'لا يمكن أن يتجاوز الخصم السعر النهائي',
     'Send request': 'إرسال الطلب',
     'Adjustment request sent.': 'تم إرسال طلب التعديل.',
+    'Helpdesk': 'الدعم الفني',
+    'Helpdesk Ticketing': 'تذاكر الدعم الفني',
+    'Manage your support tickets and requests':
+        'تابع تذاكر الدعم والطلبات الخاصة بك.',
+    'Manage support requests for you and your children.':
+        'تابع طلبات الدعم الخاصة بك وبأبنائك.',
+    'Manage your technical support requests.':
+        'تابع طلبات الدعم الفني الخاصة بك.',
+    'Manage user support requests and technical issues.':
+        'إدارة طلبات دعم المستخدمين والمشكلات الفنية.',
+    'Create Ticket': 'إنشاء تذكرة',
+    'New Ticket': 'تذكرة جديدة',
+    'Create Support Ticket': 'إنشاء تذكرة دعم',
+    'No tickets yet': 'لا توجد تذاكر بعد',
+    'Create a ticket to get help with your courses or account.':
+        'أنشئ تذكرة للحصول على مساعدة بخصوص الدروس أو الحساب.',
+    'No tickets found in this category.': 'لا توجد تذاكر في هذا التصنيف.',
+    'Unable to load support tickets. Please try again.':
+        'تعذر تحميل تذاكر الدعم. حاول مرة أخرى.',
+    'Briefly describe the issue': 'اكتب وصفًا مختصرًا للمشكلة',
+    'Provide details...': 'اكتب التفاصيل...',
+    'Related Group/Class': 'المجموعة أو الحصة المرتبطة',
+    'Submit Ticket': 'إرسال التذكرة',
+    'No replies yet': 'لا توجد ردود بعد',
+    'Type your reply...': 'اكتب ردك...',
+    'Open': 'مفتوحة',
+    'In Progress': 'قيد المتابعة',
+    'Closed': 'مغلقة',
+    'User ID': 'معرف المستخدم',
+    'Submitted': 'تم الإرسال',
+    'Activity': 'النشاط',
+    'System': 'النظام',
+    'Ticket logged successfully.': 'تم تسجيل التذكرة بنجاح.',
+    'Reply feature is coming soon!': 'ميزة الرد ستتوفر قريبًا.',
+    'low': 'منخفضة',
+    'normal': 'عادية',
+    'high': 'عالية',
+    'urgent': 'عاجلة',
+    'Low': 'منخفضة',
+    'Normal': 'عادية',
+    'High': 'عالية',
+    'Urgent': 'عاجلة',
   };
 }
 

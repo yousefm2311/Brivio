@@ -17,6 +17,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   static const _codePrefix = 'study_workspace_code_';
   static const _boardPrefix = 'study_workspace_board_';
   static const _pagePrefix = 'study_workspace_page_';
+  static const _visitedPagesPrefix = 'study_workspace_visited_pages_';
 
   final StudyLessonSummary lesson;
   final String? studentId;
@@ -32,8 +33,11 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   bool _isRunningCode = false;
   CodeRunResult? _lastRunResult;
   String? _localPdfPath;
+  String _loadingMessage = 'Preparing lesson workspace...';
+  String? _loadError;
   StreamSubscription? _teacherDraftSubscription;
   bool _isDisposed = false;
+  final DateTime _openedAt = DateTime.now();
 
   StudyWorkspaceViewModel({
     required this.lesson,
@@ -51,8 +55,17 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   bool get isRunningCode => _isRunningCode;
   CodeRunResult? get lastRunResult => _lastRunResult;
   String? get localPdfPath => _localPdfPath;
+  String get loadingMessage => _loadingMessage;
+  String? get loadError => _loadError;
+
+  void _setLoadingMessage(String message) {
+    _loadingMessage = message;
+    if (!_isDisposed) notifyListeners();
+  }
 
   Future<void> load() async {
+    _loadError = null;
+    _setLoadingMessage('Loading your notes and saved board...');
     final userSuffix = teacherId ?? studentId ?? 'guest';
     final preferences = await SharedPreferences.getInstance();
     _notebookText =
@@ -107,14 +120,27 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
     } else if (lesson.pdfUrl != null) {
       // Download PDF if not cached
       try {
-        final response = await http.get(Uri.parse(lesson.pdfUrl!));
+        _setLoadingMessage('Downloading lesson PDF...');
+        final response = await http
+            .get(Uri.parse(lesson.pdfUrl!))
+            .timeout(const Duration(seconds: 25));
         if (response.statusCode == 200) {
           await pdfFile.writeAsBytes(response.bodyBytes);
           _localPdfPath = pdfFile.path;
+        } else {
+          _loadError =
+              'The PDF could not be downloaded. Please check the file link and try again.';
         }
-      } catch (_) {}
+      } on TimeoutException {
+        _loadError =
+            'The PDF download took too long. Please check your connection and try again.';
+      } catch (_) {
+        _loadError =
+            'The PDF could not be opened. Please check your connection and try again.';
+      }
     }
 
+    _setLoadingMessage('Syncing teacher board and your workspace...');
     final draft = await _fetchCloudDraft();
     if (draft != null) {
       _notebookText = draft.notebookContent;
@@ -322,9 +348,26 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
         normalized,
       );
       if (repository != null && studentId != null) {
+        final visitedKey = '$_visitedPagesPrefix${lesson.id}_$userSuffix';
+        final visitedPages = {
+          ...preferences.getStringList(visitedKey) ?? const <String>[],
+          '$normalized',
+        };
+        await preferences.setStringList(visitedKey, visitedPages.toList());
+
+        final pagesProgress = lesson.totalPages <= 0
+            ? 0
+            : ((visitedPages.length / lesson.totalPages) * 100).round().clamp(
+                0,
+                100,
+              );
+        final elapsedSeconds = DateTime.now().difference(_openedAt).inSeconds;
+        final minimumStudySeconds = (lesson.totalPages * 20).clamp(60, 600);
         final progress = lesson.totalPages <= 0
             ? 0
-            : ((normalized / lesson.totalPages) * 100).round().clamp(0, 100);
+            : pagesProgress >= 100 && elapsedSeconds < minimumStudySeconds
+            ? 95
+            : pagesProgress;
         try {
           await repository!.updatePageProgress(
             lessonId: lesson.id,

@@ -1,15 +1,21 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../errors/failures.dart';
+
 class SupabaseErrorHandler {
   static String parseError(Object error) {
+    if (error is Failure) {
+      return error.message;
+    }
+
     if (error is AuthException) {
       return _translateAuthError(error.message);
     }
-    
+
     if (error is PostgrestException) {
       return _translatePostgrestError(error);
     }
-    
+
     if (error is Exception) {
       final msg = error.toString();
       if (msg.contains('Failed host lookup')) {
@@ -17,15 +23,21 @@ class SupabaseErrorHandler {
       }
       return msg.replaceAll('Exception:', '').trim();
     }
-    
+
     return 'Unexpected Error: ${error.toString()}';
   }
 
   static String _translateAuthError(String message) {
     final lower = message.toLowerCase();
-    if (lower.contains('invalid login credentials')) return 'Invalid email or password.';
-    if (lower.contains('user already registered')) return 'An account with this email already exists.';
-    if (lower.contains('password should be at least')) return 'Password is too weak. Please use a stronger password.';
+    if (lower.contains('invalid login credentials')) {
+      return 'Invalid email or password.';
+    }
+    if (lower.contains('user already registered')) {
+      return 'An account with this email already exists.';
+    }
+    if (lower.contains('password should be at least')) {
+      return 'Password is too weak. Please use a stronger password.';
+    }
     return message;
   }
 
@@ -45,7 +57,7 @@ class SupabaseErrorHandler {
       default:
         // Try to glean from message or details if code is missing or PGRST*
         final text = '${error.message} ${error.details ?? ''}'.toLowerCase();
-        
+
         if (text.contains('could not find the function')) {
           return 'A required database function is missing. Please run the provided SQL fix script in Supabase.';
         }
