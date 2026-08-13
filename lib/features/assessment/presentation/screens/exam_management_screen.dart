@@ -168,7 +168,9 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
 
   void _showEditExamDialog(Exam e) {
     final titleCtrl = TextEditingController(text: e.title);
-    final durationCtrl = TextEditingController(text: e.durationMinutes.toString());
+    final durationCtrl = TextEditingController(
+      text: e.durationMinutes.toString(),
+    );
     final passCtrl = TextEditingController(text: e.passScore.toString());
 
     showDialog(
@@ -256,22 +258,33 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
   Future<void> _exportExamData() async {
     try {
       final service = ReportGeneratorService();
-      final examDataList = _exams.map((e) => {
-        'title': e.title,
-        'duration': e.durationMinutes,
-        'pass_score': e.passScore,
-        'status': e.status,
-      }).toList();
-      
+      final examDataList = _exams
+          .map(
+            (e) => {
+              'title': e.title,
+              'duration': e.durationMinutes,
+              'pass_score': e.passScore,
+              'status': e.status,
+            },
+          )
+          .toList();
+
       final groupName = _selectedGroup?.name ?? 'Unknown Group';
-      await service.generateExamReport(groupName: groupName, examData: examDataList);
-      
+      await service.generateExamReport(
+        groupName: groupName,
+        examData: examDataList,
+      );
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Exam report generated.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Exam report generated.')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate report: $e')),
+        );
       }
     }
   }
@@ -355,12 +368,16 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                           trailing: [
                             PortalStatusChip(status: e.status),
                             IconButton(
-                              icon: const Icon(Icons.people, color: Colors.green),
+                              icon: const Icon(
+                                Icons.people,
+                                color: Colors.green,
+                              ),
                               onPressed: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (ctx) => ExamSubmissionsScreen(exam: e),
+                                    builder: (ctx) =>
+                                        ExamSubmissionsScreen(exam: e),
                                   ),
                                 );
                               },
@@ -372,27 +389,80 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                               tooltip: 'Edit Exam',
                             ),
                             IconButton(
+                              icon: const Icon(
+                                Icons.lock_outline,
+                                color: Colors.orange,
+                              ),
+                              onPressed: e.status == 'closed'
+                                  ? null
+                                  : () async {
+                                      try {
+                                        await Supabase.instance.client
+                                            .from('exams')
+                                            .update({
+                                              'status': 'closed',
+                                              'updated_at': DateTime.now()
+                                                  .toIso8601String(),
+                                            })
+                                            .eq('id', e.id);
+                                        _loadExams();
+                                      } catch (err) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Failed to close: $err',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                              tooltip: 'Close Exam',
+                            ),
+                            IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () async {
                                 final confirm = await showDialog<bool>(
                                   context: context,
                                   builder: (ctx) => AlertDialog(
                                     title: const Text('Delete Exam'),
-                                    content: const Text('Are you sure you want to delete this exam?'),
+                                    content: const Text(
+                                      'Are you sure you want to delete this exam?',
+                                    ),
                                     actions: [
-                                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                      ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        child: const Text('Delete'),
+                                      ),
                                     ],
                                   ),
                                 );
                                 if (confirm == true) {
                                   try {
-                                    await Supabase.instance.client.rpc('delete_exam', params: {'exam_id': e.id});
+                                    await Supabase.instance.client.rpc(
+                                      'delete_exam',
+                                      params: {'exam_id': e.id},
+                                    );
                                     _loadExams();
                                   } catch (err) {
                                     if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Failed to delete: $err')),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Failed to delete: $err',
+                                          ),
+                                        ),
                                       );
                                     }
                                   }

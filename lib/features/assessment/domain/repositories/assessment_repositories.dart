@@ -6,18 +6,20 @@ abstract class IQuestionBankRepository {
     Question question,
     List<QuestionOption> options,
   );
-  Future<void> updateQuestion(
-    Question question,
-    List<QuestionOption> options,
-  );
+  Future<void> updateQuestion(Question question, List<QuestionOption> options);
   Future<void> deleteQuestion(String id);
 }
 
 abstract class IHomeworkRepository {
   Future<List<Homework>> fetchHomeworkForGroup(String groupId);
   Future<Homework> createHomework(Homework homework);
-  Future<void> linkQuestion(String homeworkId, String questionId, double points);
+  Future<void> linkQuestion(
+    String homeworkId,
+    String questionId,
+    double points,
+  );
   Future<void> unlinkQuestion(String homeworkId, String questionId);
+  Future<void> closeHomework(String id);
   Future<void> deleteHomework(String id);
 }
 
@@ -33,5 +35,6 @@ abstract class IExamRepository {
   Future<ExamAttempt> submitExamAttempt(String attemptId);
   Future<void> linkQuestion(String examId, String questionId, double points);
   Future<void> unlinkQuestion(String examId, String questionId);
+  Future<void> closeExam(String id);
   Future<void> deleteExam(String id);
 }

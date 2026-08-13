@@ -13,6 +13,15 @@ String _formatDate(DateTime? dt) =>
 String _formatTime(DateTime? dt) =>
     dt == null ? '' : DateFormat.jm().format(dt);
 
+String _availabilityLabel(BuildContext context, String status) {
+  return switch (status) {
+    'not_started' => context.tr('Not started yet'),
+    'expired' => context.tr('Time is over'),
+    'closed' => context.tr('Closed'),
+    _ => context.tr(status),
+  };
+}
+
 Color _attendanceColor(String status) {
   switch (status) {
     case 'present':
@@ -665,14 +674,18 @@ class _HomeworkTile extends StatelessWidget {
         ? AppColors.success
         : item.isSubmitted
         ? AppColors.info
-        : AppColors.warning;
+        : item.homework.isOpenForSubmission
+        ? AppColors.warning
+        : AppColors.error;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: item.isSubmitted || item.isGraded
             ? () => _showGradedDetailsDialog(context, item)
-            : onSubmit,
+            : item.canSubmit
+            ? onSubmit
+            : null,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -719,7 +732,7 @@ class _HomeworkTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  PortalStatusChip(status: item.submissionStatus ?? 'pending'),
+                  PortalStatusChip(status: item.availabilityStatus),
                   if (item.isSubmitted || item.isGraded) ...[
                     const SizedBox(height: 6),
                     Text(
@@ -728,12 +741,20 @@ class _HomeworkTile extends StatelessWidget {
                         AppColors.primary,
                       ).copyWith(fontWeight: FontWeight.w700),
                     ),
-                  ] else ...[
+                  ] else if (item.canSubmit) ...[
                     const SizedBox(height: 6),
                     Text(
                       context.tr('Submit'),
                       style: AppTypography.caption(
                         AppColors.primary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _availabilityLabel(context, item.availabilityStatus),
+                      style: AppTypography.caption(
+                        AppColors.error,
                       ).copyWith(fontWeight: FontWeight.w700),
                     ),
                   ],
@@ -827,9 +848,7 @@ class _ExamTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  PortalStatusChip(
-                    status: item.lastAttemptStatus ?? item.exam.status,
-                  ),
+                  PortalStatusChip(status: item.availabilityStatus),
                   if (item.canStart) ...[
                     const SizedBox(height: 6),
                     Text(
@@ -844,6 +863,14 @@ class _ExamTile extends StatelessWidget {
                       context.tr('Review'),
                       style: AppTypography.caption(
                         AppColors.primary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _availabilityLabel(context, item.availabilityStatus),
+                      style: AppTypography.caption(
+                        AppColors.error,
                       ).copyWith(fontWeight: FontWeight.w700),
                     ),
                   ],

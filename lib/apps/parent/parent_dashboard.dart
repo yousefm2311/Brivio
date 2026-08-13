@@ -9,6 +9,7 @@ import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/notifications/push_notification_service.dart';
 import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/tokens/colors.dart';
+import '../../design_system/tokens/typography.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
@@ -45,6 +46,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
   StudentLearningSnapshot? _learningSnapshot;
   FinancialSummary? _financialSummary;
   List<Invoice> _invoices = [];
+  List<Receipt> _receipts = [];
   List<_ParentExamItem> _examItems = [];
   List<_ParentAttendanceItem> _attendance = [];
   List<_ParentLeaveItem> _leaveRequests = [];
@@ -147,6 +149,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       final learningRepo = SupabaseStudentLearningRepository(wrapper);
       final paymentRepo = SupabasePaymentRepository(wrapper);
       final invoiceRepo = SupabaseInvoiceRepository(wrapper);
+      final receiptRepo = SupabaseReceiptRepository(wrapper);
       final notificationRepo = getIt<INotificationRepository>();
 
       final results = await Future.wait<Object>([
@@ -154,6 +157,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         learningRepo.fetchSnapshotForStudent(child.id),
         paymentRepo.fetchStudentFinancialSummary(child.id),
         invoiceRepo.fetchInvoicesForStudent(child.id),
+        receiptRepo.fetchReceiptsForStudent(child.id),
         _safeList(_fetchExamFeed(child.id)),
         _safeList(_fetchAttendance(child.id)),
         _safeList(_fetchLeaveRequests(child.id)),
@@ -162,7 +166,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
       if (!mounted || _selectedChild?.id != child.id) return;
       final childNotifications = _filterNotificationsForChild(
-        results[7] as List<AppNotification>,
+        results[8] as List<AppNotification>,
         child.id,
       );
       setState(() {
@@ -170,9 +174,10 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _learningSnapshot = results[1] as StudentLearningSnapshot;
         _financialSummary = results[2] as FinancialSummary;
         _invoices = results[3] as List<Invoice>;
-        _examItems = results[4] as List<_ParentExamItem>;
-        _attendance = results[5] as List<_ParentAttendanceItem>;
-        _leaveRequests = results[6] as List<_ParentLeaveItem>;
+        _receipts = results[4] as List<Receipt>;
+        _examItems = results[5] as List<_ParentExamItem>;
+        _attendance = results[6] as List<_ParentAttendanceItem>;
+        _leaveRequests = results[7] as List<_ParentLeaveItem>;
         _notifications = childNotifications;
         _unreadCount = childNotifications.where((n) => !n.isRead).length;
         _isChildLoading = false;
@@ -200,6 +205,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       _learningSnapshot = null;
       _financialSummary = null;
       _invoices = [];
+      _receipts = [];
       _examItems = [];
       _attendance = [];
       _leaveRequests = [];
@@ -875,6 +881,28 @@ class _ParentDashboardState extends State<ParentDashboard> {
               )
               .toList(),
         ),
+        const SizedBox(height: 18),
+        PortalSectionTitle(title: context.tr('Receipts')),
+        const SizedBox(height: 8),
+        _InfoList(
+          isEmpty: _receipts.isEmpty,
+          emptyText: context.tr('No payment receipts generated yet.'),
+          children: _receipts
+              .map(
+                (receipt) => PortalListCard(
+                  icon: Icons.receipt,
+                  accentColor: AppColors.success,
+                  title: receipt.receiptNumber.isEmpty
+                      ? '${context.tr('Receipt')} #${_shortId(receipt.id)}'
+                      : receipt.receiptNumber,
+                  subtitle:
+                      '${context.tr('Amount Paid')}: ${_money(receipt.amountMinor, receipt.currency)} • ${context.tr('Issued')}: ${_formatDate(receipt.issuedAt)}',
+                  trailing: const [PortalStatusChip(status: 'paid')],
+                  onTap: () => _showReceiptDialog(receipt),
+                ),
+              )
+              .toList(),
+        ),
       ],
     );
   }
@@ -1035,6 +1063,11 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   void _openNotification(AppNotification notification) {
     unawaited(_markNotificationRead(notification));
+    final targetIndex = _parentNotificationTargetIndex(notification.type);
+    if (targetIndex != null) {
+      setState(() => _selectedIndex = targetIndex);
+      return;
+    }
     final pushService = getIt.isRegistered<PushNotificationService>()
         ? getIt<PushNotificationService>()
         : PushNotificationService(_wrapper);
@@ -1045,6 +1078,79 @@ class _ParentDashboardState extends State<ParentDashboard> {
       'title': notification.title,
       'message': notification.message,
     });
+  }
+
+  int? _parentNotificationTargetIndex(String type) {
+    final normalized = type.toLowerCase();
+    if (normalized.contains('payment') ||
+        normalized.contains('invoice') ||
+        normalized.contains('receipt')) {
+      return 3;
+    }
+    if (normalized.contains('exam') ||
+        normalized.contains('grade') ||
+        normalized.contains('homework')) {
+      return 1;
+    }
+    if (normalized.contains('attendance') ||
+        normalized.contains('absence') ||
+        normalized.contains('late') ||
+        normalized.contains('session')) {
+      return 2;
+    }
+    if (normalized.contains('report')) {
+      return 4;
+    }
+    if (normalized.contains('help') || normalized.contains('ticket')) {
+      return 6;
+    }
+    return null;
+  }
+
+  void _showReceiptDialog(Receipt receipt) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          receipt.receiptNumber.isEmpty
+              ? context.tr('Electronic Receipt')
+              : receipt.receiptNumber,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.verified_rounded,
+              color: AppColors.success,
+              size: 42,
+            ),
+            const SizedBox(height: 12),
+            _ReceiptDetailLine(
+              label: context.tr('Amount Paid'),
+              value: _money(receipt.amountMinor, receipt.currency),
+            ),
+            _ReceiptDetailLine(
+              label: context.tr('Issued'),
+              value: _formatDate(receipt.issuedAt),
+            ),
+            _ReceiptDetailLine(
+              label: context.tr('Invoice'),
+              value: _shortId(receipt.invoiceId),
+            ),
+            _ReceiptDetailLine(
+              label: context.tr('Reference'),
+              value: _shortId(receipt.transactionId),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Close')),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showParentExamReview(_ParentExamItem item) async {
@@ -1340,6 +1446,11 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return '${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)} ${currency ?? 'EGP'}';
   }
 
+  static String _shortId(String value) {
+    if (value.length <= 8) return value;
+    return value.substring(0, 8);
+  }
+
   static String _formatDate(DateTime? value) {
     if (value == null) return 'No date';
     final month = value.month.toString().padLeft(2, '0');
@@ -1385,6 +1496,39 @@ class _InfoList extends StatelessWidget {
       );
     }
     return Column(children: children);
+  }
+}
+
+class _ReceiptDetailLine extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ReceiptDetailLine({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: AppTypography.caption(Theme.of(context).hintColor),
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: AppTypography.bodyMedium(
+                Theme.of(context).colorScheme.onSurface,
+              ).copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -444,9 +444,11 @@ class SupabaseTeacherRepository implements ITeacherRepository {
   @override
   Future<List<GroupEntity>> fetchAssignedGroups(String teacherId) async {
     try {
-      final groupsRaw = await _wrapper.client.rpc(
-        'get_teacher_assigned_groups',
-        params: {'p_teacher_id': teacherId},
+      final groupsRaw = await _wrapper.withFreshSession(
+        (client) => client.rpc(
+          'get_teacher_assigned_groups',
+          params: {'p_teacher_id': teacherId},
+        ),
       );
 
       return (groupsRaw as List)

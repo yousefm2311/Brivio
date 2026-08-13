@@ -42,6 +42,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   Timer? _notebookDebounce;
   Timer? _codeDebounce;
   Timer? _boardDebounce;
+  Timer? _studyProgressHeartbeat;
   String? _pendingNotebookValue;
   String? _pendingCodeValue;
   String? _pendingBoardData;
@@ -209,6 +210,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     _notebookDebounce?.cancel();
     _codeDebounce?.cancel();
     _boardDebounce?.cancel();
+    _studyProgressHeartbeat?.cancel();
     _teacherPdfChannel?.unsubscribe();
     _viewModel.removeListener(_syncLoadedText);
     _finishStudySession();
@@ -258,6 +260,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
       _pdfAnnotationsLoaded = true;
       _loadPdfAnnotations();
       _startStudySession();
+      _startStudyProgressHeartbeat();
     }
   }
 
@@ -654,10 +657,23 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   }
 
   Future<void> _goToPage(int delta) async {
-    await _viewModel.goToPage(_viewModel.currentPage + delta);
+    await _recordPageVisit(_viewModel.currentPage + delta);
+  }
+
+  Future<void> _recordPageVisit(int page) async {
+    await _viewModel.goToPage(page);
     _visitedPages.add(_viewModel.currentPage);
     _recordReplayEvent('page_changed', {'page': _viewModel.currentPage});
     if (mounted) setState(() {});
+  }
+
+  void _startStudyProgressHeartbeat() {
+    _studyProgressHeartbeat?.cancel();
+    if (widget.studentId == null || widget.repository == null) return;
+    _studyProgressHeartbeat = Timer.periodic(const Duration(seconds: 60), (_) {
+      unawaited(_recordPageVisit(_viewModel.currentPage));
+    });
+    unawaited(_recordPageVisit(_viewModel.currentPage));
   }
 
   @override
@@ -744,6 +760,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                     onToggleBookmark: _toggleBookmark,
                     onDeleteAnnotation: _deletePdfAnnotation,
                     onFreehandChanged: _savePdfFreehand,
+                    onPageChanged: (page) => unawaited(_recordPageVisit(page)),
                     onPreviousPage: () => _goToPage(-1),
                     onNextPage: () => _goToPage(1),
                     teacherId: widget.teacherId,
@@ -1461,6 +1478,7 @@ class _PdfPane extends StatefulWidget {
   final VoidCallback onToggleBookmark;
   final ValueChanged<String> onDeleteAnnotation;
   final void Function(int page, List<_BoardStroke> strokes) onFreehandChanged;
+  final ValueChanged<int> onPageChanged;
   final VoidCallback onPreviousPage;
   final VoidCallback onNextPage;
   final String? teacherId;
@@ -1473,6 +1491,7 @@ class _PdfPane extends StatefulWidget {
     required this.onToggleBookmark,
     required this.onDeleteAnnotation,
     required this.onFreehandChanged,
+    required this.onPageChanged,
     required this.onPreviousPage,
     required this.onNextPage,
     this.teacherId,
@@ -1597,6 +1616,10 @@ class _PdfPaneState extends State<_PdfPane> {
             url: lesson.pdfUrl!,
             localPath: viewModel.localPdfPath,
             pageNumber: viewModel.currentPage,
+            onPageChanged: (page) {
+              if (page == null || page == viewModel.currentPage) return;
+              widget.onPageChanged(page);
+            },
             pageOverlaysBuilder: (context, pageRect, page) {
               final pageNum = page.pageNumber;
               final pStrokes = _pageStrokes(widget.annotations, pageNum);
@@ -2049,12 +2072,14 @@ class _SignedPdfViewer extends StatefulWidget {
   final String url;
   final String? localPath;
   final int pageNumber;
+  final ValueChanged<int?>? onPageChanged;
   final PdfPageOverlaysBuilder? pageOverlaysBuilder;
 
   const _SignedPdfViewer({
     required this.url,
     this.localPath,
     required this.pageNumber,
+    this.onPageChanged,
     this.pageOverlaysBuilder,
   });
 
@@ -2099,6 +2124,7 @@ class _SignedPdfViewerState extends State<_SignedPdfViewer> {
                 initialPageNumber: widget.pageNumber,
                 params: PdfViewerParams(
                   pageOverlaysBuilder: widget.pageOverlaysBuilder,
+                  onPageChanged: widget.onPageChanged,
                   onViewerReady: (document, controller) {
                     controller.goToPage(
                       pageNumber: widget.pageNumber,
@@ -2161,6 +2187,7 @@ class _SignedPdfViewerState extends State<_SignedPdfViewer> {
                 initialPageNumber: widget.pageNumber,
                 params: PdfViewerParams(
                   pageOverlaysBuilder: widget.pageOverlaysBuilder,
+                  onPageChanged: widget.onPageChanged,
                   onViewerReady: (document, controller) {
                     controller.goToPage(
                       pageNumber: widget.pageNumber,

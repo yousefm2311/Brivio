@@ -195,6 +195,40 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     }
   }
 
+  void _openNotification(AppNotification notification) {
+    unawaited(_notificationCenterViewModel.markRead(notification.id));
+    final targetIndex = _teacherNotificationTargetIndex(notification.type);
+    if (targetIndex != null) {
+      setState(() => _selectedIndex = targetIndex);
+    }
+  }
+
+  int? _teacherNotificationTargetIndex(String type) {
+    final normalized = type.toLowerCase();
+    if (normalized.contains('payment') ||
+        normalized.contains('invoice') ||
+        normalized.contains('receipt') ||
+        normalized.contains('report') ||
+        normalized.contains('analytics')) {
+      return 3;
+    }
+    if (normalized.contains('exam') ||
+        normalized.contains('homework') ||
+        normalized.contains('grading') ||
+        normalized.contains('board') ||
+        normalized.contains('workspace')) {
+      return 2;
+    }
+    if (normalized.contains('attendance') ||
+        normalized.contains('session') ||
+        normalized.contains('group') ||
+        normalized.contains('class') ||
+        normalized.contains('academic')) {
+      return 1;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final teacherId = widget.authViewModel.bootstrap?.teacherId;
@@ -252,7 +286,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       ClassesTab(teacherId: teacherId),
       WorkspaceTab(teacherId: teacherId),
       AnalyticsTab(profileId: widget.authViewModel.currentUser!.id),
-      NotificationCenterScreen(viewModel: _notificationCenterViewModel),
+      NotificationCenterScreen(
+        viewModel: _notificationCenterViewModel,
+        onNotificationTap: _openNotification,
+      ),
       AccountTab(teacherId: teacherId, authViewModel: widget.authViewModel),
     ];
 

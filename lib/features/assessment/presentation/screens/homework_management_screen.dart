@@ -233,7 +233,8 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                       context: context,
                       firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 730)),
-                      initialDate: dueAt ?? DateTime.now().add(const Duration(days: 7)),
+                      initialDate:
+                          dueAt ?? DateTime.now().add(const Duration(days: 7)),
                     );
                     if (picked != null) setStateDialog(() => dueAt = picked);
                   },
@@ -268,7 +269,9 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                       .from('homework')
                       .update({
                         'title': titleCtrl.text.trim(),
-                        'description': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                        'description': descCtrl.text.trim().isEmpty
+                            ? null
+                            : descCtrl.text.trim(),
                         'max_score': maxScore,
                         'due_at': dueAt!.toIso8601String(),
                       })
@@ -380,16 +383,53 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                               tooltip: 'Edit Homework',
                             ),
                             IconButton(
+                              icon: const Icon(
+                                Icons.lock_outline,
+                                color: Colors.orange,
+                              ),
+                              onPressed: h.status == 'closed'
+                                  ? null
+                                  : () async {
+                                      try {
+                                        await _homeworkRepo.closeHomework(h.id);
+                                        _loadHomeworks();
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Failed to close: $e',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                              tooltip: 'Close Homework',
+                            ),
+                            IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () async {
                                 final confirm = await showDialog<bool>(
                                   context: context,
                                   builder: (ctx) => AlertDialog(
                                     title: const Text('Delete Homework'),
-                                    content: const Text('Are you sure you want to delete this homework?'),
+                                    content: const Text(
+                                      'Are you sure you want to delete this homework?',
+                                    ),
                                     actions: [
-                                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                      ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        child: const Text('Delete'),
+                                      ),
                                     ],
                                   ),
                                 );
@@ -399,8 +439,12 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                                     _loadHomeworks();
                                   } catch (e) {
                                     if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Failed to delete: $e')),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Failed to delete: $e'),
+                                        ),
                                       );
                                     }
                                   }

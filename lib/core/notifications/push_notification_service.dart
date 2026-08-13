@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -90,7 +91,27 @@ class PushNotificationService {
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(),
       );
-      await _localNotifications.initialize(settings: initSettings);
+      await _localNotifications.initialize(
+        settings: initSettings,
+        onDidReceiveNotificationResponse: (response) {
+          final payload = response.payload;
+          if (payload == null || payload.isEmpty) return;
+          try {
+            final decoded = jsonDecode(payload);
+            if (decoded is Map<String, dynamic>) {
+              handleNotificationTap(decoded);
+            } else if (decoded is Map) {
+              handleNotificationTap(Map<String, dynamic>.from(decoded));
+            }
+          } catch (error, stackTrace) {
+            AppLogger.error(
+              'Failed to decode local notification payload',
+              error,
+              stackTrace,
+            );
+          }
+        },
+      );
       await _localNotifications
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
@@ -146,7 +167,11 @@ class PushNotificationService {
 
     AppLogger.info('Notification tapped: type=$type, referenceId=$referenceId');
 
-    if (type == 'study_workspace' || type == 'lesson') {
+    final normalizedType = type?.toLowerCase() ?? '';
+
+    if (normalizedType.contains('study') ||
+        normalizedType.contains('lesson') ||
+        normalizedType.contains('workspace')) {
       if (referenceId != null && referenceId.isNotEmpty) {
         navigatorState.push(
           MaterialPageRoute(
@@ -168,10 +193,9 @@ class PushNotificationService {
           ),
         );
       }
-    } else if (type == 'group' ||
-        type == 'group_details' ||
-        type == 'academic' ||
-        type == 'academic_group') {
+    } else if (normalizedType.contains('group') ||
+        normalizedType.contains('academic') ||
+        normalizedType.contains('class')) {
       if (referenceId != null && referenceId.isNotEmpty) {
         navigatorState.push(
           MaterialPageRoute(
@@ -188,20 +212,9 @@ class PushNotificationService {
           ),
         );
       }
-    } else if (referenceId != null && referenceId.isNotEmpty) {
-      navigatorState.push(
-        MaterialPageRoute(
-          builder: (_) => StudentGroupDetailsScreen(
-            group: GroupEntity(
-              id: referenceId,
-              name: data['title']?.toString() ?? 'Details',
-              code: '',
-              subjectId: '',
-              branchId: '',
-              status: 'active',
-            ),
-          ),
-        ),
+    } else {
+      AppLogger.info(
+        'Notification type has no direct push route; keeping current screen. type=$type',
       );
     }
   }
@@ -283,7 +296,7 @@ class PushNotificationService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      payload: message.data.toString(),
+      payload: jsonEncode(message.data),
     );
   }
 

@@ -56,19 +56,20 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      final sessionWrapper = SupabaseClientWrapper(Supabase.instance.client);
       if (_studentId == null) {
         try {
-          _studentId = (await Supabase.instance.client.rpc(
-            'current_student_id',
+          _studentId = (await sessionWrapper.withFreshSession(
+            (client) => client.rpc('current_student_id'),
           ))?.toString();
         } catch (_) {}
       }
 
-      final hwResData = await Supabase.instance.client.rpc(
-        'get_student_homework_feed',
+      final hwResData = await sessionWrapper.withFreshSession(
+        (client) => client.rpc('get_student_homework_feed'),
       );
-      final examResData = await Supabase.instance.client.rpc(
-        'get_student_exam_feed',
+      final examResData = await sessionWrapper.withFreshSession(
+        (client) => client.rpc('get_student_exam_feed'),
       );
 
       final hwRes = (hwResData as List)
@@ -215,21 +216,43 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   }
 
   Future<void> _submitHomework(StudentHomeworkItem item) async {
-    if (item.homework.questions.isNotEmpty) {
+    if (!item.canSubmit) {
+      _showAssessmentLockedMessage(item.availabilityStatus);
+      return;
+    }
+    var homework = item.homework;
+    if (homework.questions.isEmpty && homework.groupId != null) {
+      try {
+        final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+        final repo = SupabaseHomeworkRepository(wrapper);
+        final fullHomework = await repo.fetchHomeworkForGroup(
+          homework.groupId!,
+        );
+        homework = fullHomework.firstWhere(
+          (candidate) => candidate.id == homework.id,
+          orElse: () => homework,
+        );
+      } catch (_) {}
+    }
+
+    if (homework.questions.isNotEmpty) {
       final Map<String, String> currentAnswers = {};
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => HomeworkRunnerScreen(
-            homework: item.homework,
+            homework: homework,
             onOptionSelected: (qId, oId) => currentAnswers[qId] = oId,
             onSubmit: () async {
               try {
-                await Supabase.instance.client.rpc(
-                  'submit_homework_mcq',
-                  params: {
-                    'p_homework_id': item.homework.id,
-                    'p_answers': currentAnswers,
-                  },
+                final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+                await wrapper.withFreshSession(
+                  (client) => client.rpc(
+                    'submit_homework_mcq',
+                    params: {
+                      'p_homework_id': homework.id,
+                      'p_answers': currentAnswers,
+                    },
+                  ),
                 );
                 if (context.mounted) {
                   Navigator.pop(context);
@@ -257,7 +280,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     final submitted = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('${context.tr('Submit')} ${item.homework.title}'),
+        title: Text('${context.tr('Submit')} ${homework.title}'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -302,15 +325,18 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       return;
     }
     try {
-      await Supabase.instance.client.rpc(
-        'submit_homework_text',
-        params: {
-          'p_homework_id': item.homework.id,
-          'p_submission_text': textCtrl.text.trim(),
-          'p_attachment_url': attachCtrl.text.trim().isEmpty
-              ? null
-              : attachCtrl.text.trim(),
-        },
+      final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+      await wrapper.withFreshSession(
+        (client) => client.rpc(
+          'submit_homework_text',
+          params: {
+            'p_homework_id': homework.id,
+            'p_submission_text': textCtrl.text.trim(),
+            'p_attachment_url': attachCtrl.text.trim().isEmpty
+                ? null
+                : attachCtrl.text.trim(),
+          },
+        ),
       );
       await _loadData();
       if (!mounted) return;
@@ -553,6 +579,10 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   }
 
   Future<void> _startExam(StudentExamItem item) async {
+    if (!item.canStart) {
+      _showAssessmentLockedMessage(item.availabilityStatus);
+      return;
+    }
     final groupId = item.exam.groupId;
     if (groupId == null) return;
     try {
@@ -589,6 +619,18 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Exam failed: $e')));
     }
+  }
+
+  void _showAssessmentLockedMessage(String status) {
+    final message = switch (status) {
+      'not_started' => context.tr('This assessment has not started yet.'),
+      'expired' => context.tr('The assessment time is over.'),
+      'closed' => context.tr('This assessment has been closed.'),
+      _ => context.tr('This assessment is not available.'),
+    };
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _requestExamReset(StudentExamItem item) async {
@@ -629,9 +671,15 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     if (submitted != true) return;
 
     try {
-      await Supabase.instance.client.rpc(
-        'request_exam_reset',
-        params: {'p_exam_id': item.exam.id, 'p_reason': reasonCtrl.text.trim()},
+      final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+      await wrapper.withFreshSession(
+        (client) => client.rpc(
+          'request_exam_reset',
+          params: {
+            'p_exam_id': item.exam.id,
+            'p_reason': reasonCtrl.text.trim(),
+          },
+        ),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

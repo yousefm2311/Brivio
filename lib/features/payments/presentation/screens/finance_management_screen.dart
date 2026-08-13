@@ -288,7 +288,9 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('${context.tr('Assignment failed')}: $e'),
+                          content: Text(
+                            '${context.tr('Assignment failed')}: $e',
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -413,9 +415,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '${context.tr('Adjustment decision failed')}: $e',
-            ),
+            content: Text('${context.tr('Adjustment decision failed')}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -437,9 +437,12 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
         });
       }
       for (var rec in _receipts) {
+        final receiptLabel = rec.receiptNumber.isEmpty
+            ? '#${_shortId(rec.id)}'
+            : rec.receiptNumber;
         financialData.add({
           'date': rec.issuedAt.toIso8601String().substring(0, 10),
-          'description': 'Receipt #${rec.id.substring(0, 8)}',
+          'description': 'Receipt $receiptLabel',
           'type': 'Inflow',
           'amount': (rec.amountMinor / 100).toStringAsFixed(2),
           'notes': 'Transaction: ${rec.transactionId}',
@@ -447,11 +450,15 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       }
       await service.generateFinancialReport(financialData: financialData);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Financial report generated.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Financial report generated.')),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate report: $e')),
+        );
       }
     }
   }
@@ -535,25 +542,33 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               children: [
                                 PortalMetricCard(
                                   label: context.tr('Total Outstanding'),
-                                  value: _money(_systemSummary!.totalOutstandingMinor),
+                                  value: _money(
+                                    _systemSummary!.totalOutstandingMinor,
+                                  ),
                                   icon: Icons.money_off,
                                   accentColor: Colors.red,
                                 ),
                                 PortalMetricCard(
                                   label: context.tr('Total Collected'),
-                                  value: _money(_systemSummary!.totalCollectedMinor),
+                                  value: _money(
+                                    _systemSummary!.totalCollectedMinor,
+                                  ),
                                   icon: Icons.account_balance_wallet,
                                   accentColor: Colors.green,
                                 ),
                                 PortalMetricCard(
                                   label: context.tr('Expected Monthly Rev'),
-                                  value: _money(_systemSummary!.expectedMonthlyRevenueMinor),
+                                  value: _money(
+                                    _systemSummary!.expectedMonthlyRevenueMinor,
+                                  ),
                                   icon: Icons.trending_up,
                                   accentColor: Colors.blue,
                                 ),
                                 PortalMetricCard(
                                   label: context.tr('Total Adjustments'),
-                                  value: _money(_systemSummary!.totalAdjustmentsMinor),
+                                  value: _money(
+                                    _systemSummary!.totalAdjustmentsMinor,
+                                  ),
                                   icon: Icons.percent,
                                   accentColor: Colors.orange,
                                 ),
@@ -659,17 +674,21 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
 
                               return PortalListCard(
                                 icon: Icons.receipt_long,
-                                accentColor: isUnpaid ? Colors.orange : Colors.green,
+                                accentColor: isUnpaid
+                                    ? Colors.orange
+                                    : Colors.green,
                                 title: inv.invoiceNumber,
-                                subtitle: '${context.tr('Total')}: ${(inv.totalMinor / 100).toStringAsFixed(0)} EGP | ${context.tr('Paid')}: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} EGP\n${context.tr('Status')}: ${context.tr(inv.status)}',
+                                subtitle:
+                                    '${context.tr('Total')}: ${(inv.totalMinor / 100).toStringAsFixed(0)} EGP | ${context.tr('Paid')}: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} EGP\n${context.tr('Status')}: ${context.tr(inv.status)}',
                                 trailing: [
                                   if (isUnpaid)
                                     ElevatedButton(
-                                      onPressed: () => _showRecordPaymentDialog(inv),
+                                      onPressed: () =>
+                                          _showRecordPaymentDialog(inv),
                                       child: Text(context.tr('Record Payment')),
                                     )
                                   else
-                                    PortalStatusChip(status: 'settled')
+                                    PortalStatusChip(status: 'settled'),
                                 ],
                               );
                             },
@@ -678,9 +697,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     _receipts.isEmpty
                         ? Center(
                             child: Text(
-                              context.tr(
-                                'No payment receipts generated yet.',
-                              ),
+                              context.tr('No payment receipts generated yet.'),
                             ),
                           )
                         : ListView.separated(
@@ -690,11 +707,15 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                 const Divider(height: 1),
                             itemBuilder: (ctx, i) {
                               final rec = _receipts[i];
+                              final receiptLabel = rec.receiptNumber.isEmpty
+                                  ? '#${_shortId(rec.id)}'
+                                  : rec.receiptNumber;
                               return PortalListCard(
                                 icon: Icons.receipt,
                                 accentColor: AppColors.adminRole,
-                                title: '${context.tr('Receipt')} #${rec.id.substring(0, 8)}',
-                                subtitle: '${context.tr('Amount Paid')}: ${(rec.amountMinor / 100).toStringAsFixed(0)} ${rec.currency}\n${context.tr('Issued')}: ${rec.issuedAt.year}-${rec.issuedAt.month}-${rec.issuedAt.day}',
+                                title: '${context.tr('Receipt')} $receiptLabel',
+                                subtitle:
+                                    '${context.tr('Amount Paid')}: ${(rec.amountMinor / 100).toStringAsFixed(0)} ${rec.currency}\n${context.tr('Issued')}: ${rec.issuedAt.year}-${rec.issuedAt.month}-${rec.issuedAt.day}',
                               );
                             },
                           ),
@@ -750,6 +771,11 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
         ),
       ),
     );
+  }
+
+  String _shortId(String value) {
+    if (value.length <= 8) return value;
+    return value.substring(0, 8);
   }
 }
 

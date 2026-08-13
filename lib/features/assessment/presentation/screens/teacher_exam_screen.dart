@@ -185,6 +185,24 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     final titleCtrl = TextEditingController();
     final durationCtrl = TextEditingController(text: '60');
     final passCtrl = TextEditingController(text: '60');
+    DateTime? availableFrom;
+    DateTime availableUntil = DateTime.now().add(const Duration(days: 7));
+
+    Future<DateTime?> pickDateTime(DateTime initial) async {
+      final date = await showDatePicker(
+        context: context,
+        initialDate: initial,
+        firstDate: DateTime.now().subtract(const Duration(days: 1)),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+      );
+      if (date == null || !mounted) return null;
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initial),
+      );
+      if (time == null) return null;
+      return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    }
 
     showDialog(
       context: context,
@@ -194,106 +212,149 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
             ? AppColors.darkTextPrimary
             : AppColors.lightTextPrimary;
 
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(16),
-          child: GlassCard(
-            padding: const EdgeInsets.all(24),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '${context.tr('Create Exam for')} ${group.name}',
-                    style: AppTypography.displaySmall(textColor),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: titleCtrl,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      labelText: context.tr('Exam title'),
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(16),
+            child: GlassCard(
+              padding: const EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${context.tr('Create Exam for')} ${group.name}',
+                      style: AppTypography.displaySmall(textColor),
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: durationCtrl,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      labelText: context.tr('Duration minutes'),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: passCtrl,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      labelText: context.tr('Pass score'),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text(
-                          context.tr('Cancel'),
-                          style: TextStyle(color: textColor),
-                        ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: titleCtrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Exam title'),
                       ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                        ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: durationCtrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Duration minutes'),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: passCtrl,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
+                        labelText: context.tr('Pass score'),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.play_circle_outline),
+                      title: Text(context.tr('Opens at')),
+                      subtitle: Text(
+                        availableFrom == null
+                            ? context.tr('Immediately')
+                            : availableFrom!.toLocal().toString(),
+                      ),
+                      trailing: TextButton(
                         onPressed: () async {
-                          if (titleCtrl.text.trim().isEmpty) return;
-                          final nav = Navigator.of(ctx);
-                          try {
-                            await Supabase.instance.client.rpc(
-                              'create_exam_assignment',
-                              params: {
-                                'p_title': titleCtrl.text.trim(),
-                                'p_subject_id': group.subjectId,
-                                'p_group_id': group.id,
-                                'p_duration_minutes':
-                                    int.tryParse(durationCtrl.text) ?? 60,
-                                'p_pass_score':
-                                    double.tryParse(passCtrl.text) ?? 60.0,
-                                'p_status': 'published',
-                              },
-                            );
-                            nav.pop();
-                            await _loadGroupsAndExams();
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(context.tr('Exam published.')),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          } catch (e) {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '${context.tr('Creation failed')}: $e',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
+                          final picked = await pickDateTime(
+                            availableFrom ?? DateTime.now(),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => availableFrom = picked);
                           }
                         },
-                        child: Text(context.tr('Publish')),
+                        child: Text(context.tr('Set')),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.lock_clock),
+                      title: Text(context.tr('Closes at')),
+                      subtitle: Text(availableUntil.toLocal().toString()),
+                      trailing: TextButton(
+                        onPressed: () async {
+                          final picked = await pickDateTime(availableUntil);
+                          if (picked != null) {
+                            setDialogState(() => availableUntil = picked);
+                          }
+                        },
+                        child: Text(context.tr('Set')),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(
+                            context.tr('Cancel'),
+                            style: TextStyle(color: textColor),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () async {
+                            if (titleCtrl.text.trim().isEmpty) return;
+                            final nav = Navigator.of(ctx);
+                            try {
+                              await Supabase.instance.client.rpc(
+                                'create_exam_assignment',
+                                params: {
+                                  'p_title': titleCtrl.text.trim(),
+                                  'p_subject_id': group.subjectId,
+                                  'p_group_id': group.id,
+                                  'p_duration_minutes':
+                                      int.tryParse(durationCtrl.text) ?? 60,
+                                  'p_pass_score':
+                                      double.tryParse(passCtrl.text) ?? 60.0,
+                                  'p_status': 'published',
+                                  'p_available_from': availableFrom
+                                      ?.toIso8601String(),
+                                  'p_available_until': availableUntil
+                                      .toIso8601String(),
+                                },
+                              );
+                              nav.pop();
+                              await _loadGroupsAndExams();
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(context.tr('Exam published.')),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '${context.tr('Creation failed')}: $e',
+                                  ),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          child: Text(context.tr('Publish')),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -731,6 +792,39 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     }
   }
 
+  Future<void> _closeExam(Exam exam) async {
+    if (exam.status == 'closed') return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('Close Exam')),
+        content: Text(
+          context.tr('Students will no longer be able to start this exam.'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(context.tr('Close')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _examRepo.closeExam(exam.id);
+      await _loadGroupsAndExams();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${context.tr('Close failed')}: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -899,6 +993,16 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                                 _showManageQuestionsBottomSheet(
                                                   exam,
                                                 ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.lock_outline,
+                                              color: AppColors.warning,
+                                            ),
+                                            tooltip: context.tr('Close Exam'),
+                                            onPressed: exam.status == 'closed'
+                                                ? null
+                                                : () => _closeExam(exam),
                                           ),
                                           IconButton(
                                             icon: const Icon(

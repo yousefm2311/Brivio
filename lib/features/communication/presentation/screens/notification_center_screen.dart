@@ -7,12 +7,18 @@ import '../../../../core/notifications/push_notification_service.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
+import '../../domain/models/notification.dart';
 import '../viewmodels/notification_center_viewmodel.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
   final NotificationCenterViewModel viewModel;
+  final ValueChanged<AppNotification>? onNotificationTap;
 
-  const NotificationCenterScreen({super.key, required this.viewModel});
+  const NotificationCenterScreen({
+    super.key,
+    required this.viewModel,
+    this.onNotificationTap,
+  });
 
   @override
   State<NotificationCenterScreen> createState() =>
@@ -99,6 +105,11 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                             onTap: () {
                               if (!notif.isRead) {
                                 vm.markRead(notif.id);
+                              }
+                              final localHandler = widget.onNotificationTap;
+                              if (localHandler != null) {
+                                localHandler(notif);
+                                return;
                               }
                               final pushService =
                                   GetIt.instance

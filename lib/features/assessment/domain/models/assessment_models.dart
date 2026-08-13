@@ -111,6 +111,7 @@ class Homework {
   final String? description;
   final String subjectId;
   final String? groupId;
+  final DateTime? availableFrom;
   final DateTime dueAt;
   final double maxScore;
   final String status;
@@ -122,6 +123,7 @@ class Homework {
     this.description,
     required this.subjectId,
     this.groupId,
+    this.availableFrom,
     required this.dueAt,
     this.maxScore = 100.0,
     this.status = 'published',
@@ -138,12 +140,20 @@ class Homework {
       description: json['description'] as String?,
       subjectId: json['subject_id'] as String? ?? '',
       groupId: json['group_id'] as String?,
+      availableFrom: parseUtcDate(json['available_from'] as String?),
       dueAt: parseUtcDate(json['due_at'] as String?) ?? DateTime.now(),
       maxScore: (json['max_score'] as num? ?? 100.0).toDouble(),
       status: json['status'] as String? ?? 'published',
       questions: questions,
     );
   }
+
+  bool get isClosed => status == 'closed' || status == 'archived';
+  bool get hasStarted =>
+      availableFrom == null || !DateTime.now().isBefore(availableFrom!);
+  bool get isPastDue => DateTime.now().isAfter(dueAt);
+  bool get isOpenForSubmission =>
+      status == 'published' && hasStarted && !isPastDue;
 }
 
 class Exam {
@@ -157,6 +167,8 @@ class Exam {
   final double passScore;
   final String status;
   final String resultReleasePolicy;
+  final DateTime? availableFrom;
+  final DateTime? availableUntil;
   final List<Question> questions;
 
   Exam({
@@ -170,6 +182,8 @@ class Exam {
     this.passScore = 50.0,
     this.status = 'published',
     this.resultReleasePolicy = 'immediate',
+    this.availableFrom,
+    this.availableUntil,
     this.questions = const [],
   });
 
@@ -189,9 +203,19 @@ class Exam {
       status: json['status'] as String? ?? 'published',
       resultReleasePolicy:
           json['result_release_policy'] as String? ?? 'immediate',
+      availableFrom: parseUtcDate(json['available_from'] as String?),
+      availableUntil: parseUtcDate(json['available_until'] as String?),
       questions: questions,
     );
   }
+
+  bool get isClosed => status == 'closed' || status == 'archived';
+  bool get hasStarted =>
+      availableFrom == null || !DateTime.now().isBefore(availableFrom!);
+  bool get isPastWindow =>
+      availableUntil != null && DateTime.now().isAfter(availableUntil!);
+  bool get isOpenForStart =>
+      status == 'published' && hasStarted && !isPastWindow;
 }
 
 class ExamAttempt {
@@ -227,7 +251,9 @@ class ExamAttempt {
       attemptNumber: json['attempt_number'] as int? ?? 1,
       status: json['status'] as String? ?? 'in_progress',
       startedAt: parseUtcDate(json['started_at'] as String?) ?? DateTime.now(),
-      expiresAt: parseUtcDate(json['expires_at'] as String?) ?? DateTime.now().add(const Duration(minutes: 30)),
+      expiresAt:
+          parseUtcDate(json['expires_at'] as String?) ??
+          DateTime.now().add(const Duration(minutes: 30)),
       submittedAt: parseUtcDate(json['submitted_at'] as String?),
       score: json['score'] != null ? (json['score'] as num).toDouble() : null,
       maxScore: (json['max_score'] as num? ?? 100.0).toDouble(),

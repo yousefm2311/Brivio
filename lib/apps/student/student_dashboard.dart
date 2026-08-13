@@ -386,12 +386,73 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Future<void> _submitHomework(StudentHomeworkItem item) async {
+    if (!item.canSubmit) {
+      _showAssessmentLockedMessage(item.availabilityStatus);
+      return;
+    }
+    var homework = item.homework;
+    if (homework.questions.isEmpty && homework.groupId != null) {
+      try {
+        final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+        final repo = SupabaseHomeworkRepository(wrapper);
+        final fullHomework = await repo.fetchHomeworkForGroup(
+          homework.groupId!,
+        );
+        homework = fullHomework.firstWhere(
+          (candidate) => candidate.id == homework.id,
+          orElse: () => homework,
+        );
+      } catch (_) {}
+    }
+
+    if (homework.questions.isNotEmpty) {
+      final Map<String, String> currentAnswers = {};
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => HomeworkRunnerScreen(
+            homework: homework,
+            onOptionSelected: (qId, oId) => currentAnswers[qId] = oId,
+            onSubmit: () async {
+              try {
+                final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+                await wrapper.withFreshSession(
+                  (client) => client.rpc(
+                    'submit_homework_mcq',
+                    params: {
+                      'p_homework_id': homework.id,
+                      'p_answers': currentAnswers,
+                    },
+                  ),
+                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(context.tr('Homework submitted.'))),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${context.tr('Submission failed')}: $e'),
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+        ),
+      );
+      await _loadAll();
+      return;
+    }
+
     final textCtrl = TextEditingController();
     final attachCtrl = TextEditingController();
     final submitted = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Submit ${item.homework.title}'),
+        title: Text('${context.tr('Submit')} ${homework.title}'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -436,15 +497,18 @@ class _StudentDashboardState extends State<StudentDashboard> {
       return;
     }
     try {
-      await Supabase.instance.client.rpc(
-        'submit_homework_text',
-        params: {
-          'p_homework_id': item.homework.id,
-          'p_submission_text': textCtrl.text.trim(),
-          'p_attachment_url': attachCtrl.text.trim().isEmpty
-              ? null
-              : attachCtrl.text.trim(),
-        },
+      final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+      await wrapper.withFreshSession(
+        (client) => client.rpc(
+          'submit_homework_text',
+          params: {
+            'p_homework_id': homework.id,
+            'p_submission_text': textCtrl.text.trim(),
+            'p_attachment_url': attachCtrl.text.trim().isEmpty
+                ? null
+                : attachCtrl.text.trim(),
+          },
+        ),
       );
       await _loadAll();
       if (!mounted) return;
@@ -453,9 +517,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${context.tr('Submission failed')}: $e')),
+      );
     } finally {
       textCtrl.dispose();
       attachCtrl.dispose();
@@ -463,6 +527,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Future<void> _startExam(StudentExamItem item) async {
+    if (!item.canStart) {
+      _showAssessmentLockedMessage(item.availabilityStatus);
+      return;
+    }
     final groupId = item.exam.groupId;
     if (groupId == null) return;
     try {
@@ -498,6 +566,18 @@ class _StudentDashboardState extends State<StudentDashboard> {
     }
   }
 
+  void _showAssessmentLockedMessage(String status) {
+    final message = switch (status) {
+      'not_started' => context.tr('This assessment has not started yet.'),
+      'expired' => context.tr('The assessment time is over.'),
+      'closed' => context.tr('This assessment has been closed.'),
+      _ => context.tr('This assessment is not available.'),
+    };
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _markNotificationRead(AppNotification notification) async {
     if (notification.isRead) return;
     try {
@@ -520,6 +600,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   void _openNotification(AppNotification notification) {
     unawaited(_markNotificationRead(notification));
+    final targetIndex = _studentNotificationTargetIndex(notification.type);
+    if (targetIndex != null) {
+      setState(() => _selectedIndex = targetIndex);
+      return;
+    }
     final wrapper = SupabaseClientWrapper(Supabase.instance.client);
     final pushService = getIt.isRegistered<PushNotificationService>()
         ? getIt<PushNotificationService>()
@@ -531,6 +616,38 @@ class _StudentDashboardState extends State<StudentDashboard> {
       'title': notification.title,
       'message': notification.message,
     });
+  }
+
+  int? _studentNotificationTargetIndex(String type) {
+    final normalized = type.toLowerCase();
+    if (normalized.contains('payment') ||
+        normalized.contains('invoice') ||
+        normalized.contains('receipt')) {
+      return 4;
+    }
+    if (normalized.contains('exam') ||
+        normalized.contains('homework') ||
+        normalized.contains('attendance') ||
+        normalized.contains('leave') ||
+        normalized.contains('board')) {
+      return 2;
+    }
+    if (normalized.contains('lesson') ||
+        normalized.contains('study') ||
+        normalized.contains('group') ||
+        normalized.contains('academic')) {
+      return 1;
+    }
+    if (normalized.contains('announcement')) {
+      return 3;
+    }
+    if (normalized.contains('notification')) {
+      return 3;
+    }
+    if (normalized.contains('help') || normalized.contains('ticket')) {
+      return 4;
+    }
+    return null;
   }
 
   Future<void> _markAllNotificationsRead() async {
@@ -631,7 +748,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
         onScanQr: _scanAttendanceQr,
         onOpenBoard: _openSessionBoard,
       ),
-      NotificationCenterScreen(viewModel: _notificationCenterViewModel),
+      NotificationCenterScreen(
+        viewModel: _notificationCenterViewModel,
+        onNotificationTap: _openNotification,
+      ),
       AccountTab(
         profile: user,
         role: widget.authViewModel.userRole?.displayName ?? 'Student',

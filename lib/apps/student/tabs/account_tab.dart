@@ -870,50 +870,57 @@ class _BillingGroup extends StatelessWidget {
           _AppleGroupedList(
             children: receipts
                 .map(
-                  (r) => Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
+                  (r) => InkWell(
+                    onTap: () => _showReceiptDialog(context, r),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.receipt_rounded,
+                              color: AppColors.success,
+                              size: 20,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.receipt_rounded,
-                            color: AppColors.success,
-                            size: 20,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  r.receiptNumber.isEmpty
+                                      ? '${context.tr('Receipt')} ${_shortId(r.id)}'
+                                      : r.receiptNumber,
+                                  style: AppTypography.bodyMedium(
+                                    textPrimary,
+                                  ).copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${_formatMoney(r.amountMinor, r.currency)}  ·  ${_formatDate(r.issuedAt)}',
+                                  style: AppTypography.caption(
+                                    textSecondary,
+                                  ).copyWith(fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                r.receiptNumber.isEmpty
-                                    ? 'Receipt ${r.id.substring(0, 8)}'
-                                    : r.receiptNumber,
-                                style: AppTypography.bodyMedium(
-                                  textPrimary,
-                                ).copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${_formatMoney(r.amountMinor, r.currency)}  ·  ${_formatDate(r.issuedAt)}',
-                                style: AppTypography.caption(
-                                  textSecondary,
-                                ).copyWith(fontWeight: FontWeight.w500),
-                              ),
-                            ],
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: textSecondary,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 )
@@ -923,6 +930,90 @@ class _BillingGroup extends StatelessWidget {
       ],
     );
   }
+
+  void _showReceiptDialog(BuildContext context, Receipt receipt) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          receipt.receiptNumber.isEmpty
+              ? context.tr('Electronic Receipt')
+              : receipt.receiptNumber,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.verified_rounded,
+              color: AppColors.success,
+              size: 42,
+            ),
+            const SizedBox(height: 12),
+            _ReceiptDetailLine(
+              label: context.tr('Amount Paid'),
+              value: _formatMoney(receipt.amountMinor, receipt.currency),
+            ),
+            _ReceiptDetailLine(
+              label: context.tr('Issued'),
+              value: _formatDate(receipt.issuedAt),
+            ),
+            _ReceiptDetailLine(
+              label: context.tr('Invoice'),
+              value: _shortId(receipt.invoiceId),
+            ),
+            _ReceiptDetailLine(
+              label: context.tr('Reference'),
+              value: _shortId(receipt.transactionId),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Close')),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReceiptDetailLine extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ReceiptDetailLine({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: AppTypography.caption(Theme.of(context).hintColor),
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: AppTypography.bodyMedium(
+                Theme.of(context).colorScheme.onSurface,
+              ).copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _shortId(String value) {
+  if (value.length <= 8) return value;
+  return value.substring(0, 8);
 }
 
 class _ProfileEditCard extends StatefulWidget {

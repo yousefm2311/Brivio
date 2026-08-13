@@ -21,6 +21,14 @@ class StudentHomeworkItem {
   bool get isSubmitted =>
       submissionStatus == 'submitted' || submissionStatus == 'graded';
   bool get isGraded => submissionStatus == 'graded';
+  bool get canSubmit => !isSubmitted && homework.isOpenForSubmission;
+
+  String get availabilityStatus {
+    if (homework.isClosed) return 'closed';
+    if (!homework.hasStarted) return 'not_started';
+    if (homework.isPastDue) return 'expired';
+    return submissionStatus ?? 'pending';
+  }
 
   factory StudentHomeworkItem.fromJson(Map<dynamic, dynamic> raw) {
     final json = Map<String, dynamic>.from(raw);
@@ -55,6 +63,7 @@ class StudentExamItem {
   });
 
   bool get canStart {
+    if (!exam.isOpenForStart) return false;
     if (lastAttemptStatus == 'submitted' ||
         lastAttemptStatus == 'graded' ||
         lastAttemptStatus == 'finished') {
@@ -68,6 +77,13 @@ class StudentExamItem {
       lastAttemptStatus == 'graded' ||
       lastAttemptStatus == 'expired' ||
       lastAttemptStatus == 'finished';
+
+  String get availabilityStatus {
+    if (exam.isClosed) return 'closed';
+    if (!exam.hasStarted) return 'not_started';
+    if (exam.isPastWindow) return 'expired';
+    return lastAttemptStatus ?? exam.status;
+  }
 
   factory StudentExamItem.fromJson(Map<dynamic, dynamic> raw) {
     final json = Map<String, dynamic>.from(raw);

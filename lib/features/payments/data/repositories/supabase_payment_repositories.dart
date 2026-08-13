@@ -59,11 +59,13 @@ class SupabaseInvoiceRepository implements IInvoiceRepository {
   @override
   Future<List<Invoice>> fetchInvoicesForStudent(String studentId) async {
     try {
-      final response = await _wrapper.client
-          .from('invoices')
-          .select()
-          .eq('student_id', studentId)
-          .order('issued_at', ascending: false);
+      final response = await _wrapper.withFreshSession(
+        (client) => client
+            .from('invoices')
+            .select()
+            .eq('student_id', studentId)
+            .order('issued_at', ascending: false),
+      );
       return (response as List)
           .map((j) => Invoice.fromJson(j as Map<String, dynamic>))
           .toList();
@@ -77,11 +79,10 @@ class SupabaseInvoiceRepository implements IInvoiceRepository {
   @override
   Future<Invoice> fetchInvoiceById(String invoiceId) async {
     try {
-      final response = await _wrapper.client
-          .from('invoices')
-          .select()
-          .eq('id', invoiceId)
-          .single();
+      final response = await _wrapper.withFreshSession(
+        (client) =>
+            client.from('invoices').select().eq('id', invoiceId).single(),
+      );
       return Invoice.fromJson(response);
     } catch (e) {
       throw DatabaseFailure(
@@ -143,14 +144,16 @@ class SupabasePaymentRepository implements IPaymentRepository {
     String? notes,
   }) async {
     try {
-      final response = await _wrapper.client.rpc(
-        'record_manual_payment',
-        params: {
-          'p_invoice_id': invoiceId,
-          'p_amount_minor': amountMinor,
-          'p_payment_method': paymentMethod,
-          'p_notes': notes,
-        },
+      final response = await _wrapper.withFreshSession(
+        (client) => client.rpc(
+          'record_manual_payment',
+          params: {
+            'p_invoice_id': invoiceId,
+            'p_amount_minor': amountMinor,
+            'p_payment_method': paymentMethod,
+            'p_notes': notes,
+          },
+        ),
       );
 
       final jsonMap = Map<String, dynamic>.from(response as Map);
@@ -223,11 +226,13 @@ class SupabaseReceiptRepository implements IReceiptRepository {
   @override
   Future<List<Receipt>> fetchReceiptsForStudent(String studentId) async {
     try {
-      final response = await _wrapper.client
-          .from('receipts')
-          .select()
-          .eq('student_id', studentId)
-          .order('issued_at', ascending: false);
+      final response = await _wrapper.withFreshSession(
+        (client) => client
+            .from('receipts')
+            .select()
+            .eq('student_id', studentId)
+            .order('issued_at', ascending: false),
+      );
       return (response as List)
           .map((j) => Receipt.fromJson(j as Map<String, dynamic>))
           .toList();
