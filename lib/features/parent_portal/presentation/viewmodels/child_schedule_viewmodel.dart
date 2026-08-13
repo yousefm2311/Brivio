@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ScheduleEvent {
   final String title;
@@ -12,63 +13,85 @@ class ScheduleEvent {
     required this.description,
     required this.color,
   });
+
+  factory ScheduleEvent.fromScheduleRow(Map<String, dynamic> row) {
+    final groupName = row['group_name']?.toString() ?? 'Group';
+    final subjectName = row['subject_name']?.toString() ?? 'Class';
+    final room =
+        row['room_name']?.toString() ??
+        row['location']?.toString() ??
+        'Room not assigned';
+    final status = row['status']?.toString() ?? 'scheduled';
+    final start = _formatTime(row['start_time']?.toString());
+    final end = _formatTime(row['end_time']?.toString());
+
+    return ScheduleEvent(
+      title: subjectName,
+      time: '$start - $end',
+      description: '$groupName · $room · $status',
+      color: status == 'cancelled' ? Colors.redAccent : Colors.blueAccent,
+    );
+  }
+
+  static String _formatTime(String? value) {
+    if (value == null || value.length < 5) return '--:--';
+    return value.substring(0, 5);
+  }
 }
 
 class ChildScheduleViewModel extends ChangeNotifier {
-  final List<ScheduleEvent> todaySchedule = [
-    ScheduleEvent(
-      title: 'Mathematics',
-      time: '08:00 AM - 09:30 AM',
-      description: 'Room 101 - Prof. Smith',
-      color: Colors.blueAccent,
-    ),
-    ScheduleEvent(
-      title: 'Science Lab',
-      time: '09:45 AM - 11:15 AM',
-      description: 'Lab 3 - Mrs. Davis',
-      color: Colors.green,
-    ),
-    ScheduleEvent(
-      title: 'Lunch Break',
-      time: '11:15 AM - 12:00 PM',
-      description: 'Cafeteria',
-      color: Colors.orangeAccent,
-    ),
-    ScheduleEvent(
-      title: 'History',
-      time: '12:00 PM - 01:30 PM',
-      description: 'Room 204 - Mr. Johnson',
-      color: Colors.purpleAccent,
-    ),
-  ];
+  final List<ScheduleEvent> todaySchedule = [];
+  final List<ScheduleEvent> upcomingExams = [];
+  final List<ScheduleEvent> holidays = [];
 
-  final List<ScheduleEvent> upcomingExams = [
-    ScheduleEvent(
-      title: 'Midterm Mathematics',
-      time: 'Oct 15, 2026 - 09:00 AM',
-      description: 'Chapters 1 to 5',
-      color: Colors.redAccent,
-    ),
-    ScheduleEvent(
-      title: 'Science Final',
-      time: 'Oct 20, 2026 - 10:00 AM',
-      description: 'All topics',
-      color: Colors.redAccent,
-    ),
-  ];
+  bool isLoading = false;
+  String? errorMessage;
 
-  final List<ScheduleEvent> holidays = [
-    ScheduleEvent(
-      title: 'Thanksgiving Break',
-      time: 'Nov 26 - Nov 27, 2026',
-      description: 'School Closed',
-      color: Colors.teal,
-    ),
-    ScheduleEvent(
-      title: 'Winter Vacation',
-      time: 'Dec 20, 2026 - Jan 3, 2027',
-      description: 'School Closed',
-      color: Colors.teal,
-    ),
-  ];
+  Future<void> loadForChild(String studentId) async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+
+    try {
+      final today = DateTime.now();
+      final fromDate = DateTime(today.year, today.month, today.day);
+      final toDate = fromDate.add(const Duration(days: 30));
+      final response = await Supabase.instance.client.rpc(
+        'get_parent_child_schedule',
+        params: {
+          'p_student_id': studentId,
+          'p_from_date': _dateOnly(fromDate),
+          'p_to_date': _dateOnly(toDate),
+        },
+      );
+
+      final rows = (response as List)
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
+      todaySchedule
+        ..clear()
+        ..addAll(
+          rows
+              .where(
+                (row) => row['session_date']?.toString() == _dateOnly(fromDate),
+              )
+              .map(ScheduleEvent.fromScheduleRow),
+        );
+
+      upcomingExams.clear();
+      holidays.clear();
+    } catch (e) {
+      errorMessage = e.toString();
+      todaySchedule.clear();
+      upcomingExams.clear();
+      holidays.clear();
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  static String _dateOnly(DateTime value) {
+    return value.toIso8601String().split('T').first;
+  }
 }

@@ -39,23 +39,20 @@ class _AccountLoginQrDialogState extends State<AccountLoginQrDialog> {
     });
 
     try {
-      final response = await Supabase.instance.client.functions.invoke(
-        'generate-magic-qr',
-        body: {'user_id': widget.profileId, 'email': widget.email},
+      final response = await Supabase.instance.client.rpc(
+        'create_account_login_qr',
+        params: {'p_profile_id': widget.profileId},
       );
-      
-      if (response.status != 200) {
-        throw Exception('Failed to generate magic QR: ${response.data}');
-      }
-      
-      final json = Map<String, dynamic>.from(response.data as Map);
-      final payload = jsonEncode(json); // Contains { type: 'magic_qr', email, token }
-      
+
+      final json = Map<String, dynamic>.from(response as Map);
+      final payloadData = Map<String, dynamic>.from(json['payload'] as Map);
+      final payload = jsonEncode(payloadData);
+      final expiresAt = DateTime.tryParse(json['expires_at']?.toString() ?? '');
+
       if (!mounted) return;
       setState(() {
         _payload = payload;
-        // Magic link OTPs typically expire in a few minutes
-        _expiresAt = DateTime.now().add(const Duration(minutes: 5));
+        _expiresAt = expiresAt;
         _isLoading = false;
       });
     } catch (e) {

@@ -155,6 +155,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
         .listenToTeacherDraftForStudent(
           studentId: currentStudentId,
           lessonId: lesson.id,
+          groupId: lesson.groupId,
         )
         .listen(
           (draft) async {
@@ -173,6 +174,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
       teacherDraft ??= await repository!.fetchTeacherDraftForStudent(
         studentId: studentId!,
         lessonId: lesson.id,
+        groupId: lesson.groupId,
       );
       List<dynamic> studentStrokes = [];
       if (_boardData.isNotEmpty) {

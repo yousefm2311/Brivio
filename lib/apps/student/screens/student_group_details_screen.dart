@@ -12,6 +12,7 @@ import '../../../features/assessment/data/repositories/supabase_assessment_repos
 import '../../../features/attendance/data/repositories/supabase_attendance_repositories.dart';
 import '../../../features/attendance/domain/models/attendance_models.dart';
 import '../../../features/assessment/presentation/screens/assessment_screens.dart';
+import '../../../features/curriculum/data/repositories/supabase_curriculum_repositories.dart';
 import '../../../features/study_workspace/data/repositories/supabase_study_workspace_repository.dart';
 import '../../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../../../features/study_workspace/presentation/screens/study_workspace_screen.dart';
@@ -39,7 +40,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   List<StudentHomeworkItem> _homeworkList = [];
   List<StudentExamItem> _examList = [];
   List<ClassSession> _sessionList = [];
-  List<Lesson> _lessonList = [];
+  List<Semester> _semesters = [];
   bool _isLoading = false;
   String? _studentId;
 
@@ -84,36 +85,59 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
         widget.group.id,
       );
 
-      List<Lesson> lessonRes = [];
+      List<Semester> semesterRes = [];
       try {
-        final semesters = await Supabase.instance.client
-            .from('semesters')
-            .select('id, units(id)')
-            .eq('subject_id', widget.group.subjectId);
+        final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+        final semesterRepo = SupabaseSemesterRepository(wrapper);
+        final unitRepo = SupabaseUnitRepository(wrapper);
+        final lessonRepo = SupabaseLessonRepository(wrapper);
+        final semesters = await semesterRepo.fetchSemestersForSubject(
+          widget.group.subjectId,
+        );
+        final populatedSemesters = <Semester>[];
 
-        final unitIds = semesters
-            .expand((s) => (s['units'] as List? ?? []))
-            .map((u) => u['id'].toString())
-            .toList();
+        for (final semester in semesters) {
+          final units = await unitRepo.fetchUnitsForSemester(semester.id);
+          final populatedUnits = <Unit>[];
 
-        if (unitIds.isNotEmpty) {
-          final lessonsData = await Supabase.instance.client
-              .from('lessons')
-              .select('*, lesson_resources(*)')
-              .inFilter('unit_id', unitIds)
-              .eq('status', 'published')
-              .order('order_number');
+          for (final unit in units) {
+            final lessons =
+                (await lessonRepo.fetchLessonsForUnit(unit.id))
+                    .where((lesson) => lesson.status == LessonStatus.published)
+                    .toList()
+                  ..sort((a, b) => a.orderNumber.compareTo(b.orderNumber));
 
-          lessonRes = (lessonsData as List).map((e) {
-            final jsonMap = e as Map<String, dynamic>;
-            final resourcesList =
-                jsonMap['lesson_resources'] as List<dynamic>? ?? [];
-            final resources = resourcesList
-                .map((r) => LessonResource.fromJson(r as Map<String, dynamic>))
-                .toList();
-            return Lesson.fromJson(jsonMap, resources);
-          }).toList();
+            if (lessons.isEmpty) continue;
+            populatedUnits.add(
+              Unit(
+                id: unit.id,
+                semesterId: unit.semesterId,
+                name: unit.name,
+                code: unit.code,
+                orderNumber: unit.orderNumber,
+                status: unit.status,
+                lessons: lessons,
+              ),
+            );
+          }
+
+          if (populatedUnits.isEmpty) continue;
+          populatedSemesters.add(
+            Semester(
+              id: semester.id,
+              subjectId: semester.subjectId,
+              name: semester.name,
+              code: semester.code,
+              orderNumber: semester.orderNumber,
+              startDate: semester.startDate,
+              endDate: semester.endDate,
+              status: semester.status,
+              units: populatedUnits,
+            ),
+          );
         }
+
+        semesterRes = populatedSemesters;
       } catch (e) {
         debugPrint('Error fetching curriculum: $e');
       }
@@ -123,7 +147,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
           _homeworkList = hwRes;
           _examList = examRes;
           _sessionList = sessionRes;
-          _lessonList = lessonRes;
+          _semesters = semesterRes;
           _isLoading = false;
         });
       }
@@ -399,7 +423,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
   }
 
   Widget _buildFilesTab(bool isDark, Color textPrimary, Color textSecondary) {
-    if (_lessonList.isEmpty) {
+    if (_semesters.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -428,128 +452,104 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
 
     return ListView.separated(
       padding: const EdgeInsets.all(20),
-      itemCount: _lessonList.length,
+      itemCount: _semesters.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final lesson = _lessonList[index];
+        final semester = _semesters[index];
         return GlassCard(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          child: Row(
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(top: 8),
+            leading: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.info.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.menu_book_rounded,
+                color: AppColors.info,
+                size: 22,
+              ),
+            ),
+            title: Text(
+              semester.name,
+              style: AppTypography.titleMedium(
+                textPrimary,
+              ).copyWith(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text(
+              '${semester.units.length} ${context.tr("Units")}',
+              style: AppTypography.caption(
+                textSecondary,
+              ).copyWith(fontWeight: FontWeight.w600),
+            ),
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.info.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+              for (final unit in semester.units)
+                _StudentUnitSection(
+                  semester: semester,
+                  unit: unit,
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  isDark: isDark,
+                  onOpenResource: _openResource,
                 ),
-                child: const Icon(
-                  Icons.play_lesson_rounded,
-                  color: AppColors.info,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      lesson.title,
-                      style: AppTypography.titleMedium(
-                        textPrimary,
-                      ).copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    if (lesson.estimatedDurationMinutes != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '${lesson.estimatedDurationMinutes} mins',
-                        style: AppTypography.caption(
-                          textSecondary,
-                        ).copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                    if (lesson.resources.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: lesson.resources.map((res) {
-                          return ActionChip(
-                            avatar: const Icon(
-                              Icons.insert_drive_file,
-                              size: 16,
-                            ),
-                            label: Text(res.title),
-                            onPressed: () async {
-                              final url = await Supabase.instance.client.storage
-                                  .from(res.bucket)
-                                  .createSignedUrl(res.objectPath, 3600);
-                              final uri = Uri.parse(url);
-                              if (res.resourceType == 'pdf') {
-                                final summary = StudyLessonSummary(
-                                  id: lesson.id,
-                                  title: lesson.title,
-                                  pathName: widget.group.name,
-                                  unitName: '',
-                                  progressPercentage: 0,
-                                  estimatedMinutes:
-                                      lesson.estimatedDurationMinutes ?? 30,
-                                  lastPage: 1,
-                                  totalPages: 0,
-                                  xp: 0,
-                                  hasPdf: true,
-                                  hasCodePlayground: false,
-                                  pdfUrl: url,
-                                );
-                                if (context.mounted) {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => StudyWorkspaceScreen(
-                                        lesson: summary,
-                                        studentId: _studentId,
-                                        repository:
-                                            SupabaseStudyWorkspaceRepository(
-                                              SupabaseClientWrapper(
-                                                Supabase.instance.client,
-                                              ),
-                                            ),
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } else {
-                                try {
-                                  await launchUrl(
-                                    uri,
-                                    mode: LaunchMode.externalApplication,
-                                  );
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Could not open file: $e',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                }
-                              }
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
             ],
           ),
         );
       },
     );
+  }
+
+  Future<void> _openResource({
+    required Semester semester,
+    required Unit unit,
+    required Lesson lesson,
+    required LessonResource resource,
+  }) async {
+    try {
+      final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+      final resourceRepo = SupabaseLessonResourceRepository(wrapper);
+      final url = await resourceRepo.getAuthorizedAssetUrl(resource.id);
+      final uri = Uri.parse(url);
+      if (resource.resourceType == 'pdf') {
+        final summary = StudyLessonSummary(
+          id: lesson.id,
+          title: lesson.title,
+          pathName: semester.name,
+          unitName: unit.name,
+          progressPercentage: 0,
+          estimatedMinutes: lesson.estimatedDurationMinutes ?? 30,
+          lastPage: 1,
+          totalPages: 0,
+          xp: 0,
+          hasPdf: true,
+          hasCodePlayground: false,
+          pdfUrl: url,
+          groupId: widget.group.id,
+        );
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => StudyWorkspaceScreen(
+              lesson: summary,
+              studentId: _studentId,
+              repository: SupabaseStudyWorkspaceRepository(wrapper),
+            ),
+          ),
+        );
+      } else {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open file: $e')));
+    }
   }
 
   Future<void> _startExam(StudentExamItem item) async {
@@ -931,6 +931,173 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+typedef _OpenLessonResource =
+    Future<void> Function({
+      required Semester semester,
+      required Unit unit,
+      required Lesson lesson,
+      required LessonResource resource,
+    });
+
+class _StudentUnitSection extends StatelessWidget {
+  final Semester semester;
+  final Unit unit;
+  final Color textPrimary;
+  final Color textSecondary;
+  final bool isDark;
+  final _OpenLessonResource onOpenResource;
+
+  const _StudentUnitSection({
+    required this.semester,
+    required this.unit,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.isDark,
+    required this.onOpenResource,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+      ),
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(top: 8),
+        leading: const Icon(Icons.folder_copy_rounded, color: AppColors.info),
+        title: Text(
+          unit.name,
+          style: AppTypography.bodyLarge(
+            textPrimary,
+          ).copyWith(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(
+          '${unit.lessons.length} ${context.tr("Lessons")}',
+          style: AppTypography.caption(textSecondary),
+        ),
+        children: [
+          for (final lesson in unit.lessons)
+            _StudentLessonRow(
+              semester: semester,
+              unit: unit,
+              lesson: lesson,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              onOpenResource: onOpenResource,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StudentLessonRow extends StatelessWidget {
+  final Semester semester;
+  final Unit unit;
+  final Lesson lesson;
+  final Color textPrimary;
+  final Color textSecondary;
+  final _OpenLessonResource onOpenResource;
+
+  const _StudentLessonRow({
+    required this.semester,
+    required this.unit,
+    required this.lesson,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.onOpenResource,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final resources = [...lesson.resources]
+      ..sort((a, b) => a.orderNumber.compareTo(b.orderNumber));
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.info.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.info.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.play_lesson_rounded,
+              color: AppColors.info,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  lesson.title,
+                  style: AppTypography.bodyLarge(
+                    textPrimary,
+                  ).copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  [
+                    if (lesson.estimatedDurationMinutes != null)
+                      '${lesson.estimatedDurationMinutes} mins',
+                    '${resources.length} ${context.tr("Files")}',
+                  ].join(' · '),
+                  style: AppTypography.caption(textSecondary),
+                ),
+                if (resources.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final resource in resources)
+                        ActionChip(
+                          avatar: Icon(
+                            resource.resourceType == 'pdf'
+                                ? Icons.picture_as_pdf_rounded
+                                : Icons.insert_drive_file_rounded,
+                            size: 16,
+                          ),
+                          label: Text(resource.title),
+                          onPressed: () => onOpenResource(
+                            semester: semester,
+                            unit: unit,
+                            lesson: lesson,
+                            resource: resource,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

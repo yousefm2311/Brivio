@@ -21,6 +21,7 @@ import '../../features/communication/data/repositories/supabase_notification_rep
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
 import '../../features/communication/domain/models/announcement.dart';
 import '../../features/communication/domain/models/notification.dart';
+import '../../core/notifications/push_notification_service.dart';
 import '../../features/payments/data/repositories/supabase_payment_repositories.dart';
 import '../../features/payments/domain/models/payment_models.dart';
 import '../../features/study_workspace/data/repositories/supabase_student_learning_repository.dart';
@@ -159,52 +160,72 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Future<List<StudentHomeworkItem>> _fetchHomeworkFeed() async {
-    final rows = await Supabase.instance.client.rpc(
-      'get_student_homework_feed',
-    );
-    return (rows as List)
-        .whereType<Map>()
-        .map((r) => StudentHomeworkItem.fromJson(r))
-        .toList();
+    try {
+      final rows = await Supabase.instance.client.rpc(
+        'get_student_homework_feed',
+      );
+      return (rows as List)
+          .whereType<Map>()
+          .map((r) => StudentHomeworkItem.fromJson(r))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<List<StudentExamItem>> _fetchExamFeed() async {
-    final rows = await Supabase.instance.client.rpc('get_student_exam_feed');
-    return (rows as List)
-        .whereType<Map>()
-        .map((r) => StudentExamItem.fromJson(r))
-        .toList();
+    try {
+      final rows = await Supabase.instance.client.rpc('get_student_exam_feed');
+      return (rows as List)
+          .whereType<Map>()
+          .map((r) => StudentExamItem.fromJson(r))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<List<StudentAttendanceItem>> _fetchAttendanceHistory() async {
-    final rows = await Supabase.instance.client.rpc(
-      'get_current_student_attendance_history',
-      params: {'p_limit': 120},
-    );
-    return (rows as List)
-        .whereType<Map>()
-        .map((r) => StudentAttendanceItem.fromJson(r))
-        .toList();
+    try {
+      final rows = await Supabase.instance.client.rpc(
+        'get_current_student_attendance_history',
+        params: {'p_limit': 120},
+      );
+      return (rows as List)
+          .whereType<Map>()
+          .map((r) => StudentAttendanceItem.fromJson(r))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<List<StudentLeaveItem>> _fetchLeaveRequests() async {
-    final rows = await Supabase.instance.client.rpc(
-      'get_current_student_leave_requests',
-    );
-    return (rows as List)
-        .whereType<Map>()
-        .map((r) => StudentLeaveItem.fromJson(r))
-        .toList();
+    try {
+      final rows = await Supabase.instance.client.rpc(
+        'get_current_student_leave_requests',
+      );
+      return (rows as List)
+          .whereType<Map>()
+          .map((r) => StudentLeaveItem.fromJson(r))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<List<PublishedSessionBoard>> _fetchSessionBoards() async {
-    final rows = await Supabase.instance.client.rpc(
-      'get_student_published_session_boards',
-    );
-    return (rows as List)
-        .whereType<Map>()
-        .map((r) => PublishedSessionBoard.fromJson(r))
-        .toList();
+    try {
+      final rows = await Supabase.instance.client.rpc(
+        'get_student_published_session_boards',
+      );
+      return (rows as List)
+          .whereType<Map>()
+          .map((r) => PublishedSessionBoard.fromJson(r))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   // ── actions ──
@@ -476,6 +497,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
     }
   }
 
+  void _openNotification(AppNotification notification) {
+    unawaited(_markNotificationRead(notification));
+    final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+    final pushService = getIt.isRegistered<PushNotificationService>()
+        ? getIt<PushNotificationService>()
+        : PushNotificationService(wrapper);
+    pushService.handleNotificationTap({
+      'type': notification.type,
+      'reference_id': notification.referenceId,
+      'id': notification.id,
+      'title': notification.title,
+      'message': notification.message,
+    });
+  }
+
   Future<void> _markAllNotificationsRead() async {
     try {
       final wrapper = SupabaseClientWrapper(Supabase.instance.client);
@@ -587,7 +623,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         isLoading: _isLoading,
         onSignOut: widget.authViewModel.signOut,
         onProfileChanged: widget.authViewModel.restoreSession,
-        onMarkRead: _markNotificationRead,
+        onNotificationTap: _openNotification,
         onMarkAllRead: _markAllNotificationsRead,
         onAcknowledge: _acknowledgeAnnouncement,
       ),

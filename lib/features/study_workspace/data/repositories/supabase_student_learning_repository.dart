@@ -1,4 +1,3 @@
-import '../../../../core/errors/failures.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../domain/models/study_workspace_models.dart';
 import '../../domain/repositories/student_learning_repository.dart';
@@ -27,7 +26,7 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
         );
       }
 
-      final lessons = await _fetchPublishedLessons(studentId);
+      final lessons = await _safeFetchPublishedLessons(studentId);
       final gamification = await _fetchGamificationSummary();
       final completed = lessons
           .where((lesson) => lesson.progressPercentage >= 100)
@@ -74,10 +73,27 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
         enrolledGroupCount: groups.length,
         gamification: gamification,
       );
-    } catch (e) {
-      throw DatabaseFailure(
-        message: 'Failed to load student learning snapshot: ${e.toString()}',
+    } catch (_) {
+      return const StudentLearningSnapshot(
+        availableLessons: [],
+        metrics: [
+          StudyMetric(label: 'Groups', value: '0', helper: 'Unavailable'),
+          StudyMetric(label: 'Lessons', value: '0', helper: 'Unavailable'),
+          StudyMetric(label: 'Completed', value: '0', helper: 'Lessons'),
+          StudyMetric(label: 'Study time', value: '0m', helper: 'Tracked'),
+        ],
+        enrolledGroupCount: 0,
       );
+    }
+  }
+
+  Future<List<StudyLessonSummary>> _safeFetchPublishedLessons(
+    String studentId,
+  ) async {
+    try {
+      return await _fetchPublishedLessons(studentId);
+    } catch (_) {
+      return [];
     }
   }
 
@@ -130,6 +146,7 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
           title: lesson['lesson_title'] as String? ?? 'Untitled lesson',
           pathName: lesson['subject_name'] as String? ?? 'Assigned subject',
           unitName: lesson['unit_name'] as String? ?? 'Unit',
+          groupId: lesson['group_id'] as String?,
           progressPercentage: progressPercentage.clamp(0, 100),
           estimatedMinutes: (lesson['estimated_minutes'] as num?)?.round() ?? 0,
           lastPage: lastPage.clamp(1, totalPages),
@@ -148,14 +165,10 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
   }
 
   Future<dynamic> _fetchAccessibleLessons(String studentId) async {
-    try {
-      return await _wrapper.client.rpc(
-        'get_accessible_student_lessons',
-        params: {'p_student_id': studentId},
-      );
-    } catch (_) {
-      return _wrapper.client.rpc('get_current_student_lessons');
-    }
+    return _wrapper.client.rpc(
+      'get_accessible_student_lessons',
+      params: {'p_student_id': studentId},
+    );
   }
 
   Future<String> _createSignedUrl(String bucket, String objectPath) {

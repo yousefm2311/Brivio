@@ -41,6 +41,9 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   Timer? _notebookDebounce;
   Timer? _codeDebounce;
   Timer? _boardDebounce;
+  String? _pendingNotebookValue;
+  String? _pendingCodeValue;
+  String? _pendingBoardData;
   RealtimeChannel? _teacherPdfChannel;
   List<_BoardStroke> _boardStrokes = [];
   List<_PdfAnnotation> _pdfAnnotations = [];
@@ -133,6 +136,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
 
   @override
   void dispose() {
+    _flushPendingSaves();
     _notebookDebounce?.cancel();
     _codeDebounce?.cancel();
     _boardDebounce?.cancel();
@@ -144,6 +148,26 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     _codeController.dispose();
     _boardTransformationController.dispose();
     super.dispose();
+  }
+
+  void _flushPendingSaves() {
+    final notebookValue = _pendingNotebookValue;
+    if (notebookValue != null) {
+      unawaited(_viewModel.saveNotebook(notebookValue));
+      _pendingNotebookValue = null;
+    }
+
+    final codeValue = _pendingCodeValue;
+    if (codeValue != null) {
+      unawaited(_viewModel.saveCode(codeValue));
+      _pendingCodeValue = null;
+    }
+
+    final boardData = _pendingBoardData;
+    if (boardData != null) {
+      unawaited(_viewModel.saveBoard(boardData));
+      _pendingBoardData = null;
+    }
   }
 
   void _syncLoadedText() {
@@ -169,29 +193,35 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   }
 
   void _queueNotebookSave(String value) {
+    _pendingNotebookValue = value;
     _notebookDebounce?.cancel();
     _notebookDebounce = Timer(const Duration(milliseconds: 450), () {
       _viewModel.saveNotebook(value);
+      _pendingNotebookValue = null;
       _recordReplayEvent('notebook_saved', {'length': value.length});
     });
   }
 
   void _queueCodeSave(String value) {
+    _pendingCodeValue = value;
     _codeDebounce?.cancel();
     _codeDebounce = Timer(const Duration(milliseconds: 450), () {
       _viewModel.saveCode(value);
+      _pendingCodeValue = null;
     });
   }
 
   void _queueBoardSave(List<_BoardStroke> strokes) {
     _lastAppliedBoardData = _encodeBoard(strokes);
     setState(() => _boardStrokes = strokes);
+    final strokesToSave = widget.teacherId == null
+        ? strokes.where((s) => !s.isTeacher).toList()
+        : strokes;
+    _pendingBoardData = _encodeBoard(strokesToSave);
     _boardDebounce?.cancel();
     _boardDebounce = Timer(const Duration(milliseconds: 450), () {
-      final strokesToSave = widget.teacherId == null
-          ? strokes.where((s) => !s.isTeacher).toList()
-          : strokes;
-      _viewModel.saveBoard(_encodeBoard(strokesToSave));
+      _viewModel.saveBoard(_pendingBoardData ?? _encodeBoard(strokesToSave));
+      _pendingBoardData = null;
       _recordReplayEvent('board_changed', {'stroke_count': strokes.length});
     });
   }

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/di/injection.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
+import '../../core/notifications/push_notification_service.dart';
 import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
@@ -21,6 +22,7 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import '../../features/study_workspace/data/repositories/supabase_student_learning_repository.dart';
 import '../../features/study_workspace/domain/models/study_workspace_models.dart';
+import 'screens/parent_helpdesk_screen.dart';
 
 class ParentDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -55,6 +57,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     PortalDestination(icon: Icons.receipt_long, label: 'Payments'),
     PortalDestination(icon: Icons.summarize, label: 'Report'),
     PortalDestination(icon: Icons.notifications, label: 'Notifications'),
+    PortalDestination(icon: Icons.support_agent, label: 'Helpdesk'),
     PortalDestination(icon: Icons.account_circle, label: 'Account'),
     PortalDestination(icon: Icons.settings, label: 'Settings'),
   ];
@@ -95,7 +98,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
     });
     try {
       final parentRepo = SupabaseParentRepository(_wrapper);
-      final parentId = widget.authViewModel.bootstrap?.parentId;
+      final parentId =
+          widget.authViewModel.bootstrap?.parentId ??
+          widget.authViewModel.bootstrap?.profile.id;
       final children = parentId == null
           ? <Student>[]
           : await parentRepo.fetchLinkedStudents(parentId);
@@ -147,8 +152,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
         learningRepo.fetchSnapshotForStudent(child.id),
         paymentRepo.fetchStudentFinancialSummary(child.id),
         invoiceRepo.fetchInvoicesForStudent(child.id),
-        _fetchAttendance(child.id),
-        _fetchLeaveRequests(child.id),
+        _safeList(_fetchAttendance(child.id)),
+        _safeList(_fetchLeaveRequests(child.id)),
         notificationRepo.getNotifications(),
       ]);
 
@@ -174,6 +179,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _errorMessage = e.toString();
         _isChildLoading = false;
       });
+    }
+  }
+
+  Future<List<T>> _safeList<T>(Future<List<T>> future) async {
+    try {
+      return await future;
+    } catch (_) {
+      return <T>[];
     }
   }
 
@@ -321,6 +334,19 @@ class _ParentDashboardState extends State<ParentDashboard> {
     if (child != null) await _loadChildDetails(child);
   }
 
+  Future<void> _markNotificationRead(AppNotification notification) async {
+    if (notification.isRead) return;
+    final repo = SupabaseNotificationRepository(_wrapper);
+    await repo.markRead(notification.id);
+    if (!mounted) return;
+    setState(() {
+      _notifications = _notifications
+          .map((n) => n.id == notification.id ? n.copyWith(isRead: true) : n)
+          .toList();
+      if (_unreadCount > 0) _unreadCount--;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final parentName = widget.authViewModel.currentUser?.fullName ?? 'Parent';
@@ -415,8 +441,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
       3 => _buildPaymentsPage(),
       4 => _buildMonthlyReportPage(),
       5 => _buildNotificationsPage(),
-      6 => _buildAccountPage(),
-      7 => const AppSettingsPanel(),
+      6 => const ParentHelpdeskScreen(),
+      7 => _buildAccountPage(),
+      8 => const AppSettingsPanel(),
       _ => _buildOverviewPage(),
     };
   }
@@ -942,12 +969,27 @@ class _ParentDashboardState extends State<ParentDashboard> {
                   trailing: notification.isRead
                       ? const []
                       : [const PortalStatusChip(status: 'pending')],
+                  onTap: () => _openNotification(notification),
                 ),
               )
               .toList(),
         ),
       ],
     );
+  }
+
+  void _openNotification(AppNotification notification) {
+    unawaited(_markNotificationRead(notification));
+    final pushService = getIt.isRegistered<PushNotificationService>()
+        ? getIt<PushNotificationService>()
+        : PushNotificationService(_wrapper);
+    pushService.handleNotificationTap({
+      'type': notification.type,
+      'reference_id': notification.referenceId,
+      'id': notification.id,
+      'title': notification.title,
+      'message': notification.message,
+    });
   }
 
   Widget _buildNextLessonCard() {

@@ -29,20 +29,18 @@ class SupabaseClassSessionRepository implements IClassSessionRepository {
   @override
   Future<ClassSession> createClassSession(ClassSession session) async {
     try {
-      final response = await _wrapper.client
-          .from('class_sessions')
-          .insert({
-            'group_id': session.groupId,
-            'schedule_id': session.scheduleId,
-            'session_date': session.sessionDate.toIso8601String().split('T')[0],
-            'scheduled_start_at': session.scheduledStartAt.toIso8601String(),
-            'scheduled_end_at': session.scheduledEndAt.toIso8601String(),
-            'status': session.status.toDbValue(),
-            'location': session.location,
-          })
-          .select()
-          .single();
-      return ClassSession.fromJson(response);
+      final response = await _wrapper.client.rpc(
+        'create_class_session',
+        params: {
+          'p_group_id': session.groupId,
+          'p_schedule_id': session.scheduleId,
+          'p_session_date': session.sessionDate.toIso8601String().split('T')[0],
+          'p_scheduled_start_at': session.scheduledStartAt.toIso8601String(),
+          'p_scheduled_end_at': session.scheduledEndAt.toIso8601String(),
+          'p_location': session.location,
+        },
+      );
+      return ClassSession.fromJson(Map<String, dynamic>.from(response as Map));
     } catch (e) {
       throw DatabaseFailure(
         message: 'Failed to create class session: ${e.toString()}',

@@ -39,10 +39,15 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
 
     try {
       final g = await _groupRepo.fetchGroups();
-      List<ScheduleEntity> s = [];
-      if (g.isNotEmpty) {
-        s = await _scheduleRepo.fetchSchedulesForGroup(g.first.id);
+      final s = <ScheduleEntity>[];
+      for (final group in g) {
+        s.addAll(await _scheduleRepo.fetchSchedulesForGroup(group.id));
       }
+      s.sort((a, b) {
+        final dayCompare = a.dayOfWeek.compareTo(b.dayOfWeek);
+        if (dayCompare != 0) return dayCompare;
+        return a.startTime.compareTo(b.startTime);
+      });
       if (mounted) {
         setState(() {
           _groups = g;
@@ -217,7 +222,10 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
         title: const Text('Delete Schedule'),
         content: const Text('Are you sure you want to delete this schedule?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -233,7 +241,10 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete: $e'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('Failed to delete: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -410,11 +421,19 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
           separatorBuilder: (ctx, i) => const SizedBox(height: 8),
           itemBuilder: (ctx, i) {
             final s = _schedules[i];
+            String? groupName;
+            for (final group in _groups) {
+              if (group.id == s.groupId) {
+                groupName = group.name;
+                break;
+              }
+            }
             return PortalListCard(
               icon: Icons.schedule,
               accentColor: AppColors.adminRole,
-              title: 'Day ${s.dayOfWeek}: ${s.startTime} - ${s.endTime}',
-              subtitle: 'Location: ${s.roomLocation ?? "Not assigned"}',
+              title:
+                  '${groupName ?? "Group"} · Day ${s.dayOfWeek}: ${s.startTime} - ${s.endTime}',
+              subtitle: 'Room: ${s.roomLocation ?? "Not assigned"}',
               trailing: [
                 PortalStatusChip(status: s.status),
                 IconButton(

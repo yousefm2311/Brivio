@@ -14,6 +14,7 @@ class StudyLessonSummary extends Equatable {
   final bool hasCodePlayground;
   final String? pdfUrl;
   final DateTime? publishedAt;
+  final String? groupId;
 
   const StudyLessonSummary({
     required this.id,
@@ -29,6 +30,7 @@ class StudyLessonSummary extends Equatable {
     required this.hasCodePlayground,
     this.pdfUrl,
     this.publishedAt,
+    this.groupId,
   });
 
   double get progress => progressPercentage.clamp(0, 100) / 100;
@@ -48,6 +50,7 @@ class StudyLessonSummary extends Equatable {
       hasCodePlayground: hasCodePlayground,
       pdfUrl: pdfUrl,
       publishedAt: publishedAt,
+      groupId: groupId,
     );
   }
 
@@ -66,6 +69,7 @@ class StudyLessonSummary extends Equatable {
     hasCodePlayground,
     pdfUrl,
     publishedAt,
+    groupId,
   ];
 
   factory StudyLessonSummary.fromJson(Map<dynamic, dynamic> raw) {
@@ -83,7 +87,10 @@ class StudyLessonSummary extends Equatable {
       hasPdf: json['has_pdf'] == true,
       hasCodePlayground: json['has_code_playground'] == true,
       pdfUrl: json['pdf_url'] as String?,
-      publishedAt: json['published_at'] != null ? DateTime.tryParse(json['published_at'].toString()) : null,
+      publishedAt: json['published_at'] != null
+          ? DateTime.tryParse(json['published_at'].toString())
+          : null,
+      groupId: json['group_id'] as String?,
     );
   }
 }

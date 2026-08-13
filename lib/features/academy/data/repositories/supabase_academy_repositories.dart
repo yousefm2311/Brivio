@@ -209,10 +209,59 @@ class SupabaseParentRepository implements IParentRepository {
   @override
   Future<List<Student>> fetchLinkedStudents(String parentId) async {
     try {
+      final currentUserId = _wrapper.client.auth.currentUser?.id;
+      if (currentUserId != null && parentId == currentUserId) {
+        try {
+          final rows = await _wrapper.client.rpc('get_current_parent_children');
+          final children = (rows as List)
+              .map((s) => Student.fromJson(Map<String, dynamic>.from(s as Map)))
+              .toList();
+          if (children.isNotEmpty) return children;
+        } catch (_) {}
+      }
+
+      var resolvedParentId = parentId;
+      final parentExists = await _wrapper.client
+          .from('parents')
+          .select('id, profile_id')
+          .eq('id', parentId)
+          .maybeSingle();
+      if (parentExists == null) {
+        final parentByProfile = await _wrapper.client
+            .from('parents')
+            .select('id, profile_id')
+            .eq('profile_id', parentId)
+            .maybeSingle();
+        resolvedParentId = parentByProfile?['id']?.toString() ?? parentId;
+      }
+
+      final resolvedProfileId =
+          parentExists?['profile_id']?.toString() == currentUserId
+          ? currentUserId
+          : null;
+      if (resolvedProfileId != null) {
+        try {
+          final rows = await _wrapper.client.rpc('get_current_parent_children');
+          final children = (rows as List)
+              .map((s) => Student.fromJson(Map<String, dynamic>.from(s as Map)))
+              .toList();
+          if (children.isNotEmpty) return children;
+        } catch (_) {}
+      }
+
+      if (parentExists == null && resolvedParentId == parentId) {
+        try {
+          final rows = await _wrapper.client.rpc('get_current_parent_children');
+          return (rows as List)
+              .map((s) => Student.fromJson(Map<String, dynamic>.from(s as Map)))
+              .toList();
+        } catch (_) {}
+      }
+
       final links = await _wrapper.client
           .from('parent_students')
           .select('student_id')
-          .eq('parent_id', parentId);
+          .eq('parent_id', resolvedParentId);
       final studentIds = (links as List)
           .map((l) => l['student_id'] as String)
           .toList();
@@ -221,7 +270,7 @@ class SupabaseParentRepository implements IParentRepository {
       final studentsRaw = await _wrapper.client
           .from('students')
           .select('*, profiles(*)')
-          .filter('id', 'in', studentIds);
+          .inFilter('id', studentIds);
 
       return (studentsRaw as List).map((s) {
         final Map<String, dynamic> item = Map<String, dynamic>.from(s as Map);

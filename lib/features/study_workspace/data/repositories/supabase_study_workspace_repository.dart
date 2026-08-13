@@ -86,26 +86,58 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
   Future<StudyWorkspaceDraft> fetchTeacherDraftForStudent({
     required String studentId,
     required String lessonId,
+    String? groupId,
   }) async {
     try {
-      final annotationBoards = await _wrapper.client
-          .rpc(
+      dynamic annotationBoards;
+      dynamic pdfDrawingBoards;
+
+      if (groupId == null) {
+        annotationBoards = await _wrapper.client.rpc(
+          'get_student_teacher_study_annotations',
+          params: {'p_lesson_id': lessonId, 'p_student_id': studentId},
+        );
+        pdfDrawingBoards = await _wrapper.client.rpc(
+          'get_student_teacher_study_pdf_drawings',
+          params: {'p_lesson_id': lessonId, 'p_student_id': studentId},
+        );
+      } else {
+        try {
+          annotationBoards = await _wrapper.client.rpc(
+            'get_group_teacher_study_annotations',
+            params: {
+              'p_lesson_id': lessonId,
+              'p_student_id': studentId,
+              'p_group_id': groupId,
+            },
+          );
+          pdfDrawingBoards = await _wrapper.client.rpc(
+            'get_group_teacher_study_pdf_drawings',
+            params: {
+              'p_lesson_id': lessonId,
+              'p_student_id': studentId,
+              'p_group_id': groupId,
+            },
+          );
+        } catch (_) {
+          annotationBoards = await _wrapper.client.rpc(
             'get_student_teacher_study_annotations',
             params: {'p_lesson_id': lessonId, 'p_student_id': studentId},
-          )
-          .eq('page_number', 1)
-          .eq('annotation_type', 'freehand');
-
-      final pdfDrawingBoards = await _wrapper.client
-          .rpc(
+          );
+          pdfDrawingBoards = await _wrapper.client.rpc(
             'get_student_teacher_study_pdf_drawings',
             params: {'p_lesson_id': lessonId, 'p_student_id': studentId},
-          )
-          .eq('page_number', 1);
+          );
+        }
+      }
 
       final boardData = _mergeBoardDataFromRows([
-        ..._asRowList(annotationBoards),
-        ..._asRowList(pdfDrawingBoards),
+        ..._filterBoardRows(
+          annotationBoards,
+          pageNumber: 1,
+          annotationType: 'freehand',
+        ),
+        ..._filterBoardRows(pdfDrawingBoards, pageNumber: 1),
       ]);
       if (boardData.isNotEmpty) {
         return StudyWorkspaceDraft(
@@ -149,6 +181,7 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
   Stream<StudyWorkspaceDraft> listenToTeacherDraftForStudent({
     required String studentId,
     required String lessonId,
+    String? groupId,
   }) {
     late final StreamController<StudyWorkspaceDraft> controller;
     RealtimeChannel? channel;
@@ -163,6 +196,7 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
           final draft = await fetchTeacherDraftForStudent(
             studentId: studentId,
             lessonId: lessonId,
+            groupId: groupId,
           );
           if (!controller.isClosed) {
             controller.add(draft);
@@ -772,4 +806,26 @@ List<dynamic> _asRowList(dynamic rows) {
   if (rows is List) return rows;
   if (rows == null) return const [];
   return [rows];
+}
+
+List<dynamic> _filterBoardRows(
+  dynamic rows, {
+  required int pageNumber,
+  String? annotationType,
+}) {
+  return _asRowList(rows).where((raw) {
+    if (raw is! Map) return false;
+    final rawPage = raw['page_number'];
+    final rowPage = rawPage is num
+        ? rawPage.toInt()
+        : int.tryParse(rawPage?.toString() ?? '');
+    if (rowPage != null && rowPage != pageNumber) return false;
+
+    if (annotationType != null) {
+      final rowType = raw['annotation_type']?.toString();
+      if (rowType != null && rowType != annotationType) return false;
+    }
+
+    return true;
+  }).toList();
 }

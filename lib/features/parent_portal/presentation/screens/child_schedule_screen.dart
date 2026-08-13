@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import '../viewmodels/child_schedule_viewmodel.dart';
 
 class ChildScheduleScreen extends StatefulWidget {
-  const ChildScheduleScreen({Key? key}) : super(key: key);
+  final String? studentId;
+
+  const ChildScheduleScreen({super.key, this.studentId});
 
   @override
-  _ChildScheduleScreenState createState() => _ChildScheduleScreenState();
+  ChildScheduleScreenState createState() => ChildScheduleScreenState();
 }
 
-class _ChildScheduleScreenState extends State<ChildScheduleScreen> with SingleTickerProviderStateMixin {
+class ChildScheduleScreenState extends State<ChildScheduleScreen>
+    with SingleTickerProviderStateMixin {
   final ChildScheduleViewModel _viewModel = ChildScheduleViewModel();
   late TabController _tabController;
 
@@ -16,12 +19,22 @@ class _ChildScheduleScreenState extends State<ChildScheduleScreen> with SingleTi
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _viewModel.addListener(_onViewModelChanged);
+    final studentId = widget.studentId;
+    if (studentId != null && studentId.isNotEmpty) {
+      _viewModel.loadForChild(studentId);
+    }
   }
 
   @override
   void dispose() {
+    _viewModel.removeListener(_onViewModelChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onViewModelChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -46,7 +59,10 @@ class _ChildScheduleScreenState extends State<ChildScheduleScreen> with SingleTi
           unselectedLabelColor: Colors.black45,
           indicatorColor: Colors.blueAccent,
           indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
           tabs: const [
             Tab(text: 'Today'),
             Tab(text: 'Exams'),
@@ -54,14 +70,30 @@ class _ChildScheduleScreenState extends State<ChildScheduleScreen> with SingleTi
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildEventList(_viewModel.todaySchedule, 'No classes scheduled for today.'),
-          _buildEventList(_viewModel.upcomingExams, 'No upcoming exams.'),
-          _buildEventList(_viewModel.holidays, 'No upcoming holidays.'),
-        ],
-      ),
+      body: _viewModel.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _viewModel.errorMessage != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  _viewModel.errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16, color: Colors.black54),
+                ),
+              ),
+            )
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildEventList(
+                  _viewModel.todaySchedule,
+                  'No classes scheduled for today.',
+                ),
+                _buildEventList(_viewModel.upcomingExams, 'No upcoming exams.'),
+                _buildEventList(_viewModel.holidays, 'No upcoming holidays.'),
+              ],
+            ),
     );
   }
 
@@ -88,7 +120,7 @@ class _ChildScheduleScreenState extends State<ChildScheduleScreen> with SingleTi
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -121,7 +153,11 @@ class _ChildScheduleScreenState extends State<ChildScheduleScreen> with SingleTi
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                        Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           event.time,
@@ -136,10 +172,7 @@ class _ChildScheduleScreenState extends State<ChildScheduleScreen> with SingleTi
                     const SizedBox(height: 6),
                     Text(
                       event.description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[800],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[800]),
                     ),
                   ],
                 ),
