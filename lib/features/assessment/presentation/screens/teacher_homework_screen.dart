@@ -395,8 +395,9 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                       );
                                     }
                                   } finally {
-                                    if (ctx.mounted)
+                                    if (ctx.mounted) {
                                       setModalState(() => isSaving = false);
+                                    }
                                   }
                                 },
                           child: isSaving

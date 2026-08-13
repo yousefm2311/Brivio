@@ -689,11 +689,11 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 padding: const EdgeInsets.only(bottom: 12.0),
                                 child: GlassCard(
                                   padding: const EdgeInsets.all(16),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: ListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: CircleAvatar(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      CircleAvatar(
                                         backgroundColor: AppColors.primary
                                             .withValues(alpha: 0.2),
                                         child: const Icon(
@@ -701,38 +701,48 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                           color: AppColors.primary,
                                         ),
                                       ),
-                                      title: Text(
-                                        q.prompt,
-                                        style: AppTypography.titleMedium(
-                                          textColor,
-                                        ).copyWith(fontWeight: FontWeight.bold),
-                                      ),
-                                      subtitle: Text(
-                                        '${context.tr('Type')}: ${context.tr(q.questionType.name)} | ${context.tr('Points')}: ${q.defaultPoints}',
-                                        style: AppTypography.caption(
-                                          subtitleColor,
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              q.prompt,
+                                              style:
+                                                  AppTypography.titleMedium(
+                                                    textColor,
+                                                  ).copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              '${context.tr('Type')}: ${context.tr(q.questionType.name)} | ${context.tr('Points')}: ${q.defaultPoints}',
+                                              style: AppTypography.caption(
+                                                subtitleColor,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      trailing: Wrap(
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.edit_rounded,
-                                              color: AppColors.primary,
-                                            ),
-                                            onPressed: () =>
-                                                _showQuestionEditorDialog(q),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.delete_outline,
-                                              color: AppColors.error,
-                                            ),
-                                            onPressed: () => _deleteQuestion(q),
-                                          ),
-                                        ],
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.edit_rounded,
+                                          color: AppColors.primary,
+                                        ),
+                                        onPressed: () =>
+                                            _showQuestionEditorDialog(q),
                                       ),
-                                    ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: AppColors.error,
+                                        ),
+                                        onPressed: () => _deleteQuestion(q),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

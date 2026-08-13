@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hive/hive.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import 'core/services/notification_service.dart';
 import 'core/error/supabase_error_handler.dart';
@@ -16,6 +17,7 @@ import 'core/app/academy_material_app.dart';
 import 'core/di/injection.dart';
 import 'core/logging/app_logger.dart';
 import 'core/security/access_denied_screen.dart';
+import 'core/services/settings_service.dart';
 import 'design_system/theme/app_theme.dart';
 import 'features/auth/domain/models/user_role.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
@@ -24,10 +26,11 @@ import 'features/auth/presentation/viewmodels/auth_viewmodel.dart';
 final GlobalKey<NavigatorState> globalNavigatorKey =
     GlobalKey<NavigatorState>();
 
-final GlobalKey<ScaffoldMessengerState> globalScaffoldMessengerKey = 
+final GlobalKey<ScaffoldMessengerState> globalScaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
 void _showGlobalError(Object error) {
+  if (!_shouldShowGlobalError(error)) return;
   final message = SupabaseErrorHandler.parseError(error);
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (globalScaffoldMessengerKey.currentState != null) {
@@ -42,9 +45,16 @@ void _showGlobalError(Object error) {
   });
 }
 
+bool _shouldShowGlobalError(Object error) {
+  final text = error.toString();
+  return !text.contains(
+    'ListTile background color or ink splashes may be invisible',
+  );
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     _showGlobalError(details.exception);
@@ -58,11 +68,11 @@ void main() async {
   try {
     await Firebase.initializeApp();
     await NotificationService().init();
-    
+
     final appDir = await getApplicationDocumentsDirectory();
     Hive.init(appDir.path);
     await Hive.openBox('study_workspace_cache');
-    
+
     await setupDependencyInjection().timeout(const Duration(seconds: 20));
     runApp(const MainAppSelector());
   } catch (error, stackTrace) {
@@ -179,7 +189,10 @@ class _MainAppSelectorState extends State<MainAppSelector> {
             case AuthStatus.authenticated:
               final role = _viewModel.userRole;
               if (role != null) {
-                return _buildRoleDashboard(role);
+                return BiometricGate(
+                  onSignOut: () => _viewModel.signOut(),
+                  child: _buildRoleDashboard(role),
+                );
               }
               return PortalDeniedScreen(
                 currentRole: role,
@@ -195,6 +208,137 @@ class _MainAppSelectorState extends State<MainAppSelector> {
               return LoginScreen(viewModel: _viewModel);
           }
         },
+      ),
+    );
+  }
+}
+
+class BiometricGate extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onSignOut;
+
+  const BiometricGate({
+    super.key,
+    required this.child,
+    required this.onSignOut,
+  });
+
+  @override
+  State<BiometricGate> createState() => _BiometricGateState();
+}
+
+class _BiometricGateState extends State<BiometricGate> {
+  bool _unlocked = false;
+  bool _checking = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
+  }
+
+  Future<void> _unlock() async {
+    final settings = getIt<SettingsService>();
+    if (!settings.biometricLogin || kIsWeb) {
+      if (mounted) {
+        setState(() {
+          _unlocked = true;
+          _checking = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final auth = LocalAuthentication();
+      final supported = await auth.isDeviceSupported();
+      final canCheckBiometrics = await auth.canCheckBiometrics;
+      if (!supported && !canCheckBiometrics) {
+        if (!mounted) return;
+        setState(() {
+          _errorMessage =
+              'Biometric login is enabled, but this device has no available secure unlock method.';
+          _checking = false;
+        });
+        return;
+      }
+
+      final didAuthenticate = await auth.authenticate(
+        localizedReason: 'Unlock your academy portal',
+      );
+      if (!mounted) return;
+      setState(() {
+        _unlocked = didAuthenticate;
+        _checking = false;
+        _errorMessage = didAuthenticate ? null : 'Authentication was canceled.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _checking = false;
+        _errorMessage = error.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_unlocked) return widget.child;
+
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.fingerprint, size: 64),
+                const SizedBox(height: 16),
+                Text(
+                  'Biometric unlock',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _checking
+                      ? 'Checking device authentication...'
+                      : _errorMessage ?? 'Unlock was not completed.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                if (_checking)
+                  const CircularProgressIndicator()
+                else
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _checking = true;
+                            _errorMessage = null;
+                          });
+                          _unlock();
+                        },
+                        icon: const Icon(Icons.fingerprint),
+                        label: const Text('Try again'),
+                      ),
+                      TextButton(
+                        onPressed: widget.onSignOut,
+                        child: const Text('Sign out'),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

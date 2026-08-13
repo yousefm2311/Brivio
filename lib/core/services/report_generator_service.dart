@@ -1,11 +1,6 @@
-import 'dart:io';
-import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:csv/csv.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class ReportGeneratorService {
   /// Generates a PDF report for Student Grades and Missing Homeworks.
@@ -14,28 +9,48 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> studentsData,
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Student Grades Report - $className', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['Student Name', 'Exam Score', 'Homework Score', 'Missing Assignments'],
-            ...studentsData.map((student) => [
-              student['name']?.toString() ?? '',
-              student['exam_score']?.toString() ?? '0',
-              student['homework_score']?.toString() ?? '0',
-              student['missing_assignments']?.toString() ?? '0',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.blue),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Student Grades Report - $className',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              [
+                'Student Name',
+                'Exam Score',
+                'Homework Score',
+                'Missing Assignments',
+              ],
+              ...studentsData.map(
+                (student) => [
+                  student['name']?.toString() ?? '',
+                  student['exam_score']?.toString() ?? '0',
+                  student['homework_score']?.toString() ?? '0',
+                  student['missing_assignments']?.toString() ?? '0',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Grades_Report_$className.pdf');
   }
@@ -47,28 +62,48 @@ class ReportGeneratorService {
     String personType = 'Student',
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Attendance Report - $className', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['$personType Name', 'Total Present', 'Total Absent', 'Absence Dates'],
-            ...attendanceData.map((record) => [
-              record['name']?.toString() ?? '',
-              record['present']?.toString() ?? '0',
-              record['absent']?.toString() ?? '0',
-              record['absence_dates']?.toString() ?? '',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.green),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Attendance Report - $className',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              [
+                '$personType Name',
+                'Total Present',
+                'Total Absent',
+                'Absence Dates',
+              ],
+              ...attendanceData.map(
+                (record) => [
+                  record['name']?.toString() ?? '',
+                  record['present']?.toString() ?? '0',
+                  record['absent']?.toString() ?? '0',
+                  record['absence_dates']?.toString() ?? '',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.green),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Attendance_Report_$className.pdf');
   }
@@ -78,29 +113,44 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> financialData,
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Financial Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['Date', 'Description', 'Type', 'Amount', 'Notes'],
-            ...financialData.map((record) => [
-              record['date']?.toString() ?? '',
-              record['description']?.toString() ?? '',
-              record['type']?.toString() ?? '',
-              record['amount']?.toString() ?? '0',
-              record['notes']?.toString() ?? '',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.orange),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Financial Report',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              ['Date', 'Description', 'Type', 'Amount', 'Notes'],
+              ...financialData.map(
+                (record) => [
+                  record['date']?.toString() ?? '',
+                  record['description']?.toString() ?? '',
+                  record['type']?.toString() ?? '',
+                  record['amount']?.toString() ?? '0',
+                  record['notes']?.toString() ?? '',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.orange),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Financial_Report.pdf');
   }
@@ -110,27 +160,42 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> teacherData,
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Teacher Metrics Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['Teacher Name', 'Classes Taught', 'Average Attendance (%)'],
-            ...teacherData.map((record) => [
-              record['name']?.toString() ?? '',
-              record['classes_taught']?.toString() ?? '0',
-              record['avg_attendance']?.toString() ?? '0',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.purple),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Teacher Metrics Report',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              ['Teacher Name', 'Classes Taught', 'Average Attendance (%)'],
+              ...teacherData.map(
+                (record) => [
+                  record['name']?.toString() ?? '',
+                  record['classes_taught']?.toString() ?? '0',
+                  record['avg_attendance']?.toString() ?? '0',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.purple),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Teacher_Metrics_Report.pdf');
   }
@@ -149,28 +214,43 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> studentsData,
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Student Roster Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['Student Name', 'Student Code', 'Email', 'Status'],
-            ...studentsData.map((record) => [
-              record['name']?.toString() ?? '',
-              record['code']?.toString() ?? '',
-              record['email']?.toString() ?? '',
-              record['status']?.toString() ?? '',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.blue),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Student Roster Report',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              ['Student Name', 'Student Code', 'Email', 'Status'],
+              ...studentsData.map(
+                (record) => [
+                  record['name']?.toString() ?? '',
+                  record['code']?.toString() ?? '',
+                  record['email']?.toString() ?? '',
+                  record['status']?.toString() ?? '',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Student_Roster_Report.pdf');
   }
@@ -180,28 +260,43 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> teachersData,
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Teacher Roster Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['Teacher Name', 'Email', 'Specialization', 'Status'],
-            ...teachersData.map((record) => [
-              record['name']?.toString() ?? '',
-              record['email']?.toString() ?? '',
-              record['specialization']?.toString() ?? '',
-              record['status']?.toString() ?? '',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.teal),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Teacher Roster Report',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              ['Teacher Name', 'Email', 'Specialization', 'Status'],
+              ...teachersData.map(
+                (record) => [
+                  record['name']?.toString() ?? '',
+                  record['email']?.toString() ?? '',
+                  record['specialization']?.toString() ?? '',
+                  record['status']?.toString() ?? '',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.teal),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Teacher_Roster_Report.pdf');
   }
@@ -212,28 +307,43 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> examData,
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Exam Report - $groupName', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['Exam Title', 'Duration (mins)', 'Pass Score', 'Status'],
-            ...examData.map((record) => [
-              record['title']?.toString() ?? '',
-              record['duration']?.toString() ?? '',
-              record['pass_score']?.toString() ?? '',
-              record['status']?.toString() ?? '',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.indigo),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Exam Report - $groupName',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              ['Exam Title', 'Duration (mins)', 'Pass Score', 'Status'],
+              ...examData.map(
+                (record) => [
+                  record['title']?.toString() ?? '',
+                  record['duration']?.toString() ?? '',
+                  record['pass_score']?.toString() ?? '',
+                  record['status']?.toString() ?? '',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.indigo),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Exam_Report_$groupName.pdf');
   }
@@ -243,28 +353,43 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> groupsData,
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Groups & Schedules Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['Group Name', 'Timing', 'Teacher', 'Active'],
-            ...groupsData.map((record) => [
-              record['group_name']?.toString() ?? '',
-              record['timing']?.toString() ?? '',
-              record['teacher']?.toString() ?? '',
-              (record['is_active'] == true) ? 'Yes' : 'No',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.red),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Groups & Schedules Report',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              ['Group Name', 'Timing', 'Teacher', 'Active'],
+              ...groupsData.map(
+                (record) => [
+                  record['group_name']?.toString() ?? '',
+                  record['timing']?.toString() ?? '',
+                  record['teacher']?.toString() ?? '',
+                  (record['is_active'] == true) ? 'Yes' : 'No',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.red),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Groups_Schedules_Report.pdf');
   }
@@ -274,28 +399,45 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> parentsData,
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Linked Parents Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['Parent Name', 'Linked Students', 'Email', 'Active Status'],
-            ...parentsData.map((record) => [
-              record['name']?.toString() ?? '',
-              record['students']?.toString() ?? '',
-              record['email']?.toString() ?? '',
-              record['status']?.toString() ?? '',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.deepPurple),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Linked Parents Report',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              ['Parent Name', 'Linked Students', 'Email', 'Active Status'],
+              ...parentsData.map(
+                (record) => [
+                  record['name']?.toString() ?? '',
+                  record['students']?.toString() ?? '',
+                  record['email']?.toString() ?? '',
+                  record['status']?.toString() ?? '',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(
+              color: PdfColors.deepPurple,
+            ),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Parents_Report.pdf');
   }
@@ -305,28 +447,48 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> homeworkData,
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Homework Completion Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['Class/Group', 'Total Assignments', 'Completion Rate', 'Average Score'],
-            ...homeworkData.map((record) => [
-              record['group']?.toString() ?? '',
-              record['total']?.toString() ?? '0',
-              record['completion_rate']?.toString() ?? '0%',
-              record['avg_score']?.toString() ?? '0',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.brown),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Homework Completion Report',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              [
+                'Class/Group',
+                'Total Assignments',
+                'Completion Rate',
+                'Average Score',
+              ],
+              ...homeworkData.map(
+                (record) => [
+                  record['group']?.toString() ?? '',
+                  record['total']?.toString() ?? '0',
+                  record['completion_rate']?.toString() ?? '0%',
+                  record['avg_score']?.toString() ?? '0',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.brown),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Homework_Completion_Report.pdf');
   }
@@ -336,28 +498,48 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> curriculumData,
   }) async {
     final pdf = pw.Document();
-    
-    pdf.addPage(pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Curriculum Progress Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
-        pw.SizedBox(height: 20),
-        pw.TableHelper.fromTextArray(
-          context: context,
-          data: [
-            ['Subject/Course', 'Total Modules', 'Completed Modules', 'Progress (%)'],
-            ...curriculumData.map((record) => [
-              record['subject']?.toString() ?? '',
-              record['total_modules']?.toString() ?? '0',
-              record['completed_modules']?.toString() ?? '0',
-              record['progress']?.toString() ?? '0%',
-            ]),
-          ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey),
-          rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey))),
-        ),
-      ],
-    ));
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Curriculum Progress Report',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            data: [
+              [
+                'Subject/Course',
+                'Total Modules',
+                'Completed Modules',
+                'Progress (%)',
+              ],
+              ...curriculumData.map(
+                (record) => [
+                  record['subject']?.toString() ?? '',
+                  record['total_modules']?.toString() ?? '0',
+                  record['completed_modules']?.toString() ?? '0',
+                  record['progress']?.toString() ?? '0%',
+                ],
+              ),
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     await _saveAndSharePdf(pdf, 'Curriculum_Progress_Report.pdf');
   }

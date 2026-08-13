@@ -261,14 +261,7 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
     required String lessonId,
     required String boardData,
   }) async {
-    await _wrapper.client
-        .from('study_annotations')
-        .delete()
-        .eq('student_id', studentId)
-        .eq('lesson_id', lessonId)
-        .eq('page_number', 1)
-        .eq('annotation_type', 'freehand');
-    await _wrapper.client.from('study_annotations').insert({
+    await _wrapper.client.from('study_annotations').upsert({
       'student_id': studentId,
       'lesson_id': lessonId,
       'page_number': 1,
@@ -277,7 +270,7 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
       'geometry': {'board_data': boardData},
       'content': 'Smart notebook board',
       'updated_at': DateTime.now().toIso8601String(),
-    });
+    }, onConflict: 'student_id,lesson_id,page_number,annotation_type');
   }
 
   @override
@@ -300,14 +293,7 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
       // Older databases may not have the RPC until the latest migration is run.
     }
 
-    await _wrapper.client
-        .from('teacher_study_annotations')
-        .delete()
-        .eq('teacher_id', teacherId)
-        .eq('lesson_id', lessonId)
-        .eq('page_number', 1)
-        .eq('annotation_type', 'freehand');
-    await _wrapper.client.from('teacher_study_annotations').insert({
+    await _wrapper.client.from('teacher_study_annotations').upsert({
       'teacher_id': teacherId,
       'lesson_id': lessonId,
       'page_number': 1,
@@ -316,7 +302,7 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
       'geometry': {'board_data': boardData},
       'content': 'Smart notebook board',
       'updated_at': DateTime.now().toIso8601String(),
-    });
+    }, onConflict: 'teacher_id,lesson_id,page_number,annotation_type');
   }
 
   @override

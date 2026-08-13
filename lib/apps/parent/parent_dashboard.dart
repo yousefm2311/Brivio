@@ -10,12 +10,15 @@ import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
+import '../../features/auth/domain/repositories/i_auth_repository.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../features/communication/data/repositories/supabase_notification_repository.dart';
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
 import '../../features/communication/domain/models/notification.dart';
 import '../../features/payments/data/repositories/supabase_payment_repositories.dart';
 import '../../features/payments/domain/models/payment_models.dart';
+import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import '../../features/study_workspace/data/repositories/supabase_student_learning_repository.dart';
 import '../../features/study_workspace/domain/models/study_workspace_models.dart';
 
@@ -52,6 +55,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     PortalDestination(icon: Icons.receipt_long, label: 'Payments'),
     PortalDestination(icon: Icons.summarize, label: 'Report'),
     PortalDestination(icon: Icons.notifications, label: 'Notifications'),
+    PortalDestination(icon: Icons.account_circle, label: 'Account'),
     PortalDestination(icon: Icons.settings, label: 'Settings'),
   ];
 
@@ -70,13 +74,15 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   void _subscribeToNotifications() {
     final notificationRepo = getIt<INotificationRepository>();
-    _notificationSubscription = notificationRepo.subscribeToNotifications().listen((notification) {
-      if (!mounted) return;
-      setState(() {
-        _notifications.insert(0, notification);
-        _unreadCount++;
-      });
-    });
+    _notificationSubscription = notificationRepo
+        .subscribeToNotifications()
+        .listen((notification) {
+          if (!mounted) return;
+          setState(() {
+            _notifications.insert(0, notification);
+            _unreadCount++;
+          });
+        });
   }
 
   SupabaseClientWrapper get _wrapper =>
@@ -188,7 +194,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
     List<AppNotification> notifications,
     String childId,
   ) {
-    return notifications.toList(); // Simplified since parent gets notifications directly or via referenceId.
+    return notifications
+        .toList(); // Simplified since parent gets notifications directly or via referenceId.
   }
 
   Future<List<_ParentAttendanceItem>> _fetchAttendance(String studentId) async {
@@ -408,9 +415,101 @@ class _ParentDashboardState extends State<ParentDashboard> {
       3 => _buildPaymentsPage(),
       4 => _buildMonthlyReportPage(),
       5 => _buildNotificationsPage(),
-      6 => const AppSettingsPanel(),
+      6 => _buildAccountPage(),
+      7 => const AppSettingsPanel(),
       _ => _buildOverviewPage(),
     };
+  }
+
+  Widget _buildAccountPage() {
+    final profile = widget.authViewModel.currentUser;
+    final name = profile?.fullName ?? 'Guardian';
+    final email = profile?.email ?? '';
+    final phone = profile?.phoneNumber;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const PortalSectionTitle(
+          title: 'Account',
+          subtitle: 'Manage your guardian profile and app access.',
+        ),
+        const SizedBox(height: 12),
+        PortalListCard(
+          icon: Icons.account_circle,
+          accentColor: AppColors.parentRole,
+          title: name,
+          subtitle: [
+            if (email.isNotEmpty) email,
+            if (phone != null && phone.isNotEmpty) phone,
+          ].join(' • '),
+          trailing: [
+            FilledButton.icon(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ProfileScreen(
+                      viewModel: ProfileViewModel(
+                        getIt<IAuthRepository>(),
+                        widget.authViewModel.currentUser,
+                      ),
+                      onSignedOut: widget.authViewModel.signOut,
+                    ),
+                  ),
+                );
+                if (mounted) {
+                  await widget.authViewModel.restoreSession();
+                }
+              },
+              icon: const Icon(Icons.edit, size: 18),
+              label: const Text('Edit'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        PortalListCard(
+          icon: Icons.notifications_active,
+          accentColor: AppColors.parentRole,
+          title: 'Notifications',
+          subtitle: _unreadCount == 0
+              ? 'No unread notifications.'
+              : '$_unreadCount unread notifications.',
+          trailing: [
+            TextButton(
+              onPressed: () => setState(() => _selectedIndex = 5),
+              child: const Text('Open'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        PortalListCard(
+          icon: Icons.settings,
+          accentColor: AppColors.info,
+          title: 'Settings',
+          subtitle:
+              'Language, theme, notifications, privacy, and biometric login.',
+          trailing: [
+            TextButton(
+              onPressed: () => setState(() => _selectedIndex = 7),
+              child: const Text('Open'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        PortalListCard(
+          icon: Icons.logout,
+          accentColor: AppColors.error,
+          title: 'Sign out',
+          subtitle: 'Leave the guardian portal on this device.',
+          trailing: [
+            TextButton(
+              onPressed: widget.authViewModel.signOut,
+              child: const Text('Sign out'),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _buildOverviewPage() {

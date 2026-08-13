@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
 import '../localization/app_locale_controller.dart';
@@ -21,7 +22,10 @@ class AppSettingsScreen extends StatelessWidget {
       subtitle: 'Manage global configuration, preferences, and security.',
       icon: Icons.settings_suggest,
       accentColor: AppColors.primary,
-      child: const AppSettingsPanel(),
+      child: const Material(
+        type: MaterialType.transparency,
+        child: AppSettingsPanel(),
+      ),
     );
   }
 }
@@ -50,6 +54,15 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
   }
 
   Future<void> _loadSettings() async {
+    final settingsService = GetIt.instance<SettingsService>();
+    _emailDigest = settingsService.emailDigest;
+    _twoFactorAuth = settingsService.twoFactorAuth;
+    _dataCollection = settingsService.dataCollection;
+    _biometricLogin = settingsService.biometricLogin;
+    _pushNotifications = settingsService.pushNotifications;
+    _animationQuality = settingsService.animationQuality;
+    _timeZone = settingsService.timeZone;
+
     if (!GetIt.instance.isRegistered<IAdminRepository>()) {
       setState(() => _isLoading = false);
       return;
@@ -71,8 +84,12 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
         _twoFactorAuth = _parseBool(results[1]?.value);
         _dataCollection = _parseBool(results[2]?.value);
         _biometricLogin = _parseBool(results[3]?.value);
-        _pushNotifications = results[4] != null ? _parseBool(results[4]?.value) : true;
-        _animationQuality = results[5] != null ? _parseBool(results[5]?.value) : true;
+        _pushNotifications = results[4] != null
+            ? _parseBool(results[4]?.value)
+            : true;
+        _animationQuality = results[5] != null
+            ? _parseBool(results[5]?.value)
+            : true;
         if (results.length > 6 && results[6] != null) {
           _timeZone = results[6]?.value.toString() ?? 'UTC+03:00';
         }
@@ -88,22 +105,57 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
     return false;
   }
 
-  Future<void> _updateSetting<T>(String key, T value, void Function(T) updateLocalState, {T? originalValue}) async {
+  Future<void> _updateSetting<T>(
+    String key,
+    T value,
+    void Function(T) updateLocalState, {
+    T? originalValue,
+  }) async {
     setState(() => updateLocalState(value));
+    await _persistLocalSetting(key, value);
 
     try {
       if (GetIt.instance.isRegistered<IAdminRepository>()) {
-        await GetIt.instance<IAdminRepository>().updateSetting(key, value.toString());
+        await GetIt.instance<IAdminRepository>().updateSetting(
+          key,
+          value.toString(),
+        );
       }
     } catch (e) {
       if (mounted) {
-        if (originalValue != null || T == bool) {
-          setState(() => updateLocalState(originalValue ?? (!(value as bool) as T)));
-        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update setting.')),
+          const SnackBar(
+            content: Text('Saved on this device. Server sync failed.'),
+          ),
         );
       }
+    }
+  }
+
+  Future<void> _persistLocalSetting<T>(String key, T value) async {
+    final settingsService = GetIt.instance<SettingsService>();
+    switch (key) {
+      case 'animation_quality':
+        await settingsService.updateAnimationQuality(value as bool);
+        break;
+      case 'push_notifications':
+        await settingsService.updatePushNotifications(value as bool);
+        break;
+      case 'email_digest':
+        await settingsService.updateEmailDigest(value as bool);
+        break;
+      case 'two_factor_auth':
+        await settingsService.updateTwoFactorAuth(value as bool);
+        break;
+      case 'data_collection':
+        await settingsService.updateDataCollection(value as bool);
+        break;
+      case 'biometric_login':
+        await settingsService.updateBiometricLogin(value as bool);
+        break;
+      case 'time_zone':
+        await settingsService.updateTimeZone(value.toString());
+        break;
     }
   }
 
@@ -114,8 +166,6 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
         ? GetIt.instance<PushNotificationService>()
         : null;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -135,16 +185,28 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 children: [
                   _SettingsTile(
                     title: context.tr('Theme Mode'),
-                    subtitle: context.tr('Choose between Light, Dark, or System theme.'),
+                    subtitle: context.tr(
+                      'Choose between Light, Dark, or System theme.',
+                    ),
                     icon: Icons.brightness_6_outlined,
                     trailing: SegmentedButton<ThemeMode>(
                       segments: [
-                        ButtonSegment(value: ThemeMode.system, label: Text(context.tr('Auto'))),
-                        ButtonSegment(value: ThemeMode.light, label: Text(context.tr('Light'))),
-                        ButtonSegment(value: ThemeMode.dark, label: Text(context.tr('Dark'))),
+                        ButtonSegment(
+                          value: ThemeMode.system,
+                          label: Text(context.tr('Auto')),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.light,
+                          label: Text(context.tr('Light')),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.dark,
+                          label: Text(context.tr('Dark')),
+                        ),
                       ],
                       selected: {settingsService.themeMode},
-                      onSelectionChanged: (selection) => settingsService.updateThemeMode(selection.first),
+                      onSelectionChanged: (selection) =>
+                          settingsService.updateThemeMode(selection.first),
                       style: SegmentedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),
@@ -156,8 +218,12 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     icon: Icons.animation,
                     trailing: Switch.adaptive(
                       value: _animationQuality,
-                      onChanged: (val) => _updateSetting('animation_quality', val, (v) => _animationQuality = v),
-                      activeColor: Colors.purple,
+                      onChanged: (val) => _updateSetting(
+                        'animation_quality',
+                        val,
+                        (v) => _animationQuality = v,
+                      ),
+                      activeThumbColor: Colors.purple,
                     ),
                   ),
                 ],
@@ -177,11 +243,18 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     icon: Icons.translate,
                     trailing: SegmentedButton<AppLanguage>(
                       segments: [
-                        ButtonSegment(value: AppLanguage.english, label: Text(context.tr('english'))),
-                        ButtonSegment(value: AppLanguage.arabic, label: Text(context.tr('arabic'))),
+                        ButtonSegment(
+                          value: AppLanguage.english,
+                          label: Text(context.tr('english')),
+                        ),
+                        ButtonSegment(
+                          value: AppLanguage.arabic,
+                          label: Text(context.tr('arabic')),
+                        ),
                       ],
                       selected: {settingsService.language},
-                      onSelectionChanged: (selection) => settingsService.updateLanguage(selection.first),
+                      onSelectionChanged: (selection) =>
+                          settingsService.updateLanguage(selection.first),
                       style: SegmentedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),
@@ -191,7 +264,10 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     title: context.tr('Time Zone'),
                     subtitle: '${context.tr('Automatic')} ($_timeZone)',
                     icon: Icons.access_time,
-                    trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: Colors.grey,
+                    ),
                     onTap: () {
                       showModalBottomSheet(
                         context: context,
@@ -215,7 +291,12 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                               return ListTile(
                                 title: Text(tz),
                                 onTap: () {
-                                  _updateSetting<String>('time_zone', tz, (v) => _timeZone = v, originalValue: _timeZone);
+                                  _updateSetting<String>(
+                                    'time_zone',
+                                    tz,
+                                    (v) => _timeZone = v,
+                                    originalValue: _timeZone,
+                                  );
                                   Navigator.of(context).pop();
                                 },
                               );
@@ -243,14 +324,18 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     trailing: Switch.adaptive(
                       value: _pushNotifications,
                       onChanged: (val) {
-                        _updateSetting('push_notifications', val, (v) => _pushNotifications = v);
+                        _updateSetting(
+                          'push_notifications',
+                          val,
+                          (v) => _pushNotifications = v,
+                        );
                         if (val) {
                           pushService?.syncCurrentToken();
                         } else {
                           pushService?.unregisterCurrentToken();
                         }
                       },
-                      activeColor: Colors.orange,
+                      activeThumbColor: Colors.orange,
                     ),
                   ),
                   _SettingsTile(
@@ -259,8 +344,12 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     icon: Icons.email_outlined,
                     trailing: Switch.adaptive(
                       value: _emailDigest,
-                      onChanged: (val) => _updateSetting('email_digest', val, (v) => _emailDigest = v),
-                      activeColor: Colors.orange,
+                      onChanged: (val) => _updateSetting(
+                        'email_digest',
+                        val,
+                        (v) => _emailDigest = v,
+                      ),
+                      activeThumbColor: Colors.orange,
                     ),
                   ),
                 ],
@@ -280,8 +369,12 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     icon: Icons.vpn_key_outlined,
                     trailing: Switch.adaptive(
                       value: _twoFactorAuth,
-                      onChanged: (val) => _updateSetting('two_factor_auth', val, (v) => _twoFactorAuth = v),
-                      activeColor: AppColors.success,
+                      onChanged: (val) => _updateSetting(
+                        'two_factor_auth',
+                        val,
+                        (v) => _twoFactorAuth = v,
+                      ),
+                      activeThumbColor: AppColors.success,
                     ),
                   ),
                   _SettingsTile(
@@ -291,33 +384,54 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                         showDialog(
                           context: context,
                           builder: (context) {
-                            final isDark = Theme.of(context).brightness == Brightness.dark;
+                            final isDark =
+                                Theme.of(context).brightness == Brightness.dark;
                             return Dialog(
                               backgroundColor: Colors.transparent,
                               elevation: 0,
                               child: GlassCard(
-                                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                                borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                                color: isDark
+                                    ? AppColors.darkSurface
+                                    : AppColors.lightSurface,
+                                borderColor: isDark
+                                    ? AppColors.darkBorder
+                                    : AppColors.lightBorder,
                                 child: Padding(
                                   padding: const EdgeInsets.all(24.0),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.info_outline, size: 48, color: Colors.blue),
+                                      const Icon(
+                                        Icons.info_outline,
+                                        size: 48,
+                                        color: Colors.blue,
+                                      ),
                                       const SizedBox(height: 16),
                                       Text(
                                         context.tr('Data Collection'),
-                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
-                                        context.tr('Send anonymous usage data to improve the app'),
+                                        context.tr(
+                                          'Send anonymous usage data to improve the app',
+                                        ),
                                         textAlign: TextAlign.center,
                                       ),
                                       const SizedBox(height: 24),
                                       ElevatedButton(
-                                        onPressed: () => Navigator.of(context).pop(),
-                                        child: Text(context.tr('Got it') == 'Got it' ? 'Got it' : 'موافق'),
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
+                                        child: Text(
+                                          context.tr('Got it') == 'Got it'
+                                              ? 'Got it'
+                                              : 'موافق',
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -327,14 +441,24 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                           },
                         );
                       },
-                      child: const Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                      child: const Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Colors.grey,
+                      ),
                     ),
-                    subtitle: context.tr('Send anonymous usage data to improve the app'),
+                    subtitle: context.tr(
+                      'Send anonymous usage data to improve the app',
+                    ),
                     icon: Icons.data_usage,
                     trailing: Switch.adaptive(
                       value: _dataCollection,
-                      onChanged: (val) => _updateSetting('data_collection', val, (v) => _dataCollection = v),
-                      activeColor: AppColors.success,
+                      onChanged: (val) => _updateSetting(
+                        'data_collection',
+                        val,
+                        (v) => _dataCollection = v,
+                      ),
+                      activeThumbColor: AppColors.success,
                     ),
                   ),
                   _SettingsTile(
@@ -346,41 +470,53 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                       onChanged: (val) async {
                         if (val) {
                           final localAuth = LocalAuthentication();
-                          final bool canAuthenticateWithBiometrics = await localAuth.canCheckBiometrics;
-                          final bool canAuthenticate = canAuthenticateWithBiometrics || await localAuth.isDeviceSupported();
-                          if (canAuthenticate) {
-                            try {
+                          try {
+                            final bool canAuthenticateWithBiometrics =
+                                await localAuth.canCheckBiometrics;
+                            final bool canAuthenticate =
+                                canAuthenticateWithBiometrics ||
+                                await localAuth.isDeviceSupported();
+                            if (canAuthenticate) {
                               final didAuthenticate = await localAuth.authenticate(
-                                localizedReason: 'Please authenticate to enable Biometric Login',
+                                localizedReason:
+                                    'Please authenticate to enable Biometric Login',
                               );
                               if (didAuthenticate) {
-                                _updateSetting('biometric_login', val, (v) => _biometricLogin = v);
+                                _updateSetting(
+                                  'biometric_login',
+                                  val,
+                                  (v) => _biometricLogin = v,
+                                );
                               }
-                            } catch (e) {
+                            } else {
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Biometrics/PIN not set up. Please configure device security first.'),
-                                    backgroundColor: Colors.red,
-                                  ),
+                                _showBiometricUnavailableMessage(
+                                  'Device does not support biometric authentication.',
                                 );
                               }
                             }
-                          } else {
+                          } on PlatformException {
                             if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Device does not support biometric authentication.'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                              _showBiometricUnavailableMessage(
+                                'Biometric plugin is not ready. Do a full app restart, then try again.',
+                              );
+                            }
+                          } catch (_) {
+                            if (mounted) {
+                              _showBiometricUnavailableMessage(
+                                'Biometrics/PIN not set up. Please configure device security first.',
+                              );
                             }
                           }
                         } else {
-                          _updateSetting('biometric_login', val, (v) => _biometricLogin = v);
+                          _updateSetting(
+                            'biometric_login',
+                            val,
+                            (v) => _biometricLogin = v,
+                          );
                         }
                       },
-                      activeColor: AppColors.success,
+                      activeThumbColor: AppColors.success,
                     ),
                   ),
                 ],
@@ -391,7 +527,9 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
               child: Text(
                 'Version 2.0.4 (Build 824)',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5),
+                  color: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.color?.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -399,6 +537,12 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
           ],
         );
       },
+    );
+  }
+
+  void _showBiometricUnavailableMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 }
@@ -419,7 +563,7 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -428,7 +572,7 @@ class _SettingsSection extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.15),
+                color: accentColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: accentColor, size: 20),
@@ -436,9 +580,9 @@ class _SettingsSection extends StatelessWidget {
             const SizedBox(width: 12),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -451,7 +595,12 @@ class _SettingsSection extends StatelessWidget {
               for (var i = 0; i < children.length; i++) ...[
                 children[i],
                 if (i < children.length - 1)
-                  Divider(height: 1, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                  Divider(
+                    height: 1,
+                    color: isDark
+                        ? AppColors.darkBorder
+                        : AppColors.lightBorder,
+                  ),
               ],
             ],
           ),
@@ -470,7 +619,6 @@ class _SettingsTile extends StatelessWidget {
   final Widget? titleTrailing;
 
   const _SettingsTile({
-    super.key,
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -481,52 +629,94 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget child = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Icon(icon, color: Theme.of(context).iconTheme.color?.withOpacity(0.7)),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useStackedLayout = constraints.maxWidth < 360;
+
+        Widget trailingFor(double maxWidth) {
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: trailing,
+            ),
+          );
+        }
+
+        final leadingContent = Row(
+          children: [
+            Icon(
+              icon,
+              color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      if (titleTrailing != null) ...[
+                        const SizedBox(width: 8),
+                        titleTrailing!,
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+
+        Widget child = Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: useStackedLayout
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                    leadingContent,
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: trailingFor(
+                        (constraints.maxWidth - 32).clamp(0.0, double.infinity),
                       ),
                     ),
-                    if (titleTrailing != null) ...[
-                      const SizedBox(width: 8),
-                      titleTrailing!,
-                    ],
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: leadingContent),
+                    const SizedBox(width: 16),
+                    trailingFor(
+                      (constraints.maxWidth * 0.48).clamp(0.0, double.infinity),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          trailing,
-        ],
-      ),
-    );
+        );
 
-    if (onTap != null) {
-      return InkWell(
-        onTap: onTap,
-        child: child,
-      );
-    }
-    return child;
+        if (onTap != null) {
+          return InkWell(onTap: onTap, child: child);
+        }
+        return child;
+      },
+    );
   }
 }

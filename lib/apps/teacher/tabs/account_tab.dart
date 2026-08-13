@@ -44,6 +44,7 @@ class _AccountTabState extends State<AccountTab>
   @override
   void dispose() {
     _tabCtrl.dispose();
+    _notificationViewModel.dispose();
     super.dispose();
   }
 

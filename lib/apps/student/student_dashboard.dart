@@ -170,17 +170,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   Future<List<StudentExamItem>> _fetchExamFeed() async {
     final rows = await Supabase.instance.client.rpc('get_student_exam_feed');
-    final items = (rows as List)
+    return (rows as List)
         .whereType<Map>()
         .map((r) => StudentExamItem.fromJson(r))
         .toList();
-    for (var item in items) {
-      print('=== EXAM ${item.exam.title} ===');
-      print('  attemptCount: ${item.attemptCount}');
-      print('  maxAttempts: ${item.exam.maxAttempts}');
-      print('  canStart: ${item.canStart}');
-    }
-    return items;
   }
 
   Future<List<StudentAttendanceItem>> _fetchAttendanceHistory() async {
@@ -205,21 +198,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Future<List<PublishedSessionBoard>> _fetchSessionBoards() async {
-    try {
-      final rows = await Supabase.instance.client.rpc(
-        'get_student_published_session_boards',
-      );
-      print(
-        '=== DEBUG: get_student_published_session_boards returned: $rows ===',
-      );
-      return (rows as List)
-          .whereType<Map>()
-          .map((r) => PublishedSessionBoard.fromJson(r))
-          .toList();
-    } catch (e, st) {
-      print('=== DEBUG ERROR in _fetchSessionBoards: $e\n$st ===');
-      rethrow;
-    }
+    final rows = await Supabase.instance.client.rpc(
+      'get_student_published_session_boards',
+    );
+    return (rows as List)
+        .whereType<Map>()
+        .map((r) => PublishedSessionBoard.fromJson(r))
+        .toList();
   }
 
   // ── actions ──
