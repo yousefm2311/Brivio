@@ -252,7 +252,11 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     }
     final nextBoardData = _viewModel.boardData;
     final newBoardStrokes = _decodeBoard(nextBoardData);
-    if (nextBoardData != _lastAppliedBoardData) {
+    final hasLocalBoardEdits =
+        _pendingBoardData != null || _boardDebounce?.isActive == true;
+    if (!hasLocalBoardEdits &&
+        _activeStroke == null &&
+        nextBoardData != _lastAppliedBoardData) {
       _lastAppliedBoardData = nextBoardData;
       setState(() => _boardStrokes = newBoardStrokes);
     }
@@ -291,7 +295,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
         : strokes;
     _pendingBoardData = _encodeBoard(strokesToSave);
     _boardDebounce?.cancel();
-    _boardDebounce = Timer(const Duration(milliseconds: 450), () {
+    _boardDebounce = Timer(const Duration(milliseconds: 700), () {
       _viewModel.saveBoard(_pendingBoardData ?? _encodeBoard(strokesToSave));
       _pendingBoardData = null;
       _recordReplayEvent('board_changed', {'stroke_count': strokes.length});

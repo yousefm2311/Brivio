@@ -91,15 +91,29 @@ class StudentListWidget extends StatelessWidget {
                         s.fullName.isNotEmpty
                             ? s.fullName
                             : '${context.tr('Student Code')}: ${s.studentCode}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: Text(
-                        '${s.studentCode} | ${s.email} | ${context.tr('Grade')}: ${s.gradeLevel ?? context.tr("N/A")}',
-                      ),
-                      trailing: Chip(
-                        label: Text(s.status),
-                        backgroundColor: s.status == 'active'
-                            ? Colors.green.shade100
-                            : Colors.grey.shade200,
+                      subtitle: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(s.studentCode),
+                          Text(s.email),
+                          Text(
+                            '${context.tr('Grade')}: ${s.gradeLevel ?? context.tr("N/A")}',
+                          ),
+                          Chip(
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            label: Text(s.status),
+                            backgroundColor: s.status == 'active'
+                                ? Colors.green.shade100
+                                : Colors.grey.shade200,
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -176,9 +190,18 @@ class ParentListWidget extends StatelessWidget {
                         p.fullName.isNotEmpty
                             ? p.fullName
                             : context.tr('Parent Record'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: Text(
-                        '${p.email} | ${context.tr('Occupation')}: ${p.occupation ?? context.tr("N/A")}',
+                      subtitle: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Text(p.email),
+                          Text(
+                            '${context.tr('Occupation')}: ${p.occupation ?? context.tr("N/A")}',
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -244,9 +267,18 @@ class TeacherListWidget extends StatelessWidget {
                         t.fullName.isNotEmpty
                             ? t.fullName
                             : context.tr('Teacher Record'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: Text(
-                        '${context.tr('Specialization')}: ${t.specialization ?? context.tr("General")} | ${t.email}',
+                      subtitle: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Text(
+                            '${context.tr('Specialization')}: ${t.specialization ?? context.tr("General")}',
+                          ),
+                          Text(t.email),
+                        ],
                       ),
                     ),
                   );
@@ -309,9 +341,7 @@ class GroupListWidget extends StatelessWidget {
           title: '${g.name} (${g.code})',
           subtitle:
               '${context.tr("Max Capacity")}: ${g.maxCapacity ?? context.tr("Unlimited")}',
-          trailing: [
-            PortalStatusChip(status: g.status),
-          ],
+          trailing: [PortalStatusChip(status: g.status)],
           onTap: onGroupSelected != null ? () => onGroupSelected!(g) : null,
         );
       },

@@ -273,57 +273,95 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                               final entry = roster[index];
                               final statusLabel =
                                   entry.attendanceStatus?.name ?? 'pending';
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(
-                                  entry.isPresent
-                                      ? Icons.check_circle
-                                      : entry.isAbsent
-                                      ? Icons.cancel
-                                      : Icons.radio_button_unchecked,
-                                  color: entry.isPresent
-                                      ? Colors.green
-                                      : entry.isAbsent
-                                      ? Colors.red
-                                      : Colors.grey,
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
                                 ),
-                                title: Text(entry.fullName),
-                                subtitle: Text(
-                                  [
-                                    entry.studentCode,
-                                    context.tr(statusLabel),
-                                    if (entry.checkInAt != null)
-                                      '${context.tr('In')}: ${_formatQrTime(entry.checkInAt!)}',
-                                    if (entry.checkOutAt != null)
-                                      '${context.tr('Out')}: ${_formatQrTime(entry.checkOutAt!)}',
-                                  ].join(' | '),
-                                ),
-                                trailing:
-                                    entry.isPresent && entry.checkOutAt == null
-                                    ? TextButton.icon(
-                                        onPressed: () async {
-                                          try {
-                                            await _attendanceRepo
-                                                .markStudentCheckout(
-                                                  sessionId: session.id,
-                                                  studentId: entry.studentId,
-                                                );
-                                            await refreshRoster();
-                                          } catch (e) {
-                                            if (!mounted) return;
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  '${context.tr('Checkout failed')}: $e',
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      entry.isPresent
+                                          ? Icons.check_circle
+                                          : entry.isAbsent
+                                          ? Icons.cancel
+                                          : Icons.radio_button_unchecked,
+                                      color: entry.isPresent
+                                          ? Colors.green
+                                          : entry.isAbsent
+                                          ? Colors.red
+                                          : Colors.grey,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            entry.fullName,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 4,
+                                            children: [
+                                              Text(entry.studentCode),
+                                              Text(context.tr(statusLabel)),
+                                              if (entry.checkInAt != null)
+                                                Text(
+                                                  '${context.tr('In')}: ${_formatQrTime(entry.checkInAt!)}',
+                                                ),
+                                              if (entry.checkOutAt != null)
+                                                Text(
+                                                  '${context.tr('Out')}: ${_formatQrTime(entry.checkOutAt!)}',
+                                                ),
+                                            ],
+                                          ),
+                                          if (entry.isPresent &&
+                                              entry.checkOutAt == null) ...[
+                                            const SizedBox(height: 8),
+                                            Align(
+                                              alignment: AlignmentDirectional
+                                                  .centerStart,
+                                              child: TextButton.icon(
+                                                onPressed: () async {
+                                                  try {
+                                                    await _attendanceRepo
+                                                        .markStudentCheckout(
+                                                          sessionId: session.id,
+                                                          studentId:
+                                                              entry.studentId,
+                                                        );
+                                                    await refreshRoster();
+                                                  } catch (e) {
+                                                    if (!mounted) return;
+                                                    messenger.showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          '${context.tr('Checkout failed')}: $e',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                                icon: const Icon(Icons.logout),
+                                                label: Text(
+                                                  context.tr('Checkout'),
                                                 ),
                                               ),
-                                            );
-                                          }
-                                        },
-                                        icon: const Icon(Icons.logout),
-                                        label: Text(context.tr('Checkout')),
-                                      )
-                                    : null,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               );
                             },
                           ),
@@ -433,6 +471,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             child: GlassCard(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
                     backgroundColor: isFinalized
@@ -446,74 +485,94 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Flexible(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '${context.tr('Session')}: ${session.location ?? context.tr('Main Hall')}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: AppTypography.titleMedium(
                             AppColors.darkTextPrimary,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          '${context.tr('Date')}: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day} | ${context.tr('Status')}: ${context.tr(session.status.name)}',
-                          style: AppTypography.bodySmall(
-                            AppColors.darkTextSecondary,
-                          ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            Text(
+                              '${context.tr('Date')}: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day}',
+                              style: AppTypography.bodySmall(
+                                AppColors.darkTextSecondary,
+                              ),
+                            ),
+                            Text(
+                              '${context.tr('Status')}: ${context.tr(session.status.name)}',
+                              style: AppTypography.bodySmall(
+                                AppColors.darkTextSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => TeacherSessionBoardScreen(
+                                      teacherId: widget.teacherId,
+                                      session: session,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.draw, size: 18),
+                              label: Text(context.tr('Whiteboard')),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.info,
+                                foregroundColor: Colors.white,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                            if (!isFinalized)
+                              IconButton.filledTonal(
+                                tooltip: context.tr(
+                                  'Show rotating attendance QR',
+                                ),
+                                onPressed: () => _openQrAttendance(session),
+                                icon: const Icon(Icons.qr_code_2),
+                              ),
+                            IconButton.filledTonal(
+                              tooltip: context.tr('View attendance roster'),
+                              onPressed: () => _openRosterDialog(session),
+                              icon: const Icon(Icons.fact_check),
+                            ),
+                            if (isFinalized)
+                              StatusChip(
+                                label: context.tr('FINALIZED'),
+                                status: ChipStatus.success,
+                              )
+                            else
+                              ElevatedButton(
+                                onPressed: () => _openRollCall(session),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                child: Text(context.tr('Take Attendance')),
+                              ),
+                          ],
                         ),
                       ],
                     ),
-                  ),
-                  Wrap(
-                    spacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => TeacherSessionBoardScreen(
-                                teacherId: widget.teacherId,
-                                session: session,
-                              ),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.draw, size: 18),
-                        label: Text(context.tr('Whiteboard')),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.info,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                      if (!isFinalized)
-                        IconButton.filledTonal(
-                          tooltip: context.tr('Show rotating attendance QR'),
-                          onPressed: () => _openQrAttendance(session),
-                          icon: const Icon(Icons.qr_code_2),
-                        ),
-                      IconButton.filledTonal(
-                        tooltip: context.tr('View attendance roster'),
-                        onPressed: () => _openRosterDialog(session),
-                        icon: const Icon(Icons.fact_check),
-                      ),
-                      if (isFinalized)
-                        StatusChip(
-                          label: context.tr('FINALIZED'),
-                          status: ChipStatus.success,
-                        )
-                      else
-                        ElevatedButton(
-                          onPressed: () => _openRollCall(session),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          child: Text(context.tr('Take Attendance')),
-                        ),
-                    ],
                   ),
                 ],
               ),

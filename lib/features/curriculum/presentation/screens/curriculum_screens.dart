@@ -77,15 +77,30 @@ class CurriculumHierarchyWidget extends StatelessWidget {
                             ? Colors.deepPurple
                             : Colors.grey,
                       ),
-                      title: Text(l.title),
-                      subtitle: Text(
-                        '${l.lessonType.name.toUpperCase()} | Duration: ${l.estimatedDurationMinutes ?? 10} min',
+                      title: Text(
+                        l.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: Chip(
-                        label: Text(l.status.name),
-                        backgroundColor: l.status == LessonStatus.published
-                            ? Colors.green.shade100
-                            : Colors.grey.shade200,
+                      subtitle: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(l.lessonType.name.toUpperCase()),
+                          Text(
+                            'Duration: ${l.estimatedDurationMinutes ?? 10} min',
+                          ),
+                          Chip(
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            label: Text(l.status.name),
+                            backgroundColor: l.status == LessonStatus.published
+                                ? Colors.green.shade100
+                                : Colors.grey.shade200,
+                          ),
+                        ],
                       ),
                     ),
                 ],
@@ -250,13 +265,48 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> {
           ],
         );
       case LessonType.pdf:
+        final objectPath = lesson.resources.isNotEmpty
+            ? lesson.resources.first.objectPath
+            : 'cs101/guide.pdf';
+        final fileName = objectPath.split('/').last;
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.picture_as_pdf, size: 64, color: Colors.red),
             const SizedBox(height: 12),
-            Text(
-              'Document: ${lesson.resources.isNotEmpty ? lesson.resources.first.objectPath : "cs101/guide.pdf"}',
+            Tooltip(
+              message: objectPath,
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 360),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.description_outlined,
+                      size: 18,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        fileName.isEmpty ? 'lecture.pdf' : fileName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             Row(

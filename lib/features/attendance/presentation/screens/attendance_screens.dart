@@ -36,24 +36,54 @@ class TodaySessionsWidget extends StatelessWidget {
       itemBuilder: (context, index) {
         final sess = sessions[index];
         return Card(
-          child: ListTile(
-            leading: const Icon(
-              Icons.event_note,
-              color: Colors.deepPurple,
-              size: 36,
-            ),
-            title: Text(
-              '${context.tr('Session')}: ${sess.sessionDate.toString().split(' ')[0]}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              '${context.tr('Location')}: ${sess.location ?? context.tr('Main Hall')} | ${context.tr('Status')}: ${context.tr(sess.status.name)}',
-            ),
-            trailing: ElevatedButton(
-              onPressed: onSessionSelected != null
-                  ? () => onSessionSelected!(sess)
-                  : null,
-              child: Text(context.tr('Roll Call')),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.event_note,
+                  color: Colors.deepPurple,
+                  size: 34,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${context.tr('Session')}: ${sess.sessionDate.toString().split(' ')[0]}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Text(
+                            '${context.tr('Location')}: ${sess.location ?? context.tr('Main Hall')}',
+                          ),
+                          Text(
+                            '${context.tr('Status')}: ${context.tr(sess.status.name)}',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: ElevatedButton(
+                          onPressed: onSessionSelected != null
+                              ? () => onSessionSelected!(sess)
+                              : null,
+                          child: Text(context.tr('Roll Call')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -138,46 +168,63 @@ class _AttendanceRosterScreenState extends State<AttendanceRosterScreen> {
                       _statuses[rec.studentId] ?? AttendanceStatus.present;
 
                   return Card(
-                    child: ListTile(
-                      title: Text(
-                        '${context.tr('Student ID')}: ${rec.studentId.substring(0, 8)}...',
-                      ),
-                      subtitle: Text(
-                        '${context.tr('Current')}: ${context.tr(currentStatus.name)}',
-                      ),
-                      trailing: SegmentedButton<AttendanceStatus>(
-                        segments: const [
-                          ButtonSegment(
-                            value: AttendanceStatus.present,
-                            label: Text('P'),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${context.tr('Student ID')}: ${rec.studentId.substring(0, 8)}...',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
-                          ButtonSegment(
-                            value: AttendanceStatus.late,
-                            label: Text('L'),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${context.tr('Current')}: ${context.tr(currentStatus.name)}',
                           ),
-                          ButtonSegment(
-                            value: AttendanceStatus.absent,
-                            label: Text('A'),
-                          ),
-                          ButtonSegment(
-                            value: AttendanceStatus.excused,
-                            label: Text('E'),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: SegmentedButton<AttendanceStatus>(
+                              showSelectedIcon: false,
+                              segments: const [
+                                ButtonSegment(
+                                  value: AttendanceStatus.present,
+                                  label: Text('P'),
+                                ),
+                                ButtonSegment(
+                                  value: AttendanceStatus.late,
+                                  label: Text('L'),
+                                ),
+                                ButtonSegment(
+                                  value: AttendanceStatus.absent,
+                                  label: Text('A'),
+                                ),
+                                ButtonSegment(
+                                  value: AttendanceStatus.excused,
+                                  label: Text('E'),
+                                ),
+                              ],
+                              selected: {currentStatus},
+                              onSelectionChanged: (val) {
+                                setState(() {
+                                  _statuses[rec.studentId] = val.first;
+                                });
+                              },
+                            ),
                           ),
                         ],
-                        selected: {currentStatus},
-                        onSelectionChanged: (val) {
-                          setState(() {
-                            _statuses[rec.studentId] = val.first;
-                          });
-                        },
                       ),
                     ),
                   );
                 },
               ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.spaceBetween,
               children: [
                 ElevatedButton.icon(
                   icon: const Icon(Icons.save),
@@ -244,8 +291,10 @@ class AttendanceSummaryWidget extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.spaceAround,
               children: [
                 _buildStatBadge(
                   context,

@@ -222,14 +222,22 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
   final _subjectCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   String _selectedPriority = 'Normal';
-  String _selectedGroup = 'group-1';
+  String? _selectedGroup;
   bool _isSubmitting = false;
+  late final Future<List<HelpdeskGroupOption>> _groupsFuture;
 
-  final _mockGroups = {
-    'group-1': 'CS 101 - Intro to Programming',
-    'group-2': 'MATH 201 - Linear Algebra',
-    'group-3': 'General Support',
-  };
+  @override
+  void initState() {
+    super.initState();
+    _groupsFuture = widget.repo.getAvailableGroups();
+  }
+
+  @override
+  void dispose() {
+    _subjectCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (_subjectCtrl.text.isEmpty || _descCtrl.text.isEmpty) return;
@@ -253,77 +261,112 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: GlassCard(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SectionHeader(title: context.tr('Create Support Ticket')),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _subjectCtrl,
-              label: context.tr('Subject'),
-              hint: context.tr('Briefly describe the issue'),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
             ),
-            const SizedBox(height: 12),
-            _buildTextField(
-              controller: _descCtrl,
-              label: context.tr('Description'),
-              hint: context.tr('Provide details...'),
-              maxLines: 4,
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _selectedGroup,
-              dropdownColor: AppColors.darkSurface,
-              decoration: _inputDecoration(context.tr('Related Group/Class')),
-              style: const TextStyle(color: AppColors.darkTextPrimary),
-              items: _mockGroups.entries.map((e) {
-                return DropdownMenuItem(value: e.key, child: Text(e.value));
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) setState(() => _selectedGroup = val);
-              },
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _selectedPriority,
-              dropdownColor: AppColors.darkSurface,
-              decoration: _inputDecoration(context.tr('Priority')),
-              style: const TextStyle(color: AppColors.darkTextPrimary),
-              items: ['Low', 'Normal', 'High', 'Urgent'].map((p) {
-                return DropdownMenuItem(value: p, child: Text(context.tr(p)));
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) setState(() => _selectedPriority = val);
-              },
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isSubmitting ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SectionHeader(title: context.tr('Create Support Ticket')),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _subjectCtrl,
+                  label: context.tr('Subject'),
+                  hint: context.tr('Briefly describe the issue'),
                 ),
-              ),
-              child: _isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _descCtrl,
+                  label: context.tr('Description'),
+                  hint: context.tr('Provide details...'),
+                  maxLines: 4,
+                ),
+                const SizedBox(height: 12),
+                FutureBuilder<List<HelpdeskGroupOption>>(
+                  future: _groupsFuture,
+                  builder: (context, snapshot) {
+                    final groups = snapshot.data ?? const [];
+                    if (_selectedGroup == null && groups.isNotEmpty) {
+                      _selectedGroup = groups.first.id;
+                    }
+                    return DropdownButtonFormField<String>(
+                      initialValue: _selectedGroup,
+                      isExpanded: true,
+                      dropdownColor: AppColors.darkSurface,
+                      decoration: _inputDecoration(
+                        context.tr('Related Group/Class'),
                       ),
-                    )
-                  : Text(
-                      context.tr('Submit Ticket'),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: AppColors.darkTextPrimary),
+                      items: [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text(context.tr('General Support')),
+                        ),
+                        ...groups.map(
+                          (g) => DropdownMenuItem(
+                            value: g.id,
+                            child: Text(
+                              g.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) => setState(() => _selectedGroup = val),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedPriority,
+                  isExpanded: true,
+                  dropdownColor: AppColors.darkSurface,
+                  decoration: _inputDecoration(context.tr('Priority')),
+                  style: const TextStyle(color: AppColors.darkTextPrimary),
+                  items: ['Low', 'Normal', 'High', 'Urgent'].map((p) {
+                    return DropdownMenuItem(
+                      value: p,
+                      child: Text(context.tr(p)),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedPriority = val);
+                  },
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          context.tr('Submit Ticket'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

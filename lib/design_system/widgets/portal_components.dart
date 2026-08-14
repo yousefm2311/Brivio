@@ -998,52 +998,85 @@ class PortalListCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: accentColor, size: 22),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final leading = Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
+                child: Icon(icon, color: accentColor, size: 22),
+              );
+              final textBlock = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.l10n.t(title),
+                    maxLines: constraints.maxWidth < 460 ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.titleSmall(
+                      textPrimary,
+                    ).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    context.l10n.t(subtitle),
+                    maxLines: constraints.maxWidth < 460 ? 3 : 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption(textSecondary),
+                  ),
+                ],
+              );
+              final actions = trailing.isEmpty
+                  ? const SizedBox.shrink()
+                  : Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: trailing,
+                    );
+
+              if (constraints.maxWidth < 520 && trailing.isNotEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(14),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        context.l10n.t(title),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.titleSmall(
-                          textPrimary,
-                        ).copyWith(fontWeight: FontWeight.w700),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          leading,
+                          const SizedBox(width: 14),
+                          Expanded(child: textBlock),
+                        ],
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        context.l10n.t(subtitle),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.caption(textSecondary),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: actions,
                       ),
                     ],
                   ),
+                );
+              }
+
+              return Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    leading,
+                    const SizedBox(width: 14),
+                    Expanded(child: textBlock),
+                    if (trailing.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      actions,
+                    ],
+                  ],
                 ),
-                if (trailing.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Wrap(
-                    spacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: trailing,
-                  ),
-                ],
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),

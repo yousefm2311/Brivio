@@ -35,66 +35,117 @@ class _ParentHelpdeskScreenState extends State<ParentHelpdeskScreen> {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
     String priority = 'normal';
+    String? selectedGroupId;
+    final groupsFuture = _repository.getAvailableGroups();
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(context.tr('Create Ticket')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: InputDecoration(labelText: context.tr('Subject')),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                decoration: InputDecoration(
-                  labelText: context.tr('Description'),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(context.tr('Create Ticket')),
+              content: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
                 ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: priority,
-                items: ['low', 'normal', 'high', 'urgent']
-                    .map(
-                      (p) => DropdownMenuItem(
-                        value: p,
-                        child: Text(context.tr(p)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      decoration: InputDecoration(
+                        labelText: context.tr('Subject'),
                       ),
-                    )
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) priority = val;
-                },
-                decoration: InputDecoration(labelText: context.tr('Priority')),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: InputDecoration(
+                        labelText: context.tr('Description'),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+                    FutureBuilder<List<HelpdeskGroupOption>>(
+                      future: groupsFuture,
+                      builder: (context, snapshot) {
+                        final groups = snapshot.data ?? const [];
+                        if (selectedGroupId == null && groups.isNotEmpty) {
+                          selectedGroupId = groups.first.id;
+                        }
+                        return DropdownButtonFormField<String>(
+                          initialValue: selectedGroupId,
+                          isExpanded: true,
+                          items: [
+                            DropdownMenuItem<String>(
+                              value: null,
+                              child: Text(context.tr('General Support')),
+                            ),
+                            ...groups.map(
+                              (g) => DropdownMenuItem<String>(
+                                value: g.id,
+                                child: Text(
+                                  g.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          ],
+                          onChanged: (val) =>
+                              setDialogState(() => selectedGroupId = val),
+                          decoration: InputDecoration(
+                            labelText: context.tr('Related Group/Class'),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: priority,
+                      isExpanded: true,
+                      items: ['low', 'normal', 'high', 'urgent']
+                          .map(
+                            (p) => DropdownMenuItem(
+                              value: p,
+                              child: Text(context.tr(p)),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) priority = val;
+                      },
+                      decoration: InputDecoration(
+                        labelText: context.tr('Priority'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(context.tr('Cancel')),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (titleController.text.isNotEmpty &&
-                    descriptionController.text.isNotEmpty) {
-                  Navigator.pop(context);
-                  await _repository.createTicket(
-                    subject: titleController.text,
-                    description: descriptionController.text,
-                    priority: priority,
-                  );
-                  _loadTickets();
-                }
-              },
-              child: Text(context.tr('Submit')),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(context.tr('Cancel')),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (titleController.text.isNotEmpty &&
+                        descriptionController.text.isNotEmpty) {
+                      Navigator.pop(context);
+                      await _repository.createTicket(
+                        subject: titleController.text,
+                        description: descriptionController.text,
+                        priority: priority,
+                        groupId: selectedGroupId,
+                      );
+                      _loadTickets();
+                    }
+                  },
+                  child: Text(context.tr('Submit')),
+                ),
+              ],
+            );
+          },
         );
       },
     );

@@ -163,30 +163,33 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
                           return false; // Don't actually remove from the list
                         },
                         child: GlassCard(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(14),
                           child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               CircleAvatar(
                                 backgroundColor: AppColors.primarySubtle,
-                                radius: 24,
+                                radius: 22,
                                 child: Text(
                                   student.name.isNotEmpty
                                       ? student.name
                                             .substring(0, 1)
                                             .toUpperCase()
                                       : '?',
-                                  style: AppTypography.titleLarge(
+                                  style: AppTypography.titleMedium(
                                     AppColors.primary,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       student.name,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                       style: AppTypography.titleMedium(
                                         AppColors.darkTextPrimary,
                                       ),
@@ -194,53 +197,44 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
                                     if (student.incidentRecord != null &&
                                         student.incidentRecord!.isNotEmpty)
                                       Padding(
-                                        padding: const EdgeInsets.only(
-                                          top: 4.0,
-                                        ),
+                                        padding: const EdgeInsets.only(top: 4),
                                         child: Text(
                                           'Incident: ${student.incidentRecord}',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
                                           style: AppTypography.bodySmall(
                                             AppColors.error,
                                           ),
                                         ),
                                       ),
+                                    const SizedBox(height: 10),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        if (student.status != null)
+                                          _AttendanceStatusPill(
+                                            status: student.status!,
+                                          ),
+                                        Tooltip(
+                                          message: 'Log Incident',
+                                          child: IconButton.filledTonal(
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            icon: const Icon(
+                                              Icons.warning_amber_rounded,
+                                            ),
+                                            color: AppColors.warning,
+                                            onPressed: () =>
+                                                _showIncidentDialog(student),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ),
-                              ),
-                              if (student.status != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8.0),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          student.status ==
-                                              AttendanceStatus.present
-                                          ? AppColors.successSubtle
-                                          : AppColors.errorSubtle,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      student.status == AttendanceStatus.present
-                                          ? 'Present'
-                                          : 'Absent',
-                                      style: AppTypography.labelMedium(
-                                        student.status ==
-                                                AttendanceStatus.present
-                                            ? AppColors.success
-                                            : AppColors.error,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              IconButton(
-                                icon: const Icon(Icons.warning_amber_rounded),
-                                color: AppColors.warning,
-                                onPressed: () => _showIncidentDialog(student),
-                                tooltip: 'Log Incident',
                               ),
                             ],
                           ),
@@ -293,6 +287,29 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AttendanceStatusPill extends StatelessWidget {
+  final AttendanceStatus status;
+
+  const _AttendanceStatusPill({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPresent = status == AttendanceStatus.present;
+    final color = isPresent ? AppColors.success : AppColors.error;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isPresent ? AppColors.successSubtle : AppColors.errorSubtle,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        isPresent ? 'Present' : 'Absent',
+        style: AppTypography.labelMedium(color),
       ),
     );
   }

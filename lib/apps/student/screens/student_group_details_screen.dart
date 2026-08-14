@@ -734,142 +734,170 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final exam = _examList[index];
+        final action = SizedBox(
+          width: 140,
+          child: Builder(
+            builder: (context) {
+              if (exam.canStart) {
+                return PrimaryButton(
+                  text: context.tr('Start Exam'),
+                  onPressed: () => _startExam(exam),
+                  color: AppColors.primary,
+                );
+              } else if (exam.resetRequestStatus == 'pending') {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      context.tr('Waiting for Approval'),
+                      style: const TextStyle(
+                        color: Colors.orange,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              } else if (exam.resetRequestStatus == 'rejected') {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.red.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      context.tr('Reset Rejected'),
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              } else if (exam.resetRequestStatus == 'approved' &&
+                  !exam.canStart) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      context.tr('Attempts Exhausted'),
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              } else {
+                return PrimaryButton(
+                  text: context.tr('Request Reset'),
+                  onPressed: () => _requestExamReset(exam),
+                  color: AppColors.error,
+                );
+              }
+            },
+          ),
+        );
+
         return GlassCard(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.timer_outlined,
-                  color: AppColors.error,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      exam.exam.title,
-                      style: AppTypography.titleMedium(
-                        textPrimary,
-                      ).copyWith(fontWeight: FontWeight.w700),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final content = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${context.tr("Duration")}: ${exam.exam.durationMinutes} ${context.tr("min")}',
-                      style: AppTypography.caption(
-                        textSecondary,
-                      ).copyWith(fontWeight: FontWeight.w600),
+                    child: const Icon(
+                      Icons.timer_outlined,
+                      color: AppColors.error,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          exam.exam.title,
+                          style: AppTypography.titleMedium(
+                            textPrimary,
+                          ).copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${context.tr("Duration")}: ${exam.exam.durationMinutes} ${context.tr("min")}',
+                          style: AppTypography.caption(
+                            textSecondary,
+                          ).copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+
+              if (constraints.maxWidth < 390) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    content,
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: action,
                     ),
                   ],
-                ),
-              ),
-              SizedBox(
-                width: 140,
-                child: Builder(
-                  builder: (context) {
-                    if (exam.canStart) {
-                      return PrimaryButton(
-                        text: context.tr('Start Exam'),
-                        onPressed: () => _startExam(exam),
-                        color: AppColors.primary,
-                      );
-                    } else if (exam.resetRequestStatus == 'pending') {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.orange.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            context.tr('Waiting for Approval'),
-                            style: const TextStyle(
-                              color: Colors.orange,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      );
-                    } else if (exam.resetRequestStatus == 'rejected') {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.red.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            context.tr('Reset Rejected'),
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      );
-                    } else if (exam.resetRequestStatus == 'approved' &&
-                        !exam.canStart) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.grey.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            context.tr('Attempts Exhausted'),
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      );
-                    } else {
-                      return PrimaryButton(
-                        text: context.tr('Request Reset'),
-                        onPressed: () => _requestExamReset(exam),
-                        color: AppColors.error,
-                      );
-                    }
-                  },
-                ),
-              ),
-            ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: content),
+                  const SizedBox(width: 12),
+                  action,
+                ],
+              );
+            },
           ),
         );
       },

@@ -2,17 +2,112 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/support_ticket.dart';
 import '../models/ticket_reply.dart';
 
+class HelpdeskGroupOption {
+  final String id;
+  final String name;
+
+  const HelpdeskGroupOption({required this.id, required this.name});
+
+  factory HelpdeskGroupOption.fromGroup(Map<String, dynamic> group) {
+    final name = [
+      group['name']?.toString(),
+      group['code']?.toString(),
+    ].where((v) => v != null && v.trim().isNotEmpty).join(' - ');
+    return HelpdeskGroupOption(
+      id: group['id'].toString(),
+      name: name.isEmpty ? 'Group' : name,
+    );
+  }
+}
+
 class HelpdeskRepository {
   final SupabaseClient _client;
 
-  HelpdeskRepository({SupabaseClient? client}) : _client = client ?? Supabase.instance.client;
+  HelpdeskRepository({SupabaseClient? client})
+    : _client = client ?? Supabase.instance.client;
 
   Future<List<SupportTicket>> getTickets() async {
     final response = await _client
         .from('support_tickets')
         .select()
         .order('created_at', ascending: false);
-    return (response as List).map((json) => SupportTicket.fromJson(json)).toList();
+    return (response as List)
+        .map((json) => SupportTicket.fromJson(json))
+        .toList();
+  }
+
+  Future<List<HelpdeskGroupOption>> getAvailableGroups() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+
+    final groups = <String, HelpdeskGroupOption>{};
+
+    Future<void> addGroupRows(List<dynamic> rows) async {
+      for (final row in rows) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final groupRaw = map['groups'] ?? map['group'];
+        if (groupRaw is Map) {
+          final option = HelpdeskGroupOption.fromGroup(
+            Map<String, dynamic>.from(groupRaw),
+          );
+          groups[option.id] = option;
+        }
+      }
+    }
+
+    final student = await _client
+        .from('students')
+        .select('id')
+        .eq('profile_id', user.id)
+        .maybeSingle();
+    if (student != null) {
+      final rows = await _client
+          .from('enrollments')
+          .select('groups(id, name, code)')
+          .eq('student_id', student['id'])
+          .eq('status', 'active');
+      await addGroupRows(rows as List<dynamic>);
+    }
+
+    final parent = await _client
+        .from('parents')
+        .select('id')
+        .eq('profile_id', user.id)
+        .maybeSingle();
+    if (parent != null) {
+      final links = await _client
+          .from('parent_students')
+          .select('student_id')
+          .eq('parent_id', parent['id']);
+      final studentIds = (links as List<dynamic>)
+          .map((row) => (row as Map)['student_id']?.toString())
+          .whereType<String>()
+          .toList();
+      if (studentIds.isNotEmpty) {
+        final rows = await _client
+            .from('enrollments')
+            .select('groups(id, name, code)')
+            .inFilter('student_id', studentIds)
+            .eq('status', 'active');
+        await addGroupRows(rows as List<dynamic>);
+      }
+    }
+
+    final teacher = await _client
+        .from('teachers')
+        .select('id')
+        .eq('profile_id', user.id)
+        .maybeSingle();
+    if (teacher != null) {
+      final rows = await _client
+          .from('group_teachers')
+          .select('groups(id, name, code)')
+          .eq('teacher_id', teacher['id']);
+      await addGroupRows(rows as List<dynamic>);
+    }
+
+    return groups.values.toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
 
   Future<SupportTicket> createTicket({
@@ -34,58 +129,43 @@ class HelpdeskRepository {
       data['group_id'] = groupId;
     }
 
-    final response = await _client.from('support_tickets').insert(data).select().single();
-    
+    final response = await _client
+        .from('support_tickets')
+        .insert(data)
+        .select()
+        .single();
+
     return SupportTicket.fromJson(response);
   }
 
   Future<void> updateTicketStatus(String ticketId, String status) async {
-    await _client.from('support_tickets').update({'status': status}).eq('id', ticketId);
+    await _client
+        .from('support_tickets')
+        .update({'status': status})
+        .eq('id', ticketId);
   }
 
   Future<List<TicketReply>> getReplies(String ticketId) async {
-    try {
-      final response = await _client
-          .from('ticket_replies')
-          .select()
-          .eq('ticket_id', ticketId)
-          .order('created_at', ascending: true);
-      return (response as List).map((json) => TicketReply.fromJson(json)).toList();
-    } catch (e) {
-      // Return mock implementation if DB fails
-      return [
-        TicketReply(
-          id: 'mock-1',
-          ticketId: ticketId,
-          userId: 'mock-user-1',
-          message: 'This is a mock reply due to database failure: $e',
-          createdAt: DateTime.now(),
-        ),
-      ];
-    }
+    final response = await _client
+        .from('ticket_replies')
+        .select()
+        .eq('ticket_id', ticketId)
+        .order('created_at', ascending: true);
+    return (response as List)
+        .map((json) => TicketReply.fromJson(json))
+        .toList();
   }
 
   Future<TicketReply> addReply(String ticketId, String message) async {
     final user = _client.auth.currentUser;
-    final userId = user?.id ?? 'mock-user-1';
+    if (user == null) throw Exception('User not authenticated');
 
-    try {
-      final response = await _client.from('ticket_replies').insert({
-        'ticket_id': ticketId,
-        'user_id': userId,
-        'message': message,
-      }).select().single();
-      
-      return TicketReply.fromJson(response);
-    } catch (e) {
-      // Mock fallback
-      return TicketReply(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        ticketId: ticketId,
-        userId: userId,
-        message: message,
-        createdAt: DateTime.now(),
-      );
-    }
+    final response = await _client
+        .from('ticket_replies')
+        .insert({'ticket_id': ticketId, 'user_id': user.id, 'message': message})
+        .select()
+        .single();
+
+    return TicketReply.fromJson(response);
   }
 }

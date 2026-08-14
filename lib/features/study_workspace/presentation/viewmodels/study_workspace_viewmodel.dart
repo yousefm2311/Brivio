@@ -340,7 +340,8 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   }
 
   Future<void> goToPage(int page) async {
-    final normalized = page.clamp(1, lesson.totalPages);
+    final totalPages = lesson.totalPages < 1 ? 1 : lesson.totalPages;
+    final normalized = page.clamp(1, totalPages).toInt();
     _currentPage = normalized;
     await _save(() async {
       final preferences = await SharedPreferences.getInstance();
@@ -357,15 +358,12 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
         };
         await preferences.setStringList(visitedKey, visitedPages.toList());
 
-        final pagesProgress = lesson.totalPages <= 0
+        final pagesProgress = totalPages <= 0
             ? 0
-            : ((visitedPages.length / lesson.totalPages) * 100).round().clamp(
-                0,
-                100,
-              );
+            : ((visitedPages.length / totalPages) * 100).round().clamp(0, 100);
         final elapsedSeconds = DateTime.now().difference(_openedAt).inSeconds;
-        final minimumStudySeconds = (lesson.totalPages * 20).clamp(60, 600);
-        final progress = lesson.totalPages <= 0
+        final minimumStudySeconds = (totalPages * 20).clamp(60, 600);
+        final progress = totalPages <= 0
             ? 0
             : pagesProgress >= 100 && elapsedSeconds < minimumStudySeconds
             ? 95

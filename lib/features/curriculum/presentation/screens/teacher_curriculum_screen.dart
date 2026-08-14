@@ -908,28 +908,24 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                 '${context.tr('Code')}: ${sem.code} | ${context.tr('Units')}: ${sem.units.length}',
                                 style: AppTypography.bodySmall(subtitleColor),
                               ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit),
+                              trailing: _CurriculumActionMenu(
+                                actions: [
+                                  _CurriculumAction(
+                                    icon: Icons.edit,
+                                    label: context.tr('Edit Semester'),
                                     onPressed: () =>
                                         _showEditSemesterDialog(sem),
-                                    tooltip: context.tr('Edit Semester'),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.add_circle_outline,
-                                      color: AppColors.primary,
-                                    ),
+                                  _CurriculumAction(
+                                    icon: Icons.add_circle_outline,
+                                    color: AppColors.primary,
+                                    label: context.tr('Add Unit'),
                                     onPressed: () => _showCreateUnitDialog(sem),
-                                    tooltip: context.tr('Add Unit'),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      color: AppColors.error,
-                                    ),
+                                  _CurriculumAction(
+                                    icon: Icons.delete_outline,
+                                    color: AppColors.error,
+                                    label: context.tr('Delete Semester'),
                                     onPressed: () async {
                                       if (!await _confirmDelete(
                                         'Delete Semester',
@@ -942,7 +938,6 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                       );
                                       _loadCurriculum();
                                     },
-                                    tooltip: context.tr('Delete Semester'),
                                   ),
                                 ],
                               ),
@@ -966,29 +961,25 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                         subtitleColor,
                                       ),
                                     ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.edit),
+                                    trailing: _CurriculumActionMenu(
+                                      actions: [
+                                        _CurriculumAction(
+                                          icon: Icons.edit,
+                                          label: context.tr('Edit Unit'),
                                           onPressed: () =>
                                               _showEditUnitDialog(unit),
-                                          tooltip: context.tr('Edit Unit'),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.add_circle_outline,
-                                            color: AppColors.warning,
-                                          ),
+                                        _CurriculumAction(
+                                          icon: Icons.add_circle_outline,
+                                          color: AppColors.warning,
+                                          label: context.tr('Add Lesson'),
                                           onPressed: () =>
                                               _showCreateLessonDialog(unit),
-                                          tooltip: context.tr('Add Lesson'),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete_outline,
-                                            color: AppColors.error,
-                                          ),
+                                        _CurriculumAction(
+                                          icon: Icons.delete_outline,
+                                          color: AppColors.error,
+                                          label: context.tr('Delete Unit'),
                                           onPressed: () async {
                                             if (!await _confirmDelete(
                                               'Delete Unit',
@@ -999,7 +990,6 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                             await _unitRepo.deleteUnit(unit.id);
                                             _loadCurriculum();
                                           },
-                                          tooltip: context.tr('Delete Unit'),
                                         ),
                                       ],
                                     ),
@@ -1025,52 +1015,45 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                             subtitleColor,
                                           ),
                                         ),
-                                        trailing: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.edit),
+                                        trailing: _CurriculumActionMenu(
+                                          actions: [
+                                            _CurriculumAction(
+                                              icon: Icons.edit,
+                                              label: context.tr('Edit Lesson'),
                                               onPressed: () =>
                                                   _showEditLessonDialog(lesson),
-                                              tooltip: context.tr(
-                                                'Edit Lesson',
-                                              ),
                                             ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.attach_file,
-                                                color: AppColors.purple,
+                                            _CurriculumAction(
+                                              icon: Icons.attach_file,
+                                              color: AppColors.purple,
+                                              label: context.tr(
+                                                'Upload Resource',
                                               ),
                                               onPressed: () =>
                                                   _showUploadResourceDialog(
                                                     lesson,
                                                   ),
-                                              tooltip: context.tr(
-                                                'Upload Resource',
-                                              ),
                                             ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.code,
-                                                color: AppColors.info,
+                                            _CurriculumAction(
+                                              icon: Icons.code,
+                                              color: AppColors.info,
+                                              label: context.tr(
+                                                'Code Challenges',
                                               ),
                                               onPressed: () =>
                                                   _showCodeChallengesDialog(
                                                     lesson,
                                                   ),
-                                              tooltip: context.tr(
-                                                'Code Challenges',
-                                              ),
                                             ),
-                                            IconButton(
-                                              icon: Icon(
-                                                isPublished
-                                                    ? Icons.visibility
-                                                    : Icons.visibility_off,
-                                                color: isPublished
-                                                    ? AppColors.success
-                                                    : AppColors
-                                                          .darkTextSecondary,
+                                            _CurriculumAction(
+                                              icon: isPublished
+                                                  ? Icons.visibility
+                                                  : Icons.visibility_off,
+                                              color: isPublished
+                                                  ? AppColors.success
+                                                  : AppColors.darkTextSecondary,
+                                              label: context.tr(
+                                                'Toggle Publish',
                                               ),
                                               onPressed: () async {
                                                 await _lessonRepo.publishLesson(
@@ -1079,14 +1062,12 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                 );
                                                 _loadCurriculum();
                                               },
-                                              tooltip: context.tr(
-                                                'Toggle Publish',
-                                              ),
                                             ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.delete_outline,
-                                                color: AppColors.error,
+                                            _CurriculumAction(
+                                              icon: Icons.delete_outline,
+                                              color: AppColors.error,
+                                              label: context.tr(
+                                                'Delete Lesson',
                                               ),
                                               onPressed: () async {
                                                 if (!await _confirmDelete(
@@ -1100,9 +1081,6 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                 );
                                                 _loadCurriculum();
                                               },
-                                              tooltip: context.tr(
-                                                'Delete Lesson',
-                                              ),
                                             ),
                                           ],
                                         ),
@@ -1227,6 +1205,49 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+class _CurriculumAction {
+  final IconData icon;
+  final Color? color;
+  final String label;
+  final VoidCallback onPressed;
+
+  const _CurriculumAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.color,
+  });
+}
+
+class _CurriculumActionMenu extends StatelessWidget {
+  final List<_CurriculumAction> actions;
+
+  const _CurriculumActionMenu({required this.actions});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<int>(
+      tooltip: context.tr('Actions'),
+      icon: const Icon(Icons.more_vert_rounded),
+      onSelected: (index) => actions[index].onPressed(),
+      itemBuilder: (context) => [
+        for (var i = 0; i < actions.length; i++)
+          PopupMenuItem<int>(
+            value: i,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(actions[i].icon, color: actions[i].color, size: 20),
+                const SizedBox(width: 12),
+                Flexible(child: Text(actions[i].label)),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
