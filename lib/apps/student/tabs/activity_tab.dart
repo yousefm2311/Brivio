@@ -158,6 +158,8 @@ class _ActivityTabState extends State<ActivityTab>
                   ),
                   child: TabBar(
                     controller: _tabCtrl,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
                     dividerColor: Colors.transparent,
                     indicator: BoxDecoration(
                       color: surfaceColor,

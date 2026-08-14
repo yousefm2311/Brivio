@@ -19,9 +19,27 @@ class AcademicsViewModel {
     return AcademicsViewModel(
       childName: name,
       recentExams: [
-        ExamScore(subject: 'Mathematics', score: 92, maxScore: 100, date: 'Oct 12, 2026', grade: 'A'),
-        ExamScore(subject: 'Physics', score: 88, maxScore: 100, date: 'Oct 10, 2026', grade: 'B+'),
-        ExamScore(subject: 'Literature', score: 95, maxScore: 100, date: 'Oct 08, 2026', grade: 'A+'),
+        ExamScore(
+          subject: 'Mathematics',
+          score: 92,
+          maxScore: 100,
+          date: 'Oct 12, 2026',
+          grade: 'A',
+        ),
+        ExamScore(
+          subject: 'Physics',
+          score: 88,
+          maxScore: 100,
+          date: 'Oct 10, 2026',
+          grade: 'B+',
+        ),
+        ExamScore(
+          subject: 'Literature',
+          score: 95,
+          maxScore: 100,
+          date: 'Oct 08, 2026',
+          grade: 'A+',
+        ),
       ],
       reportCards: [
         ReportCard(term: 'Fall 2026 Midterm', gpa: 3.8, status: 'Available'),
@@ -43,7 +61,13 @@ class ExamScore {
   final int maxScore;
   final String date;
   final String grade;
-  ExamScore({required this.subject, required this.score, required this.maxScore, required this.date, required this.grade});
+  ExamScore({
+    required this.subject,
+    required this.score,
+    required this.maxScore,
+    required this.date,
+    required this.grade,
+  });
 }
 
 class ReportCard {
@@ -82,7 +106,13 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('${_viewModel.childName} - Academics', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(
+          '${_viewModel.childName} - Academics',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -103,7 +133,7 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
               const SizedBox(height: 12),
               _buildPerformanceChart(),
               const SizedBox(height: 24),
-              
+
               _buildSectionTitle('Recent Exam Scores'),
               const SizedBox(height: 12),
               ..._viewModel.recentExams.map((exam) => _buildExamCard(exam)),
@@ -111,7 +141,9 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
 
               _buildSectionTitle('Report Cards'),
               const SizedBox(height: 12),
-              ..._viewModel.reportCards.map((report) => _buildReportCard(report)),
+              ..._viewModel.reportCards.map(
+                (report) => _buildReportCard(report),
+              ),
               const SizedBox(height: 24),
             ],
           ),
@@ -132,7 +164,11 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
     );
   }
 
-  Widget _buildGlassContainer({required Widget child, EdgeInsetsGeometry? padding, double height = -1}) {
+  Widget _buildGlassContainer({
+    required Widget child,
+    EdgeInsetsGeometry? padding,
+    double height = -1,
+  }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -149,7 +185,7 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
                 color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 10,
                 spreadRadius: 1,
-              )
+              ),
             ],
           ),
           child: child,
@@ -168,8 +204,18 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
-              Text('Overall Average', style: TextStyle(color: Colors.white70, fontSize: 14)),
-              Text('91%', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                'Overall Average',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              Text(
+                '91%',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -207,7 +253,10 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(data.month, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        Text(
+          data.month,
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
+        ),
       ],
     );
   }
@@ -228,7 +277,11 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
               child: Center(
                 child: Text(
                   exam.grade,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
               ),
             ),
@@ -237,18 +290,41 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(exam.subject, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                  Text(
+                    exam.subject,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(exam.date, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
+                  Text(
+                    exam.date,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('${exam.score}/${exam.maxScore}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  '${exam.score}/${exam.maxScore}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                const Text('Score', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const Text(
+                  'Score',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
               ],
             ),
           ],
@@ -263,9 +339,22 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
       child: _buildGlassContainer(
         child: ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 36),
-          title: Text(report.term, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          subtitle: Text('GPA: ${report.gpa} • ${report.status}', style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
+          leading: const Icon(
+            Icons.picture_as_pdf,
+            color: Colors.white,
+            size: 36,
+          ),
+          title: Text(
+            report.term,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          subtitle: Text(
+            'GPA: ${report.gpa} • ${report.status}',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+          ),
           trailing: IconButton(
             icon: const Icon(Icons.download, color: Colors.white),
             onPressed: () {

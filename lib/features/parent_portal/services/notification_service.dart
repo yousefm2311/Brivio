@@ -26,10 +26,12 @@ class NotificationService {
         DarwinInitializationSettings();
     const InitializationSettings initializationSettings =
         InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsIOS,
+        );
+    await _localNotificationsPlugin.initialize(
+      settings: initializationSettings,
     );
-    await _localNotificationsPlugin.initialize(settings: initializationSettings);
 
     // Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -43,15 +45,18 @@ class NotificationService {
   }
 
   Future<void> _showLocalNotification(String? title, String? body) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'parent_portal_channel',
-      'Parent Portal Notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'parent_portal_channel',
+          'Parent Portal Notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+        );
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails();
-    const NotificationDetails platformDetails =
-        NotificationDetails(android: androidDetails, iOS: iosDetails);
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
     await _localNotificationsPlugin.show(
       id: 0,
       title: title ?? 'Notification',

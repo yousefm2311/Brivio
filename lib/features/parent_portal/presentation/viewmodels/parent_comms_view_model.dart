@@ -57,14 +57,16 @@ class ParentCommsViewModel extends ChangeNotifier {
       Announcement(
         id: '1',
         title: 'Science Fair Next Week!',
-        content: 'Please remind your children to bring their science fair projects by Monday. We are excited to see their creativity!',
+        content:
+            'Please remind your children to bring their science fair projects by Monday. We are excited to see their creativity!',
         date: DateTime.now().subtract(const Duration(days: 1)),
         author: 'Principal Smith',
       ),
       Announcement(
         id: '2',
         title: 'School Closed on Friday',
-        content: 'School will be closed this Friday for a teacher training day. Have a great long weekend.',
+        content:
+            'School will be closed this Friday for a teacher training day. Have a great long weekend.',
         date: DateTime.now().subtract(const Duration(days: 3)),
         author: 'Administration',
       ),
@@ -74,7 +76,8 @@ class ParentCommsViewModel extends ChangeNotifier {
       Message(
         id: '1',
         sender: 'Mrs. Johnson',
-        content: 'Hi! Just wanted to let you know Timmy did great on his math test today.',
+        content:
+            'Hi! Just wanted to let you know Timmy did great on his math test today.',
         timestamp: DateTime.now().subtract(const Duration(hours: 2)),
         isFromMe: false,
       ),
@@ -93,7 +96,7 @@ class ParentCommsViewModel extends ChangeNotifier {
 
   void sendMessage(String text) {
     if (text.trim().isEmpty) return;
-    
+
     _messages.add(
       Message(
         id: DateTime.now().toString(),

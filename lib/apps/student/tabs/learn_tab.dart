@@ -26,7 +26,9 @@ class LearnTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
 
     final lessonsByPath = <String, List<StudyLessonSummary>>{};
     for (final lesson in lessons) {
@@ -37,27 +39,54 @@ class LearnTab extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverAppBar(
-          backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+          backgroundColor: isDark
+              ? AppColors.darkBackground
+              : AppColors.lightBackground,
           surfaceTintColor: Colors.transparent,
           pinned: true,
           title: Text(
             context.tr('Learn'),
-            style: AppTypography.displaySmall(textPrimary).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
+            style: AppTypography.displaySmall(
+              textPrimary,
+            ).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
           ),
         ),
         if (isLoading)
-          const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.primary)))
+          const SliverFillRemaining(
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          )
         else if (lessonsByPath.isEmpty && groups.isEmpty)
           SliverFillRemaining(
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.menu_book_outlined, size: 64, color: AppColors.primary.withValues(alpha: 0.5)),
+                  Icon(
+                    Icons.menu_book_outlined,
+                    size: 64,
+                    color: AppColors.primary.withValues(alpha: 0.5),
+                  ),
                   const SizedBox(height: 16),
-                  Text(context.tr('No content yet'), style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    context.tr('No content yet'),
+                    style: AppTypography.titleLarge(
+                      textPrimary,
+                    ).copyWith(fontWeight: FontWeight.w700),
+                  ),
                   const SizedBox(height: 8),
-                  Text(context.tr('Lessons appear here after your teacher publishes them.'), style: AppTypography.bodyMedium(isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary), textAlign: TextAlign.center),
+                  Text(
+                    context.tr(
+                      'Lessons appear here after your teacher publishes them.',
+                    ),
+                    style: AppTypography.bodyMedium(
+                      isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             ),
@@ -73,7 +102,10 @@ class LearnTab extends StatelessWidget {
                     duration: const Duration(milliseconds: 500),
                     child: Text(
                       context.tr('Learning Paths'),
-                      style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                      style: AppTypography.titleLarge(textPrimary).copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -99,7 +131,10 @@ class LearnTab extends StatelessWidget {
                     delay: const Duration(milliseconds: 300),
                     child: Text(
                       context.tr('My Groups'),
-                      style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                      style: AppTypography.titleLarge(textPrimary).copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -138,8 +173,12 @@ class _LearningPathSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     final complete = lessons.where((l) => l.progressPercentage >= 100).length;
     final progress = lessons.isEmpty ? 0.0 : complete / lessons.length;
@@ -159,11 +198,22 @@ class _LearningPathSection extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
             ),
-            child: const Icon(Icons.route_rounded, color: AppColors.primary, size: 22),
+            child: const Icon(
+              Icons.route_rounded,
+              color: AppColors.primary,
+              size: 22,
+            ),
           ),
-          title: Text(pathName, style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.w800)),
+          title: Text(
+            pathName,
+            style: AppTypography.titleMedium(
+              textPrimary,
+            ).copyWith(fontWeight: FontWeight.w800),
+          ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 8, bottom: 4),
             child: Column(
@@ -171,20 +221,41 @@ class _LearningPathSection extends StatelessWidget {
               children: [
                 Stack(
                   children: [
-                    Container(height: 6, width: double.infinity, decoration: BoxDecoration(color: isDark ? Colors.white10 : Colors.black12, borderRadius: BorderRadius.circular(10))),
+                    Container(
+                      height: 6,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white10 : Colors.black12,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                     FractionallySizedBox(
                       widthFactor: progress.clamp(0.0, 1.0),
-                      child: Container(height: 6, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10))),
+                      child: Container(
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text('$complete/${lessons.length} ${context.tr("Completed Lessons")}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  '$complete/${lessons.length} ${context.tr("Completed Lessons")}',
+                  style: AppTypography.caption(
+                    textSecondary,
+                  ).copyWith(fontWeight: FontWeight.w600),
+                ),
               ],
             ),
           ),
           children: [
-            Divider(height: 1, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            Divider(
+              height: 1,
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            ),
             for (final lesson in lessons)
               _LessonRow(lesson: lesson, onOpen: () => onOpenLesson(lesson)),
             const SizedBox(height: 8),
@@ -204,10 +275,14 @@ class _LessonRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
     final done = lesson.progressPercentage >= 100;
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -220,7 +295,8 @@ class _LessonRow extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: (done ? AppColors.success : AppColors.studentRole).withValues(alpha: 0.12),
+                  color: (done ? AppColors.success : AppColors.studentRole)
+                      .withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -236,14 +312,18 @@ class _LessonRow extends StatelessWidget {
                   children: [
                     Text(
                       lesson.title,
-                      style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w700),
+                      style: AppTypography.bodyMedium(
+                        textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w700),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${lesson.unitName}  ·  ${lesson.estimatedMinutes} min  ·  ${lesson.progressPercentage}%',
-                      style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w500),
+                      style: AppTypography.caption(
+                        textSecondary,
+                      ).copyWith(fontWeight: FontWeight.w500),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -254,8 +334,21 @@ class _LessonRow extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (lesson.hasPdf) const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error, size: 16),
-                  if (lesson.hasCodePlayground) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.terminal_rounded, color: AppColors.success, size: 16)),
+                  if (lesson.hasPdf)
+                    const Icon(
+                      Icons.picture_as_pdf_rounded,
+                      color: AppColors.error,
+                      size: 16,
+                    ),
+                  if (lesson.hasCodePlayground)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 6),
+                      child: Icon(
+                        Icons.terminal_rounded,
+                        color: AppColors.success,
+                        size: 16,
+                      ),
+                    ),
                   const SizedBox(width: 8),
                   Container(
                     width: 28,
@@ -264,7 +357,11 @@ class _LessonRow extends StatelessWidget {
                       color: AppColors.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.arrow_forward_rounded, color: AppColors.primary, size: 14),
+                    child: const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: AppColors.primary,
+                      size: 14,
+                    ),
                   ),
                 ],
               ),

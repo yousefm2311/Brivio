@@ -338,10 +338,18 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: const Text('Delete Branch'),
-                              content: const Text('Are you sure you want to delete this branch?'),
+                              content: const Text(
+                                'Are you sure you want to delete this branch?',
+                              ),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Delete'),
+                                ),
                               ],
                             ),
                           );
@@ -352,7 +360,9 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Failed to delete: $e')),
+                                  SnackBar(
+                                    content: Text('Failed to delete: $e'),
+                                  ),
                                 );
                               }
                             }

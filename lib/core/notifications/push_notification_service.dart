@@ -60,7 +60,7 @@ class PushNotificationService {
   }) : _localNotifications =
            localNotifications ?? FlutterLocalNotificationsPlugin();
 
-  bool get isConfigured => AppConfig.hasFirebaseConfig && _initialized;
+  bool get isConfigured => _initialized;
 
   bool get _supportsFirebaseMessaging {
     if (kIsWeb) return true;
@@ -117,6 +117,11 @@ class PushNotificationService {
             AndroidFlutterLocalNotificationsPlugin
           >()
           ?.createNotificationChannel(_androidChannel);
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.requestNotificationsPermission();
 
       await messaging!.setForegroundNotificationPresentationOptions(
         alert: true,
@@ -252,6 +257,7 @@ class PushNotificationService {
         'register_device_push_token',
         params: {'p_token': token, 'p_platform': defaultTargetPlatform.name},
       );
+      AppLogger.info('FCM token registered for ${defaultTargetPlatform.name}.');
     } on PostgrestException catch (error, stackTrace) {
       AppLogger.error('Failed to register FCM token', error, stackTrace);
     } catch (error, stackTrace) {

@@ -659,9 +659,11 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         await _loadGroupsAndSessions();
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to create session: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${context.tr('Failed to create session')}: $e'),
+          ),
+        );
       }
     }
   }

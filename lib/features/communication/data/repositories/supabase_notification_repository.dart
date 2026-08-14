@@ -44,7 +44,7 @@ class SupabaseNotificationRepository implements INotificationRepository {
   Future<void> markRead(String notificationId) async {
     final currUser = _clientWrapper.client.auth.currentUser;
     if (currUser == null) return;
-    
+
     await _clientWrapper.client
         .from('app_notifications')
         .update({'is_read': true})

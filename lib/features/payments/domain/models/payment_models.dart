@@ -203,9 +203,9 @@ class SystemFinancialSummary {
     return SystemFinancialSummary(
       totalOutstandingMinor: json['total_outstanding_minor'] as int? ?? 0,
       totalCollectedMinor: json['total_collected_minor'] as int? ?? 0,
-      expectedMonthlyRevenueMinor: json['expected_monthly_revenue_minor'] as int? ?? 0,
+      expectedMonthlyRevenueMinor:
+          json['expected_monthly_revenue_minor'] as int? ?? 0,
       totalAdjustmentsMinor: json['total_adjustments_minor'] as int? ?? 0,
     );
   }
 }
-

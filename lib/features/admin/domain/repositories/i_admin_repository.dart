@@ -15,9 +15,17 @@ abstract class IAdminRepository {
 
   // Helpdesk Ticketing
   Future<List<HelpdeskTicket>> getTickets();
-  Future<HelpdeskTicket> createTicket(String subject, String description, String priority);
+  Future<HelpdeskTicket> createTicket(
+    String subject,
+    String description,
+    String priority,
+  );
   Future<void> updateTicketStatus(String ticketId, String status);
 
   // User Moderation
-  Future<void> moderateUserStatus(String userType, String userId, String status);
+  Future<void> moderateUserStatus(
+    String userType,
+    String userId,
+    String status,
+  );
 }

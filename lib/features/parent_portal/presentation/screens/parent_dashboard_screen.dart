@@ -21,7 +21,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       'grade': '10th Grade',
       'avatar': 'A',
       'gpa': '3.8',
-      'attendance': '98%'
+      'attendance': '98%',
     },
     {
       'id': '2',
@@ -30,13 +30,15 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       'grade': '8th Grade',
       'avatar': 'B',
       'gpa': '3.5',
-      'attendance': '95%'
+      'attendance': '95%',
     },
   ];
 
   @override
   Widget build(BuildContext context) {
-    final children = _allChildren.where((c) => c['parentId'] == widget.parentId).toList();
+    final children = _allChildren
+        .where((c) => c['parentId'] == widget.parentId)
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
@@ -53,7 +55,11 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                 shape: BoxShape.circle,
                 color: AppColors.primary.withValues(alpha: 0.15),
                 boxShadow: [
-                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 100, spreadRadius: 50),
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    blurRadius: 100,
+                    spreadRadius: 50,
+                  ),
                 ],
               ),
             ),
@@ -68,7 +74,11 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                 shape: BoxShape.circle,
                 color: AppColors.purple.withValues(alpha: 0.15),
                 boxShadow: [
-                  BoxShadow(color: AppColors.purple.withValues(alpha: 0.2), blurRadius: 100, spreadRadius: 50),
+                  BoxShadow(
+                    color: AppColors.purple.withValues(alpha: 0.2),
+                    blurRadius: 100,
+                    spreadRadius: 50,
+                  ),
                 ],
               ),
             ),
@@ -80,12 +90,18 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               slivers: [
                 _buildAppBar(),
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       const FadeInSlide(
                         delay: Duration(milliseconds: 100),
-                        child: SectionHeader(title: 'Your Children', actionLabel: 'View All'),
+                        child: SectionHeader(
+                          title: 'Your Children',
+                          actionLabel: 'View All',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       ...children.asMap().entries.map((entry) {
@@ -100,7 +116,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => ChildDetailsScreen(childData: child),
+                                    builder: (context) =>
+                                        ChildDetailsScreen(childData: child),
                                   ),
                                 );
                               },
@@ -121,7 +138,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           child['name'],
@@ -145,9 +163,17 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      StatusChip(label: 'GPA ${child['gpa']}', status: ChipStatus.success, small: true),
+                                      StatusChip(
+                                        label: 'GPA ${child['gpa']}',
+                                        status: ChipStatus.success,
+                                        small: true,
+                                      ),
                                       const SizedBox(height: 4),
-                                      StatusChip(label: '${child['attendance']}', status: ChipStatus.info, small: true),
+                                      StatusChip(
+                                        label: '${child['attendance']}',
+                                        status: ChipStatus.info,
+                                        small: true,
+                                      ),
                                     ],
                                   ),
                                 ],
@@ -168,10 +194,26 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildQuickAction(Icons.grade_outlined, 'Grades', AppColors.purple),
-                            _buildQuickAction(Icons.calendar_month_outlined, 'Attendance', AppColors.primary),
-                            _buildQuickAction(Icons.account_balance_wallet_outlined, 'Finances', AppColors.success),
-                            _buildQuickAction(Icons.event_outlined, 'Events', AppColors.warning),
+                            _buildQuickAction(
+                              Icons.grade_outlined,
+                              'Grades',
+                              AppColors.purple,
+                            ),
+                            _buildQuickAction(
+                              Icons.calendar_month_outlined,
+                              'Attendance',
+                              AppColors.primary,
+                            ),
+                            _buildQuickAction(
+                              Icons.account_balance_wallet_outlined,
+                              'Finances',
+                              AppColors.success,
+                            ),
+                            _buildQuickAction(
+                              Icons.event_outlined,
+                              'Events',
+                              AppColors.warning,
+                            ),
                           ],
                         ),
                       ),
@@ -188,12 +230,23 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             children: [
-                              _buildEventItem('Parent-Teacher Meeting', 'Tomorrow, 4:00 PM', AppColors.primary),
+                              _buildEventItem(
+                                'Parent-Teacher Meeting',
+                                'Tomorrow, 4:00 PM',
+                                AppColors.primary,
+                              ),
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 12),
-                                child: Divider(color: AppColors.glassBorder, height: 1),
+                                child: Divider(
+                                  color: AppColors.glassBorder,
+                                  height: 1,
+                                ),
                               ),
-                              _buildEventItem('Science Fair', 'Friday, 9:00 AM', AppColors.purple),
+                              _buildEventItem(
+                                'Science Fair',
+                                'Friday, 9:00 AM',
+                                AppColors.purple,
+                              ),
                             ],
                           ),
                         ),
@@ -236,7 +289,10 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             padding: const EdgeInsets.only(right: 16.0),
             child: CircleAvatar(
               backgroundColor: AppColors.glassMedium,
-              child: const Icon(Icons.notifications_outlined, color: AppColors.darkTextPrimary),
+              child: const Icon(
+                Icons.notifications_outlined,
+                color: AppColors.darkTextPrimary,
+              ),
             ),
           ),
         ),

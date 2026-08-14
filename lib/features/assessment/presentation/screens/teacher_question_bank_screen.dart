@@ -759,9 +759,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                                 Icons.delete_outline,
                                                 color: AppColors.error,
                                               ),
-                                              title: Text(
-                                                context.tr('Delete'),
-                                              ),
+                                              title: Text(context.tr('Delete')),
                                               contentPadding: EdgeInsets.zero,
                                             ),
                                           ),

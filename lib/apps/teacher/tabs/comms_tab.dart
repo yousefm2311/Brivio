@@ -20,13 +20,26 @@ class _CommsTabState extends State<CommsTab> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     if (_selectedContact != null) {
-      return _buildChatScreen(_selectedContact!, isDark, textPrimary, bgColor, surfaceColor, borderColor);
+      return _buildChatScreen(
+        _selectedContact!,
+        isDark,
+        textPrimary,
+        bgColor,
+        surfaceColor,
+        borderColor,
+      );
     }
 
     return Scaffold(
@@ -34,7 +47,9 @@ class _CommsTabState extends State<CommsTab> {
       appBar: AppBar(
         title: Text(
           context.tr('Messages'),
-          style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.bold),
+          style: AppTypography.titleLarge(
+            textPrimary,
+          ).copyWith(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -53,18 +68,31 @@ class _CommsTabState extends State<CommsTab> {
                   backgroundColor: AppColors.teacherRole.withValues(alpha: 0.2),
                   child: Text(
                     contact.name.substring(0, 1),
-                    style: TextStyle(color: AppColors.teacherRole, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: AppColors.teacherRole,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 title: Text(
                   contact.name,
-                  style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 subtitle: Text(
                   contact.role,
-                  style: TextStyle(color: textPrimary.withValues(alpha: 0.6), fontSize: 12),
+                  style: TextStyle(
+                    color: textPrimary.withValues(alpha: 0.6),
+                    fontSize: 12,
+                  ),
                 ),
-                trailing: const Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.teacherRole),
+                trailing: const Icon(
+                  Icons.chat_bubble_outline,
+                  size: 20,
+                  color: AppColors.teacherRole,
+                ),
                 onTap: () {
                   setState(() {
                     _selectedContact = contact;
@@ -78,7 +106,14 @@ class _CommsTabState extends State<CommsTab> {
     );
   }
 
-  Widget _buildChatScreen(UserContact contact, bool isDark, Color textPrimary, Color bgColor, Color surfaceColor, Color borderColor) {
+  Widget _buildChatScreen(
+    UserContact contact,
+    bool isDark,
+    Color textPrimary,
+    Color bgColor,
+    Color surfaceColor,
+    Color borderColor,
+  ) {
     final messages = _viewModel.getMessagesForContact(contact.id);
 
     return Scaffold(
@@ -99,15 +134,32 @@ class _CommsTabState extends State<CommsTab> {
               backgroundColor: AppColors.teacherRole.withValues(alpha: 0.2),
               child: Text(
                 contact.name.substring(0, 1),
-                style: const TextStyle(color: AppColors.teacherRole, fontSize: 12, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: AppColors.teacherRole,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(contact.name, style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
-                Text(contact.role, style: TextStyle(color: textPrimary.withValues(alpha: 0.6), fontSize: 12)),
+                Text(
+                  contact.name,
+                  style: TextStyle(
+                    color: textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  contact.role,
+                  style: TextStyle(
+                    color: textPrimary.withValues(alpha: 0.6),
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ],
@@ -132,10 +184,14 @@ class _CommsTabState extends State<CommsTab> {
                 final isMe = msg.isMe;
 
                 return Align(
-                  alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment: isMe
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.75,
+                    ),
                     decoration: BoxDecoration(
                       color: isMe ? AppColors.teacherRole : surfaceColor,
                       borderRadius: BorderRadius.only(
@@ -151,9 +207,14 @@ class _CommsTabState extends State<CommsTab> {
                           offset: const Offset(0, 2),
                         ),
                       ],
-                      border: isMe ? null : Border.all(color: borderColor, width: 0.5),
+                      border: isMe
+                          ? null
+                          : Border.all(color: borderColor, width: 0.5),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     child: Text(
                       msg.text,
                       style: TextStyle(
@@ -181,14 +242,21 @@ class _CommsTabState extends State<CommsTab> {
                     style: TextStyle(color: textPrimary),
                     decoration: InputDecoration(
                       hintText: context.tr('Type a message...'),
-                      hintStyle: TextStyle(color: textPrimary.withValues(alpha: 0.5)),
+                      hintStyle: TextStyle(
+                        color: textPrimary.withValues(alpha: 0.5),
+                      ),
                       filled: true,
-                      fillColor: isDark ? Colors.black.withValues(alpha: 0.2) : Colors.grey.shade100,
+                      fillColor: isDark
+                          ? Colors.black.withValues(alpha: 0.2)
+                          : Colors.grey.shade100,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ),
@@ -203,7 +271,10 @@ class _CommsTabState extends State<CommsTab> {
                     onPressed: () {
                       if (_messageController.text.trim().isNotEmpty) {
                         setState(() {
-                          _viewModel.sendMessage(contact.id, _messageController.text.trim());
+                          _viewModel.sendMessage(
+                            contact.id,
+                            _messageController.text.trim(),
+                          );
                           _messageController.clear();
                         });
                       }
@@ -234,33 +305,58 @@ class _CommsTabState extends State<CommsTab> {
                   children: [
                     CircleAvatar(
                       radius: 40,
-                      backgroundColor: AppColors.teacherRole.withValues(alpha: 0.2),
+                      backgroundColor: AppColors.teacherRole.withValues(
+                        alpha: 0.2,
+                      ),
                       child: Text(
                         contact.name.substring(0, 1),
-                        style: const TextStyle(color: AppColors.teacherRole, fontSize: 32, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: AppColors.teacherRole,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       contact.name,
-                      style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.teacherRole.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         contact.role,
-                        style: const TextStyle(color: AppColors.teacherRole, fontSize: 12, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: AppColors.teacherRole,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _buildProfileRow(Icons.email_outlined, '${contact.name.toLowerCase().replaceAll(' ', '.')}@example.com', textPrimary),
+                    _buildProfileRow(
+                      Icons.email_outlined,
+                      '${contact.name.toLowerCase().replaceAll(' ', '.')}@example.com',
+                      textPrimary,
+                    ),
                     const SizedBox(height: 12),
-                    _buildProfileRow(Icons.phone_outlined, '+1 234 567 8900', textPrimary),
+                    _buildProfileRow(
+                      Icons.phone_outlined,
+                      '+1 234 567 8900',
+                      textPrimary,
+                    ),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
@@ -268,7 +364,9 @@ class _CommsTabState extends State<CommsTab> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.teacherRole,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         onPressed: () => Navigator.pop(context),
@@ -309,7 +407,11 @@ class ChatMessage {
   final bool isMe;
   final DateTime timestamp;
 
-  ChatMessage({required this.text, required this.isMe, required this.timestamp});
+  ChatMessage({
+    required this.text,
+    required this.isMe,
+    required this.timestamp,
+  });
 }
 
 class CommsViewModel {
@@ -321,11 +423,23 @@ class CommsViewModel {
 
   final Map<String, List<ChatMessage>> _messages = {
     '1': [
-      ChatMessage(text: 'Hello, Mr. Teacher! I have a question about the assignment.', isMe: false, timestamp: DateTime.now().subtract(const Duration(minutes: 10))),
-      ChatMessage(text: 'Sure John, what do you need help with?', isMe: true, timestamp: DateTime.now().subtract(const Duration(minutes: 5))),
+      ChatMessage(
+        text: 'Hello, Mr. Teacher! I have a question about the assignment.',
+        isMe: false,
+        timestamp: DateTime.now().subtract(const Duration(minutes: 10)),
+      ),
+      ChatMessage(
+        text: 'Sure John, what do you need help with?',
+        isMe: true,
+        timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
+      ),
     ],
     '2': [
-      ChatMessage(text: 'Good morning, how is Jane doing in class?', isMe: false, timestamp: DateTime.now().subtract(const Duration(days: 1))),
+      ChatMessage(
+        text: 'Good morning, how is Jane doing in class?',
+        isMe: false,
+        timestamp: DateTime.now().subtract(const Duration(days: 1)),
+      ),
     ],
   };
 
@@ -337,10 +451,8 @@ class CommsViewModel {
     if (!_messages.containsKey(contactId)) {
       _messages[contactId] = [];
     }
-    _messages[contactId]!.add(ChatMessage(
-      text: text,
-      isMe: true,
-      timestamp: DateTime.now(),
-    ));
+    _messages[contactId]!.add(
+      ChatMessage(text: text, isMe: true, timestamp: DateTime.now()),
+    );
   }
 }

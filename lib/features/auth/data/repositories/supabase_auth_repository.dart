@@ -107,9 +107,7 @@ class SupabaseAuthRepository implements IAuthRepository {
 
       final user = response.user;
       if (user == null) {
-        throw const AuthFailure(
-          message: 'Invalid or expired QR code.',
-        );
+        throw const AuthFailure(message: 'Invalid or expired QR code.');
       }
 
       final profile = await getCurrentUser();

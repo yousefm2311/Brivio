@@ -180,7 +180,11 @@ class LessonManagementViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> publishLesson(String lessonId, String unitId, {bool publish = true}) async {
+  Future<void> publishLesson(
+    String lessonId,
+    String unitId, {
+    bool publish = true,
+  }) async {
     _status = CurriculumViewState.submitting;
     notifyListeners();
 

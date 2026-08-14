@@ -55,6 +55,8 @@ class ChildScheduleScreenState extends State<ChildScheduleScreen>
         iconTheme: const IconThemeData(color: Colors.black87),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           labelColor: Colors.black87,
           unselectedLabelColor: Colors.black45,
           indicatorColor: Colors.blueAccent,

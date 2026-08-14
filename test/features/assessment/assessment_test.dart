@@ -76,10 +76,10 @@ void main() {
       );
 
       expect(find.text('What is Binary Search?'), findsOneWidget);
-      expect(
-        find.text('Type: multipleChoice | Points: 5.0 | Difficulty: medium'),
-        findsOneWidget,
-      );
+      expect(find.text('Type: multipleChoice'), findsOneWidget);
+      expect(find.text('Points: 5.0'), findsOneWidget);
+      expect(find.text('Difficulty: medium'), findsOneWidget);
+      expect(find.text('1 options'), findsOneWidget);
     });
 
     testWidgets('ExamRunnerScreen renders timer and questions', (

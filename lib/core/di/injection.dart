@@ -65,8 +65,7 @@ Future<void> setupDependencyInjection({
     getIt.registerSingleton<ReportGeneratorService>(reportGeneratorService);
   }
 
-  if (AppConfig.hasFirebaseConfig &&
-      !getIt.isRegistered<PushNotificationService>() &&
+  if (!getIt.isRegistered<PushNotificationService>() &&
       getIt.isRegistered<SupabaseClientWrapper>()) {
     final pushService = PushNotificationService(getIt<SupabaseClientWrapper>());
     await pushService.initialize();

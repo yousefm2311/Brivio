@@ -23,11 +23,7 @@ class AdminRole {
   final String name;
   final List<String> permissions;
 
-  AdminRole({
-    required this.id,
-    required this.name,
-    required this.permissions,
-  });
+  AdminRole({required this.id, required this.name, required this.permissions});
 
   factory AdminRole.fromJson(Map<String, dynamic> json) {
     return AdminRole(
@@ -63,11 +59,13 @@ class AdminAnalytics {
       attendanceRate: (json['attendance_rate'] ?? 0).toDouble(),
       totalStudents: json['total_students'] ?? 0,
       totalSessions: json['total_sessions'] ?? 0,
-      revenueGrowth: (json['revenue_growth'] as List<dynamic>?)
+      revenueGrowth:
+          (json['revenue_growth'] as List<dynamic>?)
               ?.map((e) => RevenueDataPoint.fromJson(e))
               .toList() ??
           [],
-      subjectPerformances: (json['subject_performances'] as List<dynamic>?)
+      subjectPerformances:
+          (json['subject_performances'] as List<dynamic>?)
               ?.map((e) => SubjectPerformance.fromJson(e))
               .toList() ??
           [],
@@ -111,9 +109,13 @@ class StudentDemographics {
   final int totalFemales;
 
   StudentDemographics({required this.totalMales, required this.totalFemales});
-  
-  double get malePercentage => (totalMales + totalFemales) == 0 ? 0 : totalMales / (totalMales + totalFemales);
-  double get femalePercentage => (totalMales + totalFemales) == 0 ? 0 : totalFemales / (totalMales + totalFemales);
+
+  double get malePercentage => (totalMales + totalFemales) == 0
+      ? 0
+      : totalMales / (totalMales + totalFemales);
+  double get femalePercentage => (totalMales + totalFemales) == 0
+      ? 0
+      : totalFemales / (totalMales + totalFemales);
 
   factory StudentDemographics.fromJson(Map<String, dynamic> json) {
     return StudentDemographics(

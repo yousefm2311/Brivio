@@ -14,14 +14,19 @@ class GradingScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
-        title: const Text('Submissions', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+        title: const Text(
+          'Submissions',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: Consumer<HomeworkViewModel>(
         builder: (context, viewModel, child) {
-          final submissions = viewModel.getSubmissionsForAssignment(assignment.id);
+          final submissions = viewModel.getSubmissionsForAssignment(
+            assignment.id,
+          );
 
           if (submissions.isEmpty) {
             return const Center(child: Text('No submissions yet.'));
@@ -38,12 +43,18 @@ class GradingScreen extends StatelessWidget {
                   children: [
                     Text(
                       assignment.title,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Total Points: ${assignment.totalPoints}',
-                      style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -57,20 +68,36 @@ class GradingScreen extends StatelessWidget {
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12.0),
                       elevation: 1,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 8.0,
+                        ),
                         leading: CircleAvatar(
                           backgroundColor: Colors.blue.shade100,
                           child: Text(
-                            submission.studentName.substring(0, 1).toUpperCase(),
-                            style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold),
+                            submission.studentName
+                                .substring(0, 1)
+                                .toUpperCase(),
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        title: Text(submission.studentName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        title: Text(
+                          submission.studentName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         subtitle: Text(
                           'Submitted: ${DateFormat('MMM d, hh:mm a').format(submission.submittedAt)}',
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
                         ),
                         trailing: _buildStatusBadge(submission),
                         onTap: () {
@@ -98,7 +125,10 @@ class GradingScreen extends StatelessWidget {
         ),
         child: Text(
           '${submission.score}/${assignment.totalPoints}',
-          style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.green.shade700,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       );
     } else {
@@ -110,22 +140,35 @@ class GradingScreen extends StatelessWidget {
         ),
         child: Text(
           'Needs Grading',
-          style: TextStyle(color: Colors.orange.shade700, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.orange.shade700,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       );
     }
   }
 
-  void _showGradingDialog(BuildContext context, HomeworkViewModel viewModel, HomeworkSubmission submission) {
-    final scoreController = TextEditingController(text: submission.score?.toString() ?? '');
-    final feedbackController = TextEditingController(text: submission.teacherFeedback ?? '');
+  void _showGradingDialog(
+    BuildContext context,
+    HomeworkViewModel viewModel,
+    HomeworkSubmission submission,
+  ) {
+    final scoreController = TextEditingController(
+      text: submission.score?.toString() ?? '',
+    );
+    final feedbackController = TextEditingController(
+      text: submission.teacherFeedback ?? '',
+    );
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text('Grade ${submission.studentName}'),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -138,7 +181,10 @@ class GradingScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Submission File (Mock)',
-                        style: TextStyle(color: Colors.blue.shade600, decoration: TextDecoration.underline),
+                        style: TextStyle(
+                          color: Colors.blue.shade600,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
                     ),
                   ],
@@ -173,11 +219,17 @@ class GradingScreen extends StatelessWidget {
               onPressed: () {
                 final score = int.tryParse(scoreController.text);
                 if (score != null) {
-                  viewModel.gradeSubmission(submission.id, score, feedbackController.text);
+                  viewModel.gradeSubmission(
+                    submission.id,
+                    score,
+                    feedbackController.text,
+                  );
                   Navigator.pop(context);
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade600),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+              ),
               child: const Text('Save Grade'),
             ),
           ],

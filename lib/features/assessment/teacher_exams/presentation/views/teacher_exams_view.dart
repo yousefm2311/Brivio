@@ -30,10 +30,15 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Exams & Assessments', style: AppTypography.titleLarge(AppColors.darkTextPrimary)),
+        title: Text(
+          'Exams & Assessments',
+          style: AppTypography.titleLarge(AppColors.darkTextPrimary),
+        ),
       ),
       body: viewModel.isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
@@ -41,7 +46,12 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
                 children: [
                   FadeInSlide(
                     delay: const Duration(milliseconds: 100),
-                    child: Text('Question Banks', style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
+                    child: Text(
+                      'Question Banks',
+                      style: AppTypography.titleMedium(
+                        AppColors.darkTextPrimary,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   FadeInSlide(
@@ -51,7 +61,12 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
                   const SizedBox(height: 32),
                   FadeInSlide(
                     delay: const Duration(milliseconds: 300),
-                    child: Text('Your Exams', style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
+                    child: Text(
+                      'Your Exams',
+                      style: AppTypography.titleMedium(
+                        AppColors.darkTextPrimary,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   FadeInSlide(
@@ -66,7 +81,10 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
 
   Widget _buildQuestionBanksList(List<QuestionBankModel> banks) {
     if (banks.isEmpty) {
-      return Text('No question banks found.', style: AppTypography.bodyMedium(AppColors.darkTextSecondary));
+      return Text(
+        'No question banks found.',
+        style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
+      );
     }
     return SizedBox(
       height: 180,
@@ -84,17 +102,31 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(bank.subject, style: AppTypography.caption(AppColors.primary)),
+                  child: Text(
+                    bank.subject,
+                    style: AppTypography.caption(AppColors.primary),
+                  ),
                 ),
                 const Spacer(),
-                Text(bank.name, style: AppTypography.titleMedium(AppColors.darkTextPrimary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                Text(
+                  bank.name,
+                  style: AppTypography.titleMedium(AppColors.darkTextPrimary),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 8),
-                Text('${bank.questionCount} Questions', style: AppTypography.bodyMedium(AppColors.darkTextSecondary)),
+                Text(
+                  '${bank.questionCount} Questions',
+                  style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
+                ),
               ],
             ),
           );
@@ -105,7 +137,10 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
 
   Widget _buildExamsList(List<ExamModel> exams) {
     if (exams.isEmpty) {
-      return Text('No exams found.', style: AppTypography.bodyMedium(AppColors.darkTextSecondary));
+      return Text(
+        'No exams found.',
+        style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
+      );
     }
     return ListView.separated(
       shrinkWrap: true,
@@ -132,9 +167,17 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(exam.title, style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
+                    Text(
+                      exam.title,
+                      style: AppTypography.titleMedium(
+                        AppColors.darkTextPrimary,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text('${exam.subject} • ${exam.totalQuestions} Questions', style: AppTypography.caption(AppColors.darkTextSecondary)),
+                    Text(
+                      '${exam.subject} • ${exam.totalQuestions} Questions',
+                      style: AppTypography.caption(AppColors.darkTextSecondary),
+                    ),
                   ],
                 ),
               ),
@@ -142,20 +185,30 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(exam.status).withValues(alpha: 0.2),
+                      color: _getStatusColor(
+                        exam.status,
+                      ).withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       exam.status,
-                      style: AppTypography.caption(_getStatusColor(exam.status)),
+                      style: AppTypography.caption(
+                        _getStatusColor(exam.status),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(_formatDate(exam.dueDate), style: AppTypography.caption(AppColors.darkTextSecondary)),
+                  Text(
+                    _formatDate(exam.dueDate),
+                    style: AppTypography.caption(AppColors.darkTextSecondary),
+                  ),
                 ],
-              )
+              ),
             ],
           ),
         );

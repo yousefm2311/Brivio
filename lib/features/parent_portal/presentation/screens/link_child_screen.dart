@@ -62,7 +62,10 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Link Child', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Link Child',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         elevation: 0,
       ),
@@ -71,7 +74,11 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.family_restroom, size: 80, color: Colors.blueAccent),
+            const Icon(
+              Icons.family_restroom,
+              size: 80,
+              color: Colors.blueAccent,
+            ),
             const SizedBox(height: 24),
             const Text(
               'Link a Student',
@@ -120,7 +127,10 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
                       )
                     : const Text(
                         'Link Child',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
             ),

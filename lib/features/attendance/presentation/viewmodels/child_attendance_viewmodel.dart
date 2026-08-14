@@ -14,7 +14,12 @@ class BehaviorRecord {
   final String description;
   final String teacher;
 
-  BehaviorRecord({required this.date, required this.type, required this.description, required this.teacher});
+  BehaviorRecord({
+    required this.date,
+    required this.type,
+    required this.description,
+    required this.teacher,
+  });
 }
 
 class ChildAttendanceViewModel extends ChangeNotifier {
@@ -28,8 +33,10 @@ class ChildAttendanceViewModel extends ChangeNotifier {
   List<BehaviorRecord> get behaviorRecords => _behaviorRecords;
 
   // Stats
-  int get totalAbsences => _attendanceRecords.where((r) => r.status == 'absent').length;
-  int get totalTardiness => _attendanceRecords.where((r) => r.status == 'late').length;
+  int get totalAbsences =>
+      _attendanceRecords.where((r) => r.status == 'absent').length;
+  int get totalTardiness =>
+      _attendanceRecords.where((r) => r.status == 'late').length;
 
   ChildAttendanceViewModel() {
     _loadMockData();
@@ -44,15 +51,42 @@ class ChildAttendanceViewModel extends ChangeNotifier {
     final now = DateTime.now();
 
     _attendanceRecords = [
-      AttendanceRecord(date: now.subtract(const Duration(days: 2)), status: 'absent', note: 'Sick leave'),
-      AttendanceRecord(date: now.subtract(const Duration(days: 5)), status: 'late', note: 'Traffic'),
-      AttendanceRecord(date: now.subtract(const Duration(days: 14)), status: 'absent', note: 'Family event'),
+      AttendanceRecord(
+        date: now.subtract(const Duration(days: 2)),
+        status: 'absent',
+        note: 'Sick leave',
+      ),
+      AttendanceRecord(
+        date: now.subtract(const Duration(days: 5)),
+        status: 'late',
+        note: 'Traffic',
+      ),
+      AttendanceRecord(
+        date: now.subtract(const Duration(days: 14)),
+        status: 'absent',
+        note: 'Family event',
+      ),
     ];
 
     _behaviorRecords = [
-      BehaviorRecord(date: now.subtract(const Duration(days: 1)), type: 'positive', description: 'Helped a classmate with math', teacher: 'Mr. Smith'),
-      BehaviorRecord(date: now.subtract(const Duration(days: 6)), type: 'negative', description: 'Talking during exam', teacher: 'Mrs. Johnson'),
-      BehaviorRecord(date: now.subtract(const Duration(days: 10)), type: 'positive', description: 'Excellent project presentation', teacher: 'Ms. Davis'),
+      BehaviorRecord(
+        date: now.subtract(const Duration(days: 1)),
+        type: 'positive',
+        description: 'Helped a classmate with math',
+        teacher: 'Mr. Smith',
+      ),
+      BehaviorRecord(
+        date: now.subtract(const Duration(days: 6)),
+        type: 'negative',
+        description: 'Talking during exam',
+        teacher: 'Mrs. Johnson',
+      ),
+      BehaviorRecord(
+        date: now.subtract(const Duration(days: 10)),
+        type: 'positive',
+        description: 'Excellent project presentation',
+        teacher: 'Ms. Davis',
+      ),
     ];
 
     _isLoading = false;

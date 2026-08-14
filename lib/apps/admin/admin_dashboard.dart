@@ -82,18 +82,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   void _subscribeToNotifications() {
     final notificationRepo = getIt<INotificationRepository>();
-    _notificationSubscription = notificationRepo.subscribeToNotifications().listen(
-      (notification) {
-        if (!mounted) return;
-        setState(() {
-          _notifications.insert(0, notification);
-          _unreadCount++;
-        });
-      },
-      onError: (e, st) {
-        debugPrint('Notification stream error: $e\n$st');
-      },
-    );
+    _notificationSubscription = notificationRepo
+        .subscribeToNotifications()
+        .listen(
+          (notification) {
+            if (!mounted) return;
+            setState(() {
+              _notifications.insert(0, notification);
+              _unreadCount++;
+            });
+          },
+          onError: (e, st) {
+            debugPrint('Notification stream error: $e\n$st');
+          },
+        );
   }
 
   Future<void> _loadSummaryData() async {
@@ -123,7 +125,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
         summaryRepo.fetchSummary(),
         _fetchOpsMetrics(),
         _fetchRecentActivity(),
-        notificationRepo.getNotifications().catchError((_) => <AppNotification>[]),
+        notificationRepo.getNotifications().catchError(
+          (_) => <AppNotification>[],
+        ),
         notificationRepo.getUnreadCount().catchError((_) => 0),
       ]);
 
@@ -434,7 +438,12 @@ class _AdminOverview extends StatelessWidget {
           ],
           if (errorMessage != null) ...[
             const SizedBox(height: 16),
-            FadeInSlide(child: PortalErrorBanner(message: errorMessage!, onRetry: onRetry)),
+            FadeInSlide(
+              child: PortalErrorBanner(
+                message: errorMessage!,
+                onRetry: onRetry,
+              ),
+            ),
           ],
           const SizedBox(height: 18),
           const FadeInSlide(
@@ -449,51 +458,56 @@ class _AdminOverview extends StatelessWidget {
             delay: const Duration(milliseconds: 150),
             child: PortalMetricGrid(
               children: [
-              PortalMetricCard(
-                label: 'Branches',
-                value: (summary?.activeBranches ?? branches.length).toString(),
-                icon: Icons.domain,
-                accentColor: Colors.indigo,
-                onTap: () => onNavigate(1),
-              ),
-              PortalMetricCard(
-                label: 'Subjects',
-                value: (summary?.activeSubjects ?? subjects.length).toString(),
-                icon: Icons.book,
-                accentColor: Colors.deepOrange,
-                onTap: () => onNavigate(2),
-              ),
-              PortalMetricCard(
-                label: 'Groups',
-                value: (summary?.activeGroups ?? groups.length).toString(),
-                icon: Icons.group_work,
-                accentColor: Colors.blue,
-                onTap: () => onNavigate(3),
-              ),
-              PortalMetricCard(
-                label: 'Students',
-                value: (summary?.activeStudents ?? students.length).toString(),
-                icon: Icons.school,
-                accentColor: Colors.green,
-                onTap: () => onNavigate(5),
-              ),
-              PortalMetricCard(
-                label: 'Parents',
-                value: (parentTotal == 0 ? parents.length : parentTotal)
-                    .toString(),
-                icon: Icons.family_restroom,
-                accentColor: Colors.orange,
-                onTap: () => onNavigate(6),
-              ),
-              PortalMetricCard(
-                label: 'Teachers',
-                value: (summary?.activeTeachers ?? teachers.length).toString(),
-                icon: Icons.person,
-                accentColor: Colors.purple,
-                onTap: () => onNavigate(7),
-              ),
-            ],
-          )),
+                PortalMetricCard(
+                  label: 'Branches',
+                  value: (summary?.activeBranches ?? branches.length)
+                      .toString(),
+                  icon: Icons.domain,
+                  accentColor: Colors.indigo,
+                  onTap: () => onNavigate(1),
+                ),
+                PortalMetricCard(
+                  label: 'Subjects',
+                  value: (summary?.activeSubjects ?? subjects.length)
+                      .toString(),
+                  icon: Icons.book,
+                  accentColor: Colors.deepOrange,
+                  onTap: () => onNavigate(2),
+                ),
+                PortalMetricCard(
+                  label: 'Groups',
+                  value: (summary?.activeGroups ?? groups.length).toString(),
+                  icon: Icons.group_work,
+                  accentColor: Colors.blue,
+                  onTap: () => onNavigate(3),
+                ),
+                PortalMetricCard(
+                  label: 'Students',
+                  value: (summary?.activeStudents ?? students.length)
+                      .toString(),
+                  icon: Icons.school,
+                  accentColor: Colors.green,
+                  onTap: () => onNavigate(5),
+                ),
+                PortalMetricCard(
+                  label: 'Parents',
+                  value: (parentTotal == 0 ? parents.length : parentTotal)
+                      .toString(),
+                  icon: Icons.family_restroom,
+                  accentColor: Colors.orange,
+                  onTap: () => onNavigate(6),
+                ),
+                PortalMetricCard(
+                  label: 'Teachers',
+                  value: (summary?.activeTeachers ?? teachers.length)
+                      .toString(),
+                  icon: Icons.person,
+                  accentColor: Colors.purple,
+                  onTap: () => onNavigate(7),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 24),
           const FadeInSlide(
             delay: Duration(milliseconds: 200),
@@ -506,49 +520,50 @@ class _AdminOverview extends StatelessWidget {
           FadeInSlide(
             delay: const Duration(milliseconds: 250),
             child: _SetupReadinessCard(
-            items: [
-              _SetupCheck(
-                'Branches',
-                branches.isNotEmpty,
-                onTap: () => onNavigate(1),
-              ),
-              _SetupCheck(
-                'Subjects',
-                subjects.isNotEmpty,
-                onTap: () => onNavigate(2),
-              ),
-              _SetupCheck(
-                'Groups',
-                groups.isNotEmpty,
-                onTap: () => onNavigate(3),
-              ),
-              _SetupCheck(
-                'Students',
-                students.isNotEmpty,
-                onTap: () => onNavigate(5),
-              ),
-              _SetupCheck(
-                'Teachers',
-                teachers.isNotEmpty,
-                onTap: () => onNavigate(7),
-              ),
-              _SetupCheck(
-                'Parents',
-                parentTotal > 0 || parents.isNotEmpty,
-                onTap: () => onNavigate(6),
-              ),
-              _SetupCheck(
-                'Published lessons',
-                opsMetrics.publishedLessons > 0,
-                onTap: () => onNavigate(9),
-              ),
-              _SetupCheck(
-                'Finance records',
-                opsMetrics.openInvoices > 0,
-                onTap: () => onNavigate(14),
-              ),
-            ],
-          )),
+              items: [
+                _SetupCheck(
+                  'Branches',
+                  branches.isNotEmpty,
+                  onTap: () => onNavigate(1),
+                ),
+                _SetupCheck(
+                  'Subjects',
+                  subjects.isNotEmpty,
+                  onTap: () => onNavigate(2),
+                ),
+                _SetupCheck(
+                  'Groups',
+                  groups.isNotEmpty,
+                  onTap: () => onNavigate(3),
+                ),
+                _SetupCheck(
+                  'Students',
+                  students.isNotEmpty,
+                  onTap: () => onNavigate(5),
+                ),
+                _SetupCheck(
+                  'Teachers',
+                  teachers.isNotEmpty,
+                  onTap: () => onNavigate(7),
+                ),
+                _SetupCheck(
+                  'Parents',
+                  parentTotal > 0 || parents.isNotEmpty,
+                  onTap: () => onNavigate(6),
+                ),
+                _SetupCheck(
+                  'Published lessons',
+                  opsMetrics.publishedLessons > 0,
+                  onTap: () => onNavigate(9),
+                ),
+                _SetupCheck(
+                  'Finance records',
+                  opsMetrics.openInvoices > 0,
+                  onTap: () => onNavigate(14),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 24),
           const FadeInSlide(
             delay: Duration(milliseconds: 300),
@@ -561,51 +576,52 @@ class _AdminOverview extends StatelessWidget {
           FadeInSlide(
             delay: const Duration(milliseconds: 350),
             child: PortalMetricGrid(
-            children: [
-              PortalMetricCard(
-                label: 'Today sessions',
-                value: opsMetrics.todaySessions.toString(),
-                icon: Icons.today,
-                accentColor: AppColors.info,
-                onTap: () => onNavigate(13),
-              ),
-              PortalMetricCard(
-                label: 'Attendance exceptions',
-                value: opsMetrics.attendanceExceptions.toString(),
-                icon: Icons.assignment_late,
-                accentColor: AppColors.warning,
-                onTap: () => onNavigate(13),
-              ),
-              PortalMetricCard(
-                label: 'Pending leaves',
-                value: opsMetrics.pendingLeaves.toString(),
-                icon: Icons.event_busy,
-                accentColor: AppColors.warning,
-                onTap: () => onNavigate(13),
-              ),
-              PortalMetricCard(
-                label: 'Grading queue',
-                value: opsMetrics.gradingQueue.toString(),
-                icon: Icons.grading,
-                accentColor: AppColors.primary,
-                onTap: () => onNavigate(11),
-              ),
-              PortalMetricCard(
-                label: 'Open invoices',
-                value: opsMetrics.openInvoices.toString(),
-                icon: Icons.receipt_long,
-                accentColor: AppColors.error,
-                onTap: () => onNavigate(14),
-              ),
-              PortalMetricCard(
-                label: 'Published boards',
-                value: opsMetrics.publishedBoards.toString(),
-                icon: Icons.draw,
-                accentColor: AppColors.success,
-                onTap: () => onNavigate(13),
-              ),
-            ],
-          )),
+              children: [
+                PortalMetricCard(
+                  label: 'Today sessions',
+                  value: opsMetrics.todaySessions.toString(),
+                  icon: Icons.today,
+                  accentColor: AppColors.info,
+                  onTap: () => onNavigate(13),
+                ),
+                PortalMetricCard(
+                  label: 'Attendance exceptions',
+                  value: opsMetrics.attendanceExceptions.toString(),
+                  icon: Icons.assignment_late,
+                  accentColor: AppColors.warning,
+                  onTap: () => onNavigate(13),
+                ),
+                PortalMetricCard(
+                  label: 'Pending leaves',
+                  value: opsMetrics.pendingLeaves.toString(),
+                  icon: Icons.event_busy,
+                  accentColor: AppColors.warning,
+                  onTap: () => onNavigate(13),
+                ),
+                PortalMetricCard(
+                  label: 'Grading queue',
+                  value: opsMetrics.gradingQueue.toString(),
+                  icon: Icons.grading,
+                  accentColor: AppColors.primary,
+                  onTap: () => onNavigate(11),
+                ),
+                PortalMetricCard(
+                  label: 'Open invoices',
+                  value: opsMetrics.openInvoices.toString(),
+                  icon: Icons.receipt_long,
+                  accentColor: AppColors.error,
+                  onTap: () => onNavigate(14),
+                ),
+                PortalMetricCard(
+                  label: 'Published boards',
+                  value: opsMetrics.publishedBoards.toString(),
+                  icon: Icons.draw,
+                  accentColor: AppColors.success,
+                  onTap: () => onNavigate(13),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 24),
           FadeInSlide(
             delay: const Duration(milliseconds: 400),
@@ -613,33 +629,34 @@ class _AdminOverview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const PortalSectionTitle(
-                title: 'Export',
-                subtitle: 'Copy CSV snapshots from the data loaded here.',
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _ExportButton(
-                    onPressed: () => _copyStudentsCsv(context),
-                    icon: Icons.school_rounded,
-                    label: 'Students CSV',
-                  ),
-                  _ExportButton(
-                    onPressed: () => _copyGroupsCsv(context),
-                    icon: Icons.group_work_rounded,
-                    label: 'Groups CSV',
-                  ),
-                  _ExportButton(
-                    onPressed: () => _copyTeachersCsv(context),
-                    icon: Icons.person_rounded,
-                    label: 'Teachers CSV',
-                  ),
-                ],
-              ),
-            ],
-          )),
+                  title: 'Export',
+                  subtitle: 'Copy CSV snapshots from the data loaded here.',
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _ExportButton(
+                      onPressed: () => _copyStudentsCsv(context),
+                      icon: Icons.school_rounded,
+                      label: 'Students CSV',
+                    ),
+                    _ExportButton(
+                      onPressed: () => _copyGroupsCsv(context),
+                      icon: Icons.group_work_rounded,
+                      label: 'Groups CSV',
+                    ),
+                    _ExportButton(
+                      onPressed: () => _copyTeachersCsv(context),
+                      icon: Icons.person_rounded,
+                      label: 'Teachers CSV',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 24),
           const FadeInSlide(
             delay: Duration(milliseconds: 450),
@@ -788,7 +805,7 @@ class _SetupReadinessCard extends StatelessWidget {
     final ready = items.where((item) => item.isReady).length;
     final percent = items.isEmpty ? 0.0 : ready / items.length;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return GlassCard(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
@@ -815,7 +832,10 @@ class _SetupReadinessCard extends StatelessWidget {
               const SizedBox(width: 16),
               Text(
                 '$ready/${items.length}',
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
               ),
             ],
           ),
@@ -827,21 +847,30 @@ class _SetupReadinessCard extends StatelessWidget {
                 .map(
                   (item) => ActionChip(
                     avatar: Icon(
-                      item.isReady ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                      item.isReady
+                          ? Icons.check_circle_rounded
+                          : Icons.error_outline_rounded,
                       color: item.isReady
                           ? AppColors.success
                           : AppColors.warning,
                       size: 18,
                     ),
-                    label: Text(item.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    label: Text(
+                      item.label,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     onPressed: item.onTap,
-                    backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+                    backgroundColor: isDark
+                        ? AppColors.darkBackground
+                        : AppColors.lightBackground,
                     side: BorderSide(
                       color: item.isReady
                           ? AppColors.success.withValues(alpha: 0.3)
                           : AppColors.warning.withValues(alpha: 0.3),
                     ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 )
                 .toList(),
@@ -880,7 +909,9 @@ class _ActivityList extends StatelessWidget {
               child: Text(
                 'No recent activity visible yet.',
                 style: TextStyle(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),

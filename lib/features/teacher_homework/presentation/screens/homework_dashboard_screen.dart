@@ -15,7 +15,13 @@ class HomeworkDashboardScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: const Color(0xFFF3F4F6),
         appBar: AppBar(
-          title: const Text('Homework Assignments', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+          title: const Text(
+            'Homework Assignments',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
           backgroundColor: Colors.white,
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.black87),
@@ -23,7 +29,7 @@ class HomeworkDashboardScreen extends StatelessWidget {
         body: Consumer<HomeworkViewModel>(
           builder: (context, viewModel, child) {
             final assignments = viewModel.assignments;
-            
+
             if (assignments.isEmpty) {
               return const Center(child: Text('No assignments created yet.'));
             }
@@ -36,7 +42,9 @@ class HomeworkDashboardScreen extends StatelessWidget {
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16.0),
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: () {
@@ -61,18 +69,27 @@ class HomeworkDashboardScreen extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   assignment.title,
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   '${assignment.totalPoints} pts',
-                                  style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    color: Colors.blue.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
@@ -87,14 +104,25 @@ class HomeworkDashboardScreen extends StatelessWidget {
                           const SizedBox(height: 16),
                           Row(
                             children: [
-                              Icon(Icons.calendar_today, size: 16, color: Colors.red.shade400),
+                              Icon(
+                                Icons.calendar_today,
+                                size: 16,
+                                color: Colors.red.shade400,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 'Due: ${DateFormat('MMM d, yyyy').format(assignment.dueDate)}',
-                                style: TextStyle(color: Colors.red.shade400, fontWeight: FontWeight.w500),
+                                style: TextStyle(
+                                  color: Colors.red.shade400,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                               const Spacer(),
-                              Icon(Icons.people_outline, size: 16, color: Colors.grey.shade600),
+                              Icon(
+                                Icons.people_outline,
+                                size: 16,
+                                color: Colors.grey.shade600,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 '${assignment.assignedClasses.length} Classes',
@@ -115,7 +143,10 @@ class HomeworkDashboardScreen extends StatelessWidget {
           builder: (context) {
             return FloatingActionButton.extended(
               onPressed: () {
-                final viewModel = Provider.of<HomeworkViewModel>(context, listen: false);
+                final viewModel = Provider.of<HomeworkViewModel>(
+                  context,
+                  listen: false,
+                );
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -130,7 +161,7 @@ class HomeworkDashboardScreen extends StatelessWidget {
               icon: const Icon(Icons.add),
               label: const Text('Create Assignment'),
             );
-          }
+          },
         ),
       ),
     );

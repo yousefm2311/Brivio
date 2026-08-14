@@ -22,8 +22,8 @@ dependencies:
   intl: ^0.20.2
   equatable: ^2.0.7
   shared_preferences: ^2.5.5
-  flutter_secure_storage: ^9.2.4
-  video_player: ^2.9.2
+  flutter_secure_storage: 11.0.0
+  video_player: 2.14.0
   pdfrx: 2.4.7
   http: ^1.6.0
   qr_flutter: ^4.1.0
@@ -31,8 +31,8 @@ dependencies:
   file_selector: ^1.1.0
   archive: ^4.0.9
   xml: ^7.0.1
-  device_info_plus: ^12.4.0
-  geolocator: ^14.0.2
+  device_info_plus: 13.2.0
+  geolocator: 14.0.3
   firebase_core: ^4.13.0
   firebase_messaging: ^16.5.0
   flutter_local_notifications: ^22.3.0
@@ -41,7 +41,7 @@ dependencies:
   hive_flutter: ^1.1.0
   path_provider: ^2.1.6
   csv: ^8.0.0
-  share_plus: ^12.0.2
+  share_plus: 13.3.0
   pdf: ^3.13.0
   printing: ^5.15.0
   timeago: ^3.7.1

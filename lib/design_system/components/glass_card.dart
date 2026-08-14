@@ -51,19 +51,13 @@ class GlassCard extends StatelessWidget {
             boxShadow: boxShadow,
           ),
           padding: padding ?? const EdgeInsets.all(20),
-          child: Material(
-            type: MaterialType.transparency,
-            child: child,
-          ),
+          child: Material(type: MaterialType.transparency, child: child),
         ),
       ),
     );
 
     if (onTap != null) {
-      content = GestureDetector(
-        onTap: onTap,
-        child: content,
-      );
+      content = GestureDetector(onTap: onTap, child: content);
     }
 
     return content;
@@ -101,10 +95,7 @@ class GlassSurface extends StatelessWidget {
             border: Border.all(color: AppColors.glassBorder, width: 0.5),
           ),
           padding: padding,
-          child: Material(
-            type: MaterialType.transparency,
-            child: child,
-          ),
+          child: Material(type: MaterialType.transparency, child: child),
         ),
       ),
     );
@@ -154,10 +145,7 @@ class GlowContainer extends StatelessWidget {
         ],
       ),
       padding: padding ?? const EdgeInsets.all(20),
-      child: Material(
-        type: MaterialType.transparency,
-        child: child,
-      ),
+      child: Material(type: MaterialType.transparency, child: child),
     );
   }
 }
@@ -225,10 +213,7 @@ class _AppCardState extends State<AppCard> with SingleTickerProviderStateMixin {
         border: Border.all(color: border, width: 0.5),
       ),
       padding: widget.padding ?? const EdgeInsets.all(16),
-      child: Material(
-        type: MaterialType.transparency,
-        child: widget.child,
-      ),
+      child: Material(type: MaterialType.transparency, child: widget.child),
     );
 
     if (widget.onTap == null) return card;
@@ -333,9 +318,10 @@ class _PulsingDotState extends State<PulsingDot>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _pulse = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _pulse = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -398,9 +384,10 @@ class _ShimmerBoxState extends State<ShimmerBox>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat();
-    _anim = Tween<double>(begin: -1.0, end: 2.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _anim = Tween<double>(
+      begin: -1.0,
+      end: 2.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -460,19 +447,19 @@ class StatusChip extends StatelessWidget {
   Color get _color => switch (status) {
     ChipStatus.success => AppColors.success,
     ChipStatus.warning => AppColors.warning,
-    ChipStatus.error   => AppColors.error,
-    ChipStatus.info    => AppColors.primary,
+    ChipStatus.error => AppColors.error,
+    ChipStatus.info => AppColors.primary,
     ChipStatus.neutral => AppColors.darkTextSecondary,
-    ChipStatus.purple  => AppColors.purple,
+    ChipStatus.purple => AppColors.purple,
   };
 
   Color get _bg => switch (status) {
     ChipStatus.success => AppColors.successSubtle,
     ChipStatus.warning => AppColors.warningSubtle,
-    ChipStatus.error   => AppColors.errorSubtle,
-    ChipStatus.info    => AppColors.primarySubtle,
+    ChipStatus.error => AppColors.errorSubtle,
+    ChipStatus.info => AppColors.primarySubtle,
     ChipStatus.neutral => AppColors.darkSurface,
-    ChipStatus.purple  => AppColors.purpleSubtle,
+    ChipStatus.purple => AppColors.purpleSubtle,
   };
 
   @override

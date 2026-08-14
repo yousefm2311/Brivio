@@ -113,6 +113,8 @@ class _ChildAssignmentsScreenState extends State<ChildAssignmentsScreen>
         iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           indicatorColor: AppColors.primary,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.darkTextSecondary,
@@ -128,7 +130,10 @@ class _ChildAssignmentsScreenState extends State<ChildAssignmentsScreen>
         children: [
           _buildAssignmentList(_viewModel.pending, AssignmentStatus.pending),
           _buildAssignmentList(_viewModel.missing, AssignmentStatus.missing),
-          _buildAssignmentList(_viewModel.submitted, AssignmentStatus.submitted),
+          _buildAssignmentList(
+            _viewModel.submitted,
+            AssignmentStatus.submitted,
+          ),
         ],
       ),
     );

@@ -16,7 +16,8 @@ class ClassesTab extends StatefulWidget {
   State<ClassesTab> createState() => _ClassesTabState();
 }
 
-class _ClassesTabState extends State<ClassesTab> with SingleTickerProviderStateMixin {
+class _ClassesTabState extends State<ClassesTab>
+    with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
 
   @override
@@ -34,8 +35,12 @@ class _ClassesTabState extends State<ClassesTab> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
     final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
 
     return Column(
@@ -50,7 +55,11 @@ class _ClassesTabState extends State<ClassesTab> with SingleTickerProviderStateM
                 duration: const Duration(milliseconds: 400),
                 child: Text(
                   context.tr('Classes'),
-                  style: AppTypography.displaySmall(textPrimary).copyWith(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                  style: AppTypography.displaySmall(textPrimary).copyWith(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -61,7 +70,9 @@ class _ClassesTabState extends State<ClassesTab> with SingleTickerProviderStateM
                   height: 44,
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : Colors.black.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TabBar(
@@ -71,15 +82,31 @@ class _ClassesTabState extends State<ClassesTab> with SingleTickerProviderStateM
                       color: surfaceColor,
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 2)),
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4)),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
                       ],
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
                     labelColor: textPrimary,
                     unselectedLabelColor: textPrimary.withValues(alpha: 0.5),
-                    labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -0.2),
-                    unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -0.2),
+                    labelStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
                     tabs: [
                       Tab(text: context.tr('Groups')),
                       Tab(text: context.tr('Schedule')),

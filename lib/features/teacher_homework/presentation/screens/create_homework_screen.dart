@@ -15,9 +15,14 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _pointsController = TextEditingController();
-  
+
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
-  final List<String> _availableClasses = ['Class 10A', 'Class 10B', 'Class 11 Science', 'Class 12 Arts'];
+  final List<String> _availableClasses = [
+    'Class 10A',
+    'Class 10B',
+    'Class 11 Science',
+    'Class 12 Arts',
+  ];
   final List<String> _selectedClasses = [];
 
   @override
@@ -37,9 +42,7 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Colors.blue.shade600,
-            ),
+            colorScheme: ColorScheme.light(primary: Colors.blue.shade600),
           ),
           child: child!,
         );
@@ -79,7 +82,10 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
-        title: const Text('Create Assignment', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+        title: const Text(
+          'Create Assignment',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
@@ -101,7 +107,9 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
                         labelText: 'Title',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) => value == null || value.isEmpty ? 'Please enter a title' : null,
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Please enter a title'
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -112,7 +120,9 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
                         alignLabelWithHint: true,
                       ),
                       maxLines: 4,
-                      validator: (value) => value == null || value.isEmpty ? 'Please enter a description' : null,
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Please enter a description'
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -125,7 +135,9 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
                               border: OutlineInputBorder(),
                             ),
                             keyboardType: TextInputType.number,
-                            validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+                            validator: (value) => value == null || value.isEmpty
+                                ? 'Required'
+                                : null,
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -138,9 +150,14 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
                                 border: OutlineInputBorder(),
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(DateFormat('MMM d, yyyy').format(_selectedDate)),
+                                  Text(
+                                    DateFormat(
+                                      'MMM d, yyyy',
+                                    ).format(_selectedDate),
+                                  ),
                                   const Icon(Icons.calendar_today, size: 16),
                                 ],
                               ),
@@ -186,9 +203,14 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
                   onPressed: _saveAssignment,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade600,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text('Publish Assignment', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Publish Assignment',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],
@@ -219,10 +241,7 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: Colors.grey.shade200),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: child,
-      ),
+      child: Padding(padding: const EdgeInsets.all(16.0), child: child),
     );
   }
 }

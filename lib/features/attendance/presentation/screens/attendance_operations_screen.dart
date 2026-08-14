@@ -322,6 +322,8 @@ class _AttendanceOperationsScreenState
         child: Column(
           children: [
             TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               tabs: [
                 Tab(
                   icon: const Icon(Icons.event_note),

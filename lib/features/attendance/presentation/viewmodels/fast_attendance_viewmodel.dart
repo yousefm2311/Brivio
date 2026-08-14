@@ -47,10 +47,10 @@ class FastAttendanceViewModel extends ChangeNotifier {
   Future<void> submitAttendance() async {
     isLoading = true;
     notifyListeners();
-    
+
     // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
-    
+
     isLoading = false;
     notifyListeners();
   }

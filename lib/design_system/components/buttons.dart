@@ -78,8 +78,9 @@ class _PrimaryButtonState extends State<PrimaryButton>
                 ? null
                 : [
                     BoxShadow(
-                      color: (widget.color ?? AppColors.primary)
-                          .withValues(alpha: 0.4),
+                      color: (widget.color ?? AppColors.primary).withValues(
+                        alpha: 0.4,
+                      ),
                       blurRadius: 20,
                       offset: const Offset(0, 6),
                       spreadRadius: -4,
@@ -93,8 +94,7 @@ class _PrimaryButtonState extends State<PrimaryButton>
                   height: 22,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.2,
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
               : Row(
@@ -114,9 +114,7 @@ class _PrimaryButtonState extends State<PrimaryButton>
                     Text(
                       context.l10n.t(widget.text),
                       style: AppTypography.labelLarge(
-                        _disabled
-                            ? AppColors.darkTextTertiary
-                            : Colors.white,
+                        _disabled ? AppColors.darkTextTertiary : Colors.white,
                       ).copyWith(fontWeight: FontWeight.w700),
                     ),
                   ],
@@ -171,8 +169,9 @@ class GhostButton extends StatelessWidget {
             ],
             Text(
               context.l10n.t(text),
-              style: AppTypography.labelLarge(c)
-                  .copyWith(fontWeight: FontWeight.w600),
+              style: AppTypography.labelLarge(
+                c,
+              ).copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ),

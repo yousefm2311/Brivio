@@ -8,7 +8,8 @@ class ParentCommsScreen extends StatefulWidget {
   State<ParentCommsScreen> createState() => _ParentCommsScreenState();
 }
 
-class _ParentCommsScreenState extends State<ParentCommsScreen> with SingleTickerProviderStateMixin {
+class _ParentCommsScreenState extends State<ParentCommsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ParentCommsViewModel _viewModel = ParentCommsViewModel();
   final TextEditingController _messageController = TextEditingController();
@@ -33,12 +34,27 @@ class _ParentCommsScreenState extends State<ParentCommsScreen> with SingleTicker
   }
 
   String _formatDate(DateTime date) {
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     return '${monthNames[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   String _formatTime(DateTime time) {
-    final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
+    final hour = time.hour > 12
+        ? time.hour - 12
+        : (time.hour == 0 ? 12 : time.hour);
     final period = time.hour >= 12 ? 'PM' : 'AM';
     return '$hour:${time.minute.toString().padLeft(2, '0')} $period';
   }
@@ -48,12 +64,17 @@ class _ParentCommsScreenState extends State<ParentCommsScreen> with SingleTicker
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Communication', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Communication',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         elevation: 0,
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
           labelColor: Colors.white,
@@ -68,10 +89,7 @@ class _ParentCommsScreenState extends State<ParentCommsScreen> with SingleTicker
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
-              children: [
-                _buildAnnouncementsTab(),
-                _buildMessagesTab(),
-              ],
+              children: [_buildAnnouncementsTab(), _buildMessagesTab()],
             ),
     );
   }
@@ -89,7 +107,9 @@ class _ParentCommsScreenState extends State<ParentCommsScreen> with SingleTicker
         return Card(
           elevation: 4,
           margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -100,7 +120,10 @@ class _ParentCommsScreenState extends State<ParentCommsScreen> with SingleTicker
                   children: [
                     Text(
                       announcement.author,
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blueAccent),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blueAccent,
+                      ),
                     ),
                     Text(
                       _formatDate(announcement.date),
@@ -111,7 +134,10 @@ class _ParentCommsScreenState extends State<ParentCommsScreen> with SingleTicker
                 const SizedBox(height: 12),
                 Text(
                   announcement.title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -172,24 +198,36 @@ class _ParentCommsScreenState extends State<ParentCommsScreen> with SingleTicker
             ],
           ),
           child: Column(
-            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment: isMe
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             children: [
               if (!isMe)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4.0),
                   child: Text(
                     message.sender,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blueAccent.shade700),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blueAccent.shade700,
+                    ),
                   ),
                 ),
               Text(
                 message.content,
-                style: TextStyle(color: isMe ? Colors.white : Colors.black87, fontSize: 15),
+                style: TextStyle(
+                  color: isMe ? Colors.white : Colors.black87,
+                  fontSize: 15,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 _formatTime(message.timestamp),
-                style: TextStyle(fontSize: 10, color: isMe ? Colors.white70 : Colors.grey[500]),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isMe ? Colors.white70 : Colors.grey[500],
+                ),
               ),
             ],
           ),
@@ -225,7 +263,10 @@ class _ParentCommsScreenState extends State<ParentCommsScreen> with SingleTicker
                   ),
                   filled: true,
                   fillColor: Colors.grey[100],
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                 ),
                 textInputAction: TextInputAction.send,
                 onSubmitted: (value) {

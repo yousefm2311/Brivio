@@ -49,9 +49,24 @@ class TeacherExamsViewModel extends ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 800));
 
     _questionBanks = [
-      QuestionBankModel(id: 'qb1', name: 'Algebra Fundamentals', subject: 'Math', questionCount: 45),
-      QuestionBankModel(id: 'qb2', name: 'World War II History', subject: 'History', questionCount: 120),
-      QuestionBankModel(id: 'qb3', name: 'Physics Mechanics', subject: 'Physics', questionCount: 65),
+      QuestionBankModel(
+        id: 'qb1',
+        name: 'Algebra Fundamentals',
+        subject: 'Math',
+        questionCount: 45,
+      ),
+      QuestionBankModel(
+        id: 'qb2',
+        name: 'World War II History',
+        subject: 'History',
+        questionCount: 120,
+      ),
+      QuestionBankModel(
+        id: 'qb3',
+        name: 'Physics Mechanics',
+        subject: 'Physics',
+        questionCount: 65,
+      ),
     ];
 
     _exams = [

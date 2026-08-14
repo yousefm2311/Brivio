@@ -24,7 +24,20 @@ class _ChildAttendanceBody extends StatelessWidget {
   const _ChildAttendanceBody();
 
   String _formatDate(DateTime date) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[date.month - 1]} ${date.day}';
   }
 
@@ -84,7 +97,11 @@ class _ChildAttendanceBody extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               child: Column(
                 children: [
-                  const Icon(Icons.event_busy, color: AppColors.error, size: 32),
+                  const Icon(
+                    Icons.event_busy,
+                    color: AppColors.error,
+                    size: 32,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     '${viewModel.totalAbsences}',
@@ -117,7 +134,11 @@ class _ChildAttendanceBody extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               child: Column(
                 children: [
-                  const Icon(Icons.watch_later_outlined, color: AppColors.warning, size: 32),
+                  const Icon(
+                    Icons.watch_later_outlined,
+                    color: AppColors.warning,
+                    size: 32,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     '${viewModel.totalTardiness}',
@@ -231,7 +252,9 @@ class _ChildAttendanceBody extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
-                    isPositive ? Icons.thumb_up_alt_outlined : Icons.warning_amber_rounded,
+                    isPositive
+                        ? Icons.thumb_up_alt_outlined
+                        : Icons.warning_amber_rounded,
                     color: isPositive ? AppColors.success : AppColors.warning,
                     size: 24,
                   ),
@@ -246,7 +269,9 @@ class _ChildAttendanceBody extends StatelessWidget {
                             Text(
                               isPositive ? 'Positive Behavior' : 'Incident',
                               style: TextStyle(
-                                color: isPositive ? AppColors.success : AppColors.warning,
+                                color: isPositive
+                                    ? AppColors.success
+                                    : AppColors.warning,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),
@@ -272,7 +297,11 @@ class _ChildAttendanceBody extends StatelessWidget {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Icon(Icons.person_outline, size: 14, color: AppColors.darkTextTertiary),
+                            const Icon(
+                              Icons.person_outline,
+                              size: 14,
+                              color: AppColors.darkTextTertiary,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Reported by ${r.teacher}',

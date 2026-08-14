@@ -186,6 +186,9 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
                 ],
               ),
               child: TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 indicatorSize: TabBarIndicatorSize.tab,
                 indicator: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),

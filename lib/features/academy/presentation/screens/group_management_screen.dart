@@ -289,10 +289,18 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: const Text('Delete Group'),
-                              content: const Text('Are you sure you want to delete this group?'),
+                              content: const Text(
+                                'Are you sure you want to delete this group?',
+                              ),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Delete'),
+                                ),
                               ],
                             ),
                           );
@@ -303,7 +311,9 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Failed to delete: $e')),
+                                  SnackBar(
+                                    content: Text('Failed to delete: $e'),
+                                  ),
                                 );
                               }
                             }
@@ -668,6 +678,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         child: Column(
           children: [
             TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               tabs: [
                 Tab(icon: const Icon(Icons.info), text: context.tr('Overview')),
                 Tab(

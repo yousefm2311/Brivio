@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -71,7 +72,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
     final selectedSubject = _selectedSubject;
     if (selectedSubject == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Create an active subject first.')),
+        SnackBar(content: Text(context.tr('Create an active subject first.'))),
       );
       return;
     }
@@ -84,39 +85,39 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('Create Question'),
+            title: Text(context.tr('Create Question')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: textCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Question Prompt / Text',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Question Prompt / Text'),
                     ),
                     maxLines: 2,
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: qType,
-                    decoration: const InputDecoration(
-                      labelText: 'Question Type',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Question Type'),
                     ),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: 'multiple_choice',
-                        child: Text('Multiple Choice (MCQ)'),
+                        child: Text(context.tr('Multiple Choice (MCQ)')),
                       ),
                       DropdownMenuItem(
                         value: 'true_false',
-                        child: Text('True / False'),
+                        child: Text(context.tr('True / False')),
                       ),
                       DropdownMenuItem(
                         value: 'short_answer',
-                        child: Text('Short Answer'),
+                        child: Text(context.tr('Short Answer')),
                       ),
                       DropdownMenuItem(
                         value: 'long_answer',
-                        child: Text('Long Answer'),
+                        child: Text(context.tr('Long Answer')),
                       ),
                     ],
                     onChanged: (v) {
@@ -125,8 +126,8 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                   ),
                   TextField(
                     controller: ptsCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Default Points',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Default Points'),
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -136,7 +137,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(context.tr('Cancel')),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -157,8 +158,8 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                     _loadQuestions();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Question created!'),
+                        SnackBar(
+                          content: Text(context.tr('Question created!')),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -167,14 +168,14 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Creation failed: $e'),
+                          content: Text('${context.tr('Creation failed')}: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Create Question'),
+                child: Text(context.tr('Create Question')),
               ),
             ],
           );
@@ -193,39 +194,39 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('Edit Question'),
+            title: Text(context.tr('Edit Question')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: textCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Question Prompt / Text',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Question Prompt / Text'),
                     ),
                     maxLines: 2,
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: qType,
-                    decoration: const InputDecoration(
-                      labelText: 'Question Type',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Question Type'),
                     ),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: 'multiple_choice',
-                        child: Text('Multiple Choice (MCQ)'),
+                        child: Text(context.tr('Multiple Choice (MCQ)')),
                       ),
                       DropdownMenuItem(
                         value: 'true_false',
-                        child: Text('True / False'),
+                        child: Text(context.tr('True / False')),
                       ),
                       DropdownMenuItem(
                         value: 'short_answer',
-                        child: Text('Short Answer'),
+                        child: Text(context.tr('Short Answer')),
                       ),
                       DropdownMenuItem(
                         value: 'long_answer',
-                        child: Text('Long Answer'),
+                        child: Text(context.tr('Long Answer')),
                       ),
                     ],
                     onChanged: (v) {
@@ -234,8 +235,8 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                   ),
                   TextField(
                     controller: ptsCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Default Points',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Default Points'),
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -245,7 +246,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(context.tr('Cancel')),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -258,7 +259,8 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                         .update({
                           'prompt': textCtrl.text.trim(),
                           'question_type': qType,
-                          'default_points': double.tryParse(ptsCtrl.text) ?? 5.0,
+                          'default_points':
+                              double.tryParse(ptsCtrl.text) ?? 5.0,
                         })
                         .eq('id', q.id);
 
@@ -266,8 +268,8 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                     _loadQuestions();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Question updated!'),
+                        SnackBar(
+                          content: Text(context.tr('Question updated!')),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -276,14 +278,14 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Update failed: $e'),
+                          content: Text('${context.tr('Update failed')}: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Save Changes'),
+                child: Text(context.tr('Save Changes')),
               ),
             ],
           );
@@ -295,20 +297,20 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
-      title: 'Question Bank',
-      subtitle: 'Create reusable assessment questions by subject.',
+      title: context.tr('Question Bank'),
+      subtitle: context.tr('Create reusable assessment questions by subject.'),
       icon: Icons.help_outline,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: context.tr('Refresh'),
           onPressed: _loadQuestions,
         ),
         if (_selectedSubject != null)
           PortalAction(
             icon: Icons.help_outline,
-            label: 'Add Question',
+            label: context.tr('Add Question'),
             onPressed: _showCreateQuestionDialog,
             primary: true,
           ),
@@ -317,8 +319,8 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: false,
-        emptyTitle: 'No question data',
-        emptySubtitle: 'Create an active subject first.',
+        emptyTitle: context.tr('No question data'),
+        emptySubtitle: context.tr('Create an active subject first.'),
         emptyIcon: Icons.help_outline,
         onRetry: _loadQuestions,
         child: Column(
@@ -328,7 +330,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: DropdownButtonFormField<SubjectEntity>(
                   initialValue: _selectedSubject,
-                  decoration: const InputDecoration(labelText: 'Subject'),
+                  decoration: InputDecoration(labelText: context.tr('Subject')),
                   items: _subjects
                       .map(
                         (s) => DropdownMenuItem(
@@ -346,10 +348,12 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
               ),
             Expanded(
               child: _selectedSubject == null
-                  ? const Center(child: Text('No active subjects found.'))
+                  ? Center(child: Text(context.tr('No active subjects found.')))
                   : _questions.isEmpty
-                  ? const Center(
-                      child: Text('No questions found in question bank.'),
+                  ? Center(
+                      child: Text(
+                        context.tr('No questions found in question bank.'),
+                      ),
                     )
                   : ListView.separated(
                       padding: EdgeInsets.zero,
@@ -365,7 +369,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                               'Type: ${q.questionType.name.toUpperCase()} | Points: ${q.defaultPoints}',
                           trailing: [
                             PopupMenuButton<String>(
-                              tooltip: 'Actions',
+                              tooltip: context.tr('Actions'),
                               icon: const Icon(Icons.more_vert_rounded),
                               onSelected: (value) async {
                                 if (value == 'edit') {
@@ -376,20 +380,24 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                                   final confirm = await showDialog<bool>(
                                     context: context,
                                     builder: (ctx) => AlertDialog(
-                                      title: const Text('Delete Question'),
-                                      content: const Text(
-                                        'Are you sure you want to delete this question?',
+                                      title: Text(
+                                        context.tr('Delete Question'),
+                                      ),
+                                      content: Text(
+                                        context.tr(
+                                          'Are you sure you want to delete this question?',
+                                        ),
                                       ),
                                       actions: [
                                         TextButton(
                                           onPressed: () =>
                                               Navigator.pop(ctx, false),
-                                          child: const Text('Cancel'),
+                                          child: Text(context.tr('Cancel')),
                                         ),
                                         ElevatedButton(
                                           onPressed: () =>
                                               Navigator.pop(ctx, true),
-                                          child: const Text('Delete'),
+                                          child: Text(context.tr('Delete')),
                                         ),
                                       ],
                                     ),
@@ -405,7 +413,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                                         ).showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              'Failed to delete: $err',
+                                              '${context.tr('Failed to delete')}: $err',
                                             ),
                                           ),
                                         );
@@ -414,20 +422,20 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                                   }
                                 }
                               },
-                              itemBuilder: (context) => const [
+                              itemBuilder: (context) => [
                                 PopupMenuItem(
                                   value: 'edit',
                                   child: ListTile(
-                                    leading: Icon(Icons.edit),
-                                    title: Text('Edit Question'),
+                                    leading: const Icon(Icons.edit),
+                                    title: Text(context.tr('Edit Question')),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
                                 PopupMenuItem(
                                   value: 'delete',
                                   child: ListTile(
-                                    leading: Icon(Icons.delete_outline),
-                                    title: Text('Delete Question'),
+                                    leading: const Icon(Icons.delete_outline),
+                                    title: Text(context.tr('Delete Question')),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),

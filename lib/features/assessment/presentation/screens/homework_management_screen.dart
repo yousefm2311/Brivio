@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -71,7 +72,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
     final selectedGroup = _selectedGroup;
     if (selectedGroup == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Create an active group first.')),
+        SnackBar(content: Text(context.tr('Create an active group first.'))),
       );
       return;
     }
@@ -84,28 +85,28 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Create Homework Assignment'),
+          title: Text(context.tr('Create Homework Assignment')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: titleCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Homework Title',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Homework Title'),
                   ),
                 ),
                 TextField(
                   controller: descCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Instructions / Description',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Instructions / Description'),
                   ),
                   maxLines: 2,
                 ),
                 TextField(
                   controller: ptsCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Max Score / Points',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Max Score / Points'),
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -124,7 +125,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                   icon: const Icon(Icons.event),
                   label: Text(
                     dueAt == null
-                        ? 'Select due date'
+                        ? context.tr('Select due date')
                         : 'Due ${dueAt!.year}-${dueAt!.month}-${dueAt!.day}',
                   ),
                 ),
@@ -134,7 +135,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -166,8 +167,10 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                   _loadHomeworks();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Homework assignment published!'),
+                      SnackBar(
+                        content: Text(
+                          context.tr('Homework assignment published!'),
+                        ),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -176,14 +179,14 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Creation failed: $e'),
+                        content: Text('${context.tr('Creation failed')}: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: const Text('Publish Homework'),
+              child: Text(context.tr('Publish Homework')),
             ),
           ],
         ),
@@ -201,28 +204,28 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Edit Homework Assignment'),
+          title: Text(context.tr('Edit Homework Assignment')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: titleCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Homework Title',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Homework Title'),
                   ),
                 ),
                 TextField(
                   controller: descCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Instructions / Description',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Instructions / Description'),
                   ),
                   maxLines: 2,
                 ),
                 TextField(
                   controller: ptsCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Max Score / Points',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Max Score / Points'),
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -241,7 +244,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                   icon: const Icon(Icons.event),
                   label: Text(
                     dueAt == null
-                        ? 'Select due date'
+                        ? context.tr('Select due date')
                         : 'Due ${dueAt!.year}-${dueAt!.month}-${dueAt!.day}',
                   ),
                 ),
@@ -251,7 +254,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -281,8 +284,10 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                   _loadHomeworks();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Homework updated successfully!'),
+                      SnackBar(
+                        content: Text(
+                          context.tr('Homework updated successfully!'),
+                        ),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -291,14 +296,14 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Update failed: $e'),
+                        content: Text('${context.tr('Update failed')}: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: const Text('Save Changes'),
+              child: Text(context.tr('Save Changes')),
             ),
           ],
         ),
@@ -309,20 +314,22 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
-      title: 'Homework Management',
-      subtitle: 'Publish group assignments with due dates and scoring.',
+      title: context.tr('Homework Management'),
+      subtitle: context.tr(
+        'Publish group assignments with due dates and scoring.',
+      ),
       icon: Icons.assignment,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: context.tr('Refresh'),
           onPressed: _loadHomeworks,
         ),
         if (_selectedGroup != null)
           PortalAction(
             icon: Icons.assignment,
-            label: 'Add Homework',
+            label: context.tr('Add Homework'),
             onPressed: _showCreateHomeworkDialog,
             primary: true,
           ),
@@ -331,8 +338,8 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: false,
-        emptyTitle: 'No homework data',
-        emptySubtitle: 'Create an active group first.',
+        emptyTitle: context.tr('No homework data'),
+        emptySubtitle: context.tr('Create an active group first.'),
         emptyIcon: Icons.assignment,
         onRetry: _loadHomeworks,
         child: Column(
@@ -342,7 +349,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: DropdownButtonFormField<GroupEntity>(
                   initialValue: _selectedGroup,
-                  decoration: const InputDecoration(labelText: 'Group'),
+                  decoration: InputDecoration(labelText: context.tr('Group')),
                   items: _groups
                       .map(
                         (g) => DropdownMenuItem(
@@ -360,9 +367,11 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
               ),
             Expanded(
               child: _selectedGroup == null
-                  ? const Center(child: Text('No active groups found.'))
+                  ? Center(child: Text(context.tr('No active groups found.')))
                   : _homeworks.isEmpty
-                  ? const Center(child: Text('No homework assignments found.'))
+                  ? Center(
+                      child: Text(context.tr('No homework assignments found.')),
+                    )
                   : ListView.separated(
                       padding: EdgeInsets.zero,
                       itemCount: _homeworks.length,
@@ -378,7 +387,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                           trailing: [
                             PortalStatusChip(status: h.status),
                             PopupMenuButton<String>(
-                              tooltip: 'Actions',
+                              tooltip: context.tr('Actions'),
                               icon: const Icon(Icons.more_vert_rounded),
                               onSelected: (value) async {
                                 switch (value) {
@@ -397,7 +406,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                                         ).showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              'Failed to close: $e',
+                                              '${context.tr('Failed to close')}: $e',
                                             ),
                                           ),
                                         );
@@ -408,20 +417,24 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                                     final confirm = await showDialog<bool>(
                                       context: context,
                                       builder: (ctx) => AlertDialog(
-                                        title: const Text('Delete Homework'),
-                                        content: const Text(
-                                          'Are you sure you want to delete this homework?',
+                                        title: Text(
+                                          context.tr('Delete Homework'),
+                                        ),
+                                        content: Text(
+                                          context.tr(
+                                            'Are you sure you want to delete this homework?',
+                                          ),
                                         ),
                                         actions: [
                                           TextButton(
                                             onPressed: () =>
                                                 Navigator.pop(ctx, false),
-                                            child: const Text('Cancel'),
+                                            child: Text(context.tr('Cancel')),
                                           ),
                                           ElevatedButton(
                                             onPressed: () =>
                                                 Navigator.pop(ctx, true),
-                                            child: const Text('Delete'),
+                                            child: Text(context.tr('Delete')),
                                           ),
                                         ],
                                       ),
@@ -439,7 +452,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                                           ).showSnackBar(
                                             SnackBar(
                                               content: Text(
-                                                'Failed to delete: $e',
+                                                '${context.tr('Failed to delete')}: $e',
                                               ),
                                             ),
                                           );
@@ -450,28 +463,28 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                                 }
                               },
                               itemBuilder: (context) => [
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'edit',
                                   child: ListTile(
-                                    leading: Icon(Icons.edit),
-                                    title: Text('Edit Homework'),
+                                    leading: const Icon(Icons.edit),
+                                    title: Text(context.tr('Edit Homework')),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
                                 PopupMenuItem(
                                   value: 'close',
                                   enabled: h.status != 'closed',
-                                  child: const ListTile(
-                                    leading: Icon(Icons.lock_outline),
-                                    title: Text('Close Homework'),
+                                  child: ListTile(
+                                    leading: const Icon(Icons.lock_outline),
+                                    title: Text(context.tr('Close Homework')),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'delete',
                                   child: ListTile(
-                                    leading: Icon(Icons.delete_outline),
-                                    title: Text('Delete Homework'),
+                                    leading: const Icon(Icons.delete_outline),
+                                    title: Text(context.tr('Delete Homework')),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),

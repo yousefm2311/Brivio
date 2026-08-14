@@ -1506,6 +1506,7 @@ class _PdfPane extends StatefulWidget {
 }
 
 class _PdfPaneState extends State<_PdfPane> {
+  static const double _minStrokePointDistance = 1.5;
   static const _inkColors = [
     Color(0xFF1D4ED8),
     Color(0xFF111827),
@@ -1545,10 +1546,13 @@ class _PdfPaneState extends State<_PdfPane> {
   void _appendStroke(DragUpdateDetails details) {
     final stroke = _activeStroke;
     if (!_drawMode || stroke == null) return;
+    final nextPoint = details.localPosition;
+    if (stroke.points.isNotEmpty &&
+        (stroke.points.last - nextPoint).distance < _minStrokePointDistance) {
+      return;
+    }
     setState(() {
-      _activeStroke = stroke.copyWith(
-        points: [...stroke.points, details.localPosition],
-      );
+      stroke.points.add(nextPoint);
     });
   }
 
@@ -1800,9 +1804,11 @@ class _PdfFreehandLayer extends StatelessWidget {
       onPanStart: onPanStart,
       onPanUpdate: onPanUpdate,
       onPanEnd: onPanEnd,
-      child: CustomPaint(
-        painter: _PdfFreehandPainter(strokes),
-        child: const SizedBox.expand(),
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _PdfFreehandPainter(strokes),
+          child: const SizedBox.expand(),
+        ),
       ),
     );
   }
@@ -2271,6 +2277,7 @@ class _NotebookPane extends StatefulWidget {
 }
 
 class _NotebookPaneState extends State<_NotebookPane> {
+  static const double _minStrokePointDistance = 1.5;
   static const _colors = [
     Color(0xFF1E40AF),
     Color(0xFF111827),
@@ -2300,10 +2307,13 @@ class _NotebookPaneState extends State<_NotebookPane> {
   void _appendStroke(DragUpdateDetails details) {
     final stroke = _activeStroke;
     if (stroke == null) return;
+    final nextPoint = details.localPosition;
+    if (stroke.points.isNotEmpty &&
+        (stroke.points.last - nextPoint).distance < _minStrokePointDistance) {
+      return;
+    }
     setState(() {
-      _activeStroke = stroke.copyWith(
-        points: [...stroke.points, details.localPosition],
-      );
+      stroke.points.add(nextPoint);
     });
   }
 
@@ -2597,11 +2607,13 @@ class _DrawingBoard extends StatelessWidget {
                 height: boardSize.height,
                 child: ColoredBox(
                   color: Colors.transparent,
-                  child: CustomPaint(
-                    painter: _NotebookSketchPainter(
-                      strokes,
-                      isTransparent: isTransparent,
-                      selectedIndex: selectedIndex,
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _NotebookSketchPainter(
+                        strokes,
+                        isTransparent: isTransparent,
+                        selectedIndex: selectedIndex,
+                      ),
                     ),
                   ),
                 ),

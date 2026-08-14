@@ -21,9 +21,10 @@ class AdminAnalyticsViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final start = startDate ?? DateTime.now().subtract(const Duration(days: 30));
+      final start =
+          startDate ?? DateTime.now().subtract(const Duration(days: 30));
       final end = endDate ?? DateTime.now();
-      
+
       _analytics = await _adminRepository.getAnalytics(start, end);
     } catch (e) {
       _errorMessage = 'Failed to load analytics: $e';

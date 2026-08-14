@@ -8,6 +8,7 @@ import '../../../assessment/domain/models/assessment_models.dart';
 import '../../../attendance/data/repositories/supabase_attendance_repositories.dart';
 import '../../../attendance/domain/models/attendance_models.dart';
 import '../../../../core/services/report_generator_service.dart';
+
 class TeacherGroupDetailsScreen extends StatefulWidget {
   final GroupEntity group;
 
@@ -62,11 +63,15 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
 
   Future<void> _exportGradesReport() async {
     try {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gathering grades data...')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gathering grades data...')),
+        );
+      }
       final service = ReportGeneratorService();
-      
+
       final studentIds = _enrolledStudents.map((s) => s.id).toList();
-      
+
       List<dynamic> examAttempts = [];
       List<dynamic> hwSubmissions = [];
       if (studentIds.isNotEmpty) {
@@ -74,44 +79,73 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
             .from('exam_attempts')
             .select('student_id, score')
             .filter('student_id', 'in', studentIds);
-            
+
         hwSubmissions = await Supabase.instance.client
             .from('homework_submissions')
             .select('student_id, score')
             .filter('student_id', 'in', studentIds);
       }
-      
+
       final data = _enrolledStudents.map((s) {
-        final sExams = examAttempts.where((e) => e['student_id'] == s.id).toList();
-        final sHws = hwSubmissions.where((h) => h['student_id'] == s.id).toList();
-        
-        final examAvg = sExams.isEmpty ? 0 : sExams.map((e) => e['score'] as num).reduce((a, b) => a + b) / sExams.length;
-        final hwAvg = sHws.isEmpty ? 0 : sHws.map((h) => h['score'] as num).reduce((a, b) => a + b) / sHws.length;
-        
+        final sExams = examAttempts
+            .where((e) => e['student_id'] == s.id)
+            .toList();
+        final sHws = hwSubmissions
+            .where((h) => h['student_id'] == s.id)
+            .toList();
+
+        final examAvg = sExams.isEmpty
+            ? 0
+            : sExams.map((e) => e['score'] as num).reduce((a, b) => a + b) /
+                  sExams.length;
+        final hwAvg = sHws.isEmpty
+            ? 0
+            : sHws.map((h) => h['score'] as num).reduce((a, b) => a + b) /
+                  sHws.length;
+
         return {
           'name': s.fullName,
           'exam_score': examAvg.toStringAsFixed(1),
           'homework_score': hwAvg.toStringAsFixed(1),
-          'missing_assignments': _groupHomeworks.length - sHws.length > 0 ? _groupHomeworks.length - sHws.length : 0,
+          'missing_assignments': _groupHomeworks.length - sHws.length > 0
+              ? _groupHomeworks.length - sHws.length
+              : 0,
         };
       }).toList();
 
-      await service.generateGradesReport(className: widget.group.name, studentsData: data);
+      await service.generateGradesReport(
+        className: widget.group.name,
+        studentsData: data,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Grades report generated & saved.'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Grades report generated & saved.'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
 
   Future<void> _exportAttendanceReport() async {
     try {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gathering attendance data...')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gathering attendance data...')),
+        );
+      }
       final service = ReportGeneratorService();
-      
+
       final studentIds = _enrolledStudents.map((s) => s.id).toList();
       List<dynamic> attendance = [];
       if (studentIds.isNotEmpty) {
@@ -120,13 +154,16 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
             .select('student_id, date, status')
             .filter('student_id', 'in', studentIds);
       }
-      
+
       final data = _enrolledStudents.map((s) {
         final sAtt = attendance.where((a) => a['student_id'] == s.id).toList();
         final presentCount = sAtt.where((a) => a['status'] == 'present').length;
         final absentCount = sAtt.where((a) => a['status'] == 'absent').length;
-        final absentDates = sAtt.where((a) => a['status'] == 'absent').map((a) => a['date']).join(', ');
-        
+        final absentDates = sAtt
+            .where((a) => a['status'] == 'absent')
+            .map((a) => a['date'])
+            .join(', ');
+
         return {
           'name': s.fullName,
           'present': presentCount,
@@ -135,13 +172,26 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
         };
       }).toList();
 
-      await service.generateAttendanceReport(className: widget.group.name, attendanceData: data);
+      await service.generateAttendanceReport(
+        className: widget.group.name,
+        attendanceData: data,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance report generated & saved.'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Attendance report generated & saved.'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to generate report: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -162,23 +212,41 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Delete Group'),
-                    content: const Text('Are you sure you want to delete this group?'),
+                    content: const Text(
+                      'Are you sure you want to delete this group?',
+                    ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text(
+                          'Delete',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
                     ],
                   ),
                 );
                 if (confirm == true) {
                   try {
-                    await Supabase.instance.client.rpc('delete_group', params: {'group_id': widget.group.id});
+                    await Supabase.instance.client.rpc(
+                      'delete_group',
+                      params: {'group_id': widget.group.id},
+                    );
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Group deleted')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Group deleted')),
+                      );
                       Navigator.pop(context);
                     }
                   } catch (e) {
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
                     }
                   }
                 }
@@ -301,29 +369,58 @@ class _TeacherGroupDetailsScreenState extends State<TeacherGroupDetailsScreen> {
                                 'Max Score: ${h.maxScore} | Due: ${h.dueAt.year}-${h.dueAt.month}-${h.dueAt.day}',
                               ),
                               trailing: IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
                                 onPressed: () async {
                                   final confirm = await showDialog<bool>(
                                     context: context,
                                     builder: (ctx) => AlertDialog(
                                       title: const Text('Delete Homework'),
-                                      content: const Text('Are you sure you want to delete this homework?'),
+                                      content: const Text(
+                                        'Are you sure you want to delete this homework?',
+                                      ),
                                       actions: [
-                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, true),
+                                          child: const Text(
+                                            'Delete',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   );
                                   if (confirm == true) {
                                     try {
-                                      await Supabase.instance.client.rpc('delete_homework', params: {'homework_id': h.id});
+                                      await Supabase.instance.client.rpc(
+                                        'delete_homework',
+                                        params: {'homework_id': h.id},
+                                      );
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Homework deleted')));
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Homework deleted'),
+                                          ),
+                                        );
                                         _loadGroupDetails();
                                       }
                                     } catch (e) {
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(content: Text('Error: $e')),
+                                        );
                                       }
                                     }
                                   }

@@ -325,23 +325,25 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   ),
                   destinations: [
                     NavigationRailDestination(
-                      icon: const Icon(Icons.dashboard_outlined),
-                      selectedIcon: const Icon(Icons.dashboard_rounded),
+                      icon: const Icon(Icons.home_outlined),
+                      selectedIcon: const Icon(Icons.home_rounded),
                       label: Text(context.tr('Home')),
                     ),
                     NavigationRailDestination(
-                      icon: const Icon(Icons.school_outlined),
-                      selectedIcon: const Icon(Icons.school_rounded),
+                      icon: const Icon(Icons.groups_2_outlined),
+                      selectedIcon: const Icon(Icons.groups_2_rounded),
                       label: Text(context.tr('Classes')),
                     ),
                     NavigationRailDestination(
-                      icon: const Icon(Icons.grading_outlined),
-                      selectedIcon: const Icon(Icons.grading_rounded),
+                      icon: const Icon(Icons.dashboard_customize_outlined),
+                      selectedIcon: const Icon(
+                        Icons.dashboard_customize_rounded,
+                      ),
                       label: Text(context.tr('Workspace')),
                     ),
                     NavigationRailDestination(
-                      icon: const Icon(Icons.analytics_outlined),
-                      selectedIcon: const Icon(Icons.analytics_rounded),
+                      icon: const Icon(Icons.insights_outlined),
+                      selectedIcon: const Icon(Icons.insights_rounded),
                       label: Text(context.tr('Analytics')),
                     ),
                     NavigationRailDestination(
@@ -379,42 +381,43 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             child: SafeArea(
               top: false,
               child: NavigationBar(
+                height: 64,
                 backgroundColor: Colors.transparent,
                 elevation: 0,
-                indicatorColor: AppColors.teacherRole.withValues(alpha: 0.12),
+                indicatorColor: AppColors.teacherRole.withValues(alpha: 0.16),
                 selectedIndex: _selectedIndex,
                 onDestinationSelected: (i) =>
                     setState(() => _selectedIndex = i),
-                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
                 destinations: [
                   NavigationDestination(
-                    icon: const Icon(Icons.dashboard_outlined),
+                    icon: const Icon(Icons.home_outlined),
                     selectedIcon: const Icon(
-                      Icons.dashboard_rounded,
+                      Icons.home_rounded,
                       color: AppColors.teacherRole,
                     ),
                     label: context.tr('Home'),
                   ),
                   NavigationDestination(
-                    icon: const Icon(Icons.school_outlined),
+                    icon: const Icon(Icons.groups_2_outlined),
                     selectedIcon: const Icon(
-                      Icons.school_rounded,
+                      Icons.groups_2_rounded,
                       color: AppColors.teacherRole,
                     ),
                     label: context.tr('Classes'),
                   ),
                   NavigationDestination(
-                    icon: const Icon(Icons.grading_outlined),
+                    icon: const Icon(Icons.dashboard_customize_outlined),
                     selectedIcon: const Icon(
-                      Icons.grading_rounded,
+                      Icons.dashboard_customize_rounded,
                       color: AppColors.teacherRole,
                     ),
                     label: context.tr('Workspace'),
                   ),
                   NavigationDestination(
-                    icon: const Icon(Icons.analytics_outlined),
+                    icon: const Icon(Icons.insights_outlined),
                     selectedIcon: const Icon(
-                      Icons.analytics_rounded,
+                      Icons.insights_rounded,
                       color: AppColors.teacherRole,
                     ),
                     label: context.tr('Analytics'),

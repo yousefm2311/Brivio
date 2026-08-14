@@ -56,9 +56,7 @@ class _ExamSubmissionsScreenState extends State<ExamSubmissionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Submissions for ${widget.exam.title}'),
-      ),
+      appBar: AppBar(title: Text('Submissions for ${widget.exam.title}')),
       body: PortalStateView(
         isLoading: _isLoading,
         errorMessage: _errorMessage,
@@ -81,9 +79,13 @@ class _ExamSubmissionsScreenState extends State<ExamSubmissionsScreen> {
               icon: Icons.person,
               accentColor: AppColors.adminRole,
               title: studentName,
-              subtitle: 'Score: $score | Submitted: ${sub['submitted_at'] ?? 'N/A'}',
+              subtitle:
+                  'Score: $score | Submitted: ${sub['submitted_at'] ?? 'N/A'}',
               trailing: [
-                Text('Score: $score', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  'Score: $score',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ],
             );
           },

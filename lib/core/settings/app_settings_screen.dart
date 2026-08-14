@@ -173,8 +173,12 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
     return ListenableBuilder(
       listenable: settingsService,
       builder: (context, _) {
+        final compact = MediaQuery.sizeOf(context).width < 420;
         return ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 10 : 24,
+            vertical: compact ? 10 : 16,
+          ),
           children: [
             FadeInSlide(
               delay: const Duration(milliseconds: 100),
@@ -229,7 +233,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: compact ? 14 : 24),
             FadeInSlide(
               delay: const Duration(milliseconds: 200),
               child: _SettingsSection(
@@ -309,7 +313,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: compact ? 14 : 24),
             FadeInSlide(
               delay: const Duration(milliseconds: 300),
               child: _SettingsSection(
@@ -355,7 +359,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: compact ? 14 : 24),
             FadeInSlide(
               delay: const Duration(milliseconds: 400),
               child: _SettingsSection(
@@ -427,11 +431,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                                       ElevatedButton(
                                         onPressed: () =>
                                             Navigator.of(context).pop(),
-                                        child: Text(
-                                          context.tr('Got it') == 'Got it'
-                                              ? 'Got it'
-                                              : 'موافق',
-                                        ),
+                                        child: Text(context.tr('Got it')),
                                       ),
                                     ],
                                   ),
@@ -522,7 +522,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 ],
               ),
             ),
-            const SizedBox(height: 48),
+            SizedBox(height: compact ? 24 : 48),
             Center(
               child: Text(
                 'Version 2.0.4 (Build 824)',
@@ -533,7 +533,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: compact ? 12 : 24),
           ],
         );
       },
@@ -563,6 +563,7 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCompact = MediaQuery.sizeOf(context).width < 420;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,16 +579,23 @@ class _SettingsSection extends StatelessWidget {
               child: Icon(icon, color: accentColor, size: 20),
             ),
             const SizedBox(width: 12),
-            Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isCompact ? 18 : null,
+                ),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: isCompact ? 10 : 16),
         GlassCard(
+          padding: EdgeInsets.zero,
+          borderRadius: BorderRadius.circular(isCompact ? 14 : 18),
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
           child: Column(
@@ -632,6 +640,7 @@ class _SettingsTile extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final useStackedLayout = constraints.maxWidth < 360;
+        final isCompact = MediaQuery.sizeOf(context).width < 420;
 
         Widget trailingFor(double maxWidth) {
           return ConstrainedBox(
@@ -686,7 +695,10 @@ class _SettingsTile extends StatelessWidget {
         );
 
         Widget child = Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 12 : 16,
+            vertical: isCompact ? 14 : 12,
+          ),
           child: useStackedLayout
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,

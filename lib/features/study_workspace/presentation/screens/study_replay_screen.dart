@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/components/glass_card.dart';
@@ -141,8 +142,10 @@ class _StudyReplayScreenState extends State<StudyReplayScreen> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: _sessions.isEmpty,
-        emptyTitle: 'No replay sessions',
-        emptySubtitle: 'Replay data appears after students open lessons.',
+        emptyTitle: context.tr('No replay sessions'),
+        emptySubtitle: context.tr(
+          'Replay data appears after students open lessons.',
+        ),
         emptyIcon: Icons.video_library,
         onRetry: _loadSessions,
         child: RefreshIndicator(
@@ -211,25 +214,53 @@ class _SessionList extends StatelessWidget {
         return FadeInSlide(
           delay: Duration(milliseconds: 30 * index),
           child: GlassCard(
-            color: isSelected ? AppColors.teacherRole.withValues(alpha: 0.1) : null,
+            color: isSelected
+                ? AppColors.teacherRole.withValues(alpha: 0.1)
+                : null,
             borderColor: isSelected ? AppColors.teacherRole : null,
             padding: const EdgeInsets.all(12),
             onTap: () => onSelected(session),
-            child: Material(
-              color: Colors.transparent,
-              child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.play_circle, color: isSelected ? AppColors.teacherRole : AppColors.info),
-              title: Text(session.studentName, style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
-              subtitle: Text(
-                '${session.lessonTitle} | ${session.durationSeconds}s | ${session.pagesRead} pages',
-                style: AppTypography.bodySmall(AppColors.darkTextSecondary),
-              ),
-              trailing: StatusChip(
-                label: session.startedLabel,
-                status: ChipStatus.neutral,
-              ),
-            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.play_circle,
+                  color: isSelected ? AppColors.teacherRole : AppColors.info,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        session.studentName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.titleMedium(
+                          AppColors.darkTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${session.lessonTitle} | ${session.durationSeconds}s | ${session.pagesRead} ${context.tr('pages')}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.bodySmall(
+                          AppColors.darkTextSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: StatusChip(
+                          label: session.startedLabel,
+                          status: ChipStatus.neutral,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -259,10 +290,10 @@ class _ReplayTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     final selected = session;
     if (selected == null) {
-      return const Center(child: Text('Select a replay session.'));
+      return Center(child: Text(context.tr('Select a replay session.')));
     }
     if (events.isEmpty) {
-      return const Center(child: Text('No events were recorded.'));
+      return Center(child: Text(context.tr('No events were recorded.')));
     }
     final maxMs = events.last.offsetMs <= 0 ? 1 : events.last.offsetMs;
     final visibleEvents = events
@@ -280,57 +311,104 @@ class _ReplayTimeline extends StatelessWidget {
           return GlassCard(
             padding: const EdgeInsets.all(16),
             borderColor: AppColors.teacherRole,
-            child: Row(
-              children: [
-                const CircleIcon(icon: Icons.video_library, color: AppColors.teacherRole),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(selected.lessonTitle, style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
-                      Text(
-                        '${selected.studentName} | ${selected.startedLabel} | ${selected.durationSeconds}s',
-                        style: AppTypography.bodySmall(AppColors.darkTextSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: 360,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 620;
+                final sessionInfo = Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const CircleIcon(
+                      icon: Icons.video_library,
+                      color: AppColors.teacherRole,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          IconButton.filledTonal(
-                            tooltip: isPlaying ? 'Pause replay' : 'Play replay',
-                            onPressed: onPlayPause,
-                            icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-                          ),
-                          Expanded(
-                            child: Slider(
-                              value: playbackMs.clamp(0, maxMs).toDouble(),
-                              min: 0,
-                              max: maxMs.toDouble(),
-                              onChanged: onSeek,
+                          Text(
+                            selected.lessonTitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.titleMedium(
+                              AppColors.darkTextPrimary,
                             ),
                           ),
-                          Text(currentEvent.offsetLabel),
+                          Text(
+                            '${selected.studentName} | ${selected.startedLabel} | ${selected.durationSeconds}s',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.bodySmall(
+                              AppColors.darkTextSecondary,
+                            ),
+                          ),
                         ],
                       ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Now: ${currentEvent.eventType.replaceAll('_', ' ')}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                );
+                final controls = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton.filledTonal(
+                          tooltip: context.tr(
+                            isPlaying ? 'Pause replay' : 'Play replay',
+                          ),
+                          onPressed: onPlayPause,
+                          icon: Icon(
+                            isPlaying ? Icons.pause : Icons.play_arrow,
+                          ),
                         ),
+                        Expanded(
+                          child: Slider(
+                            value: playbackMs.clamp(0, maxMs).toDouble(),
+                            min: 0,
+                            max: maxMs.toDouble(),
+                            onChanged: onSeek,
+                          ),
+                        ),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 64),
+                          child: Text(
+                            currentEvent.offsetLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '${context.tr('Now')}: ${context.tr(currentEvent.eventType.replaceAll('_', ' '))}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                  ],
+                );
+
+                if (isCompact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      sessionInfo,
+                      const SizedBox(height: 12),
+                      controls,
                     ],
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: sessionInfo),
+                    const SizedBox(width: 12),
+                    SizedBox(width: 320, child: controls),
+                  ],
+                );
+              },
             ),
           );
         }
@@ -340,17 +418,51 @@ class _ReplayTimeline extends StatelessWidget {
           delay: Duration(milliseconds: 10 * index),
           child: GlassCard(
             padding: const EdgeInsets.all(12),
-            color: reached ? event.color.withValues(alpha: 0.1) : AppColors.glassLight,
+            color: reached
+                ? event.color.withValues(alpha: 0.1)
+                : AppColors.glassLight,
             borderColor: reached ? event.color : AppColors.glassBorder,
-            child: Material(
-              color: Colors.transparent,
-              child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(reached ? event.icon : Icons.radio_button_unchecked, color: reached ? event.color : Colors.grey),
-              title: Text(event.eventType.replaceAll('_', ' '), style: AppTypography.titleMedium(AppColors.darkTextPrimary)),
-              subtitle: Text('${event.offsetLabel} | ${event.payload}', style: AppTypography.bodySmall(AppColors.darkTextSecondary)),
-              trailing: StatusChip(label: event.kind, status: ChipStatus.info),
-            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  reached ? event.icon : Icons.radio_button_unchecked,
+                  color: reached ? event.color : Colors.grey,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.eventType.replaceAll('_', ' '),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.titleMedium(
+                          AppColors.darkTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${event.offsetLabel} | ${event.payload}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.bodySmall(
+                          AppColors.darkTextSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: StatusChip(
+                          label: event.kind,
+                          status: ChipStatus.info,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );

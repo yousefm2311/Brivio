@@ -66,13 +66,15 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
   void _subscribeToNotifications() {
     final notificationRepo = getIt<INotificationRepository>();
-    _notificationSubscription = notificationRepo.subscribeToNotifications().listen((notification) {
-      if (!mounted) return;
-      setState(() {
-        _notifications.insert(0, notification);
-        _unreadCount++;
-      });
-    });
+    _notificationSubscription = notificationRepo
+        .subscribeToNotifications()
+        .listen((notification) {
+          if (!mounted) return;
+          setState(() {
+            _notifications.insert(0, notification);
+            _unreadCount++;
+          });
+        });
   }
 
   SupabaseClientWrapper get _wrapper =>
@@ -111,7 +113,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
         _fetchAttendanceQueue(),
         _fetchEnrollmentQueue(),
         _fetchOperationsQueue(),
-        notificationRepo.getNotifications().catchError((_) => <AppNotification>[]),
+        notificationRepo.getNotifications().catchError(
+          (_) => <AppNotification>[],
+        ),
         notificationRepo.getUnreadCount().catchError((_) => 0),
       ]);
 

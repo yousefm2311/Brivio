@@ -9,10 +9,12 @@ class AttendanceReportsScreen extends StatefulWidget {
   const AttendanceReportsScreen({super.key});
 
   @override
-  State<AttendanceReportsScreen> createState() => _AttendanceReportsScreenState();
+  State<AttendanceReportsScreen> createState() =>
+      _AttendanceReportsScreenState();
 }
 
-class _AttendanceReportsScreenState extends State<AttendanceReportsScreen> with SingleTickerProviderStateMixin {
+class _AttendanceReportsScreenState extends State<AttendanceReportsScreen>
+    with SingleTickerProviderStateMixin {
   final ReportGeneratorService _reportService = getIt<ReportGeneratorService>();
   final AttendanceReportsViewModel _viewModel = AttendanceReportsViewModel();
   late TabController _tabController;
@@ -38,7 +40,11 @@ class _AttendanceReportsScreenState extends State<AttendanceReportsScreen> with 
     super.dispose();
   }
 
-  Future<void> _generatePdf(String groupName, List<Map<String, dynamic>> data, String personType) async {
+  Future<void> _generatePdf(
+    String groupName,
+    List<Map<String, dynamic>> data,
+    String personType,
+  ) async {
     setState(() => _isGenerating = true);
     try {
       await _reportService.generateAttendanceReport(
@@ -48,12 +54,17 @@ class _AttendanceReportsScreenState extends State<AttendanceReportsScreen> with 
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$groupName Attendance Report generated successfully!')),
+        SnackBar(
+          content: Text('$groupName Attendance Report generated successfully!'),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate report: $e'), backgroundColor: AppColors.error),
+        SnackBar(
+          content: Text('Failed to generate report: $e'),
+          backgroundColor: AppColors.error,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isGenerating = false);
@@ -65,12 +76,17 @@ class _AttendanceReportsScreenState extends State<AttendanceReportsScreen> with 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Attendance & Departure Reports', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Attendance & Departure Reports',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           indicatorColor: AppColors.secondary,
@@ -82,28 +98,42 @@ class _AttendanceReportsScreenState extends State<AttendanceReportsScreen> with 
         ),
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.cosmicGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppColors.cosmicGradient),
         child: SafeArea(
           child: Stack(
             children: [
               if (_viewModel.isLoading)
-                const Center(child: CircularProgressIndicator(color: AppColors.secondary))
+                const Center(
+                  child: CircularProgressIndicator(color: AppColors.secondary),
+                )
               else
                 TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildReportTab('Students', _viewModel.studentAttendance, 'Student'),
-                    _buildReportTab('Teachers', _viewModel.teacherAttendance, 'Teacher'),
-                    _buildReportTab('Staff', _viewModel.staffAttendance, 'Staff Member'),
+                    _buildReportTab(
+                      'Students',
+                      _viewModel.studentAttendance,
+                      'Student',
+                    ),
+                    _buildReportTab(
+                      'Teachers',
+                      _viewModel.teacherAttendance,
+                      'Teacher',
+                    ),
+                    _buildReportTab(
+                      'Staff',
+                      _viewModel.staffAttendance,
+                      'Staff Member',
+                    ),
                   ],
                 ),
               if (_isGenerating)
                 Container(
                   color: Colors.black45,
                   child: const Center(
-                    child: CircularProgressIndicator(color: AppColors.secondary),
+                    child: CircularProgressIndicator(
+                      color: AppColors.secondary,
+                    ),
                   ),
                 ),
             ],
@@ -113,21 +143,27 @@ class _AttendanceReportsScreenState extends State<AttendanceReportsScreen> with 
     );
   }
 
-  Widget _buildReportTab(String groupName, List<Map<String, dynamic>> data, String personType) {
+  Widget _buildReportTab(
+    String groupName,
+    List<Map<String, dynamic>> data,
+    String personType,
+  ) {
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 420;
+            final title = Text(
               '$groupName Overview',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-            ),
-            ElevatedButton.icon(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            );
+            final exportButton = ElevatedButton.icon(
               onPressed: () => _generatePdf(groupName, data, personType),
               icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
               label: const Text('Export PDF'),
@@ -135,8 +171,30 @@ class _AttendanceReportsScreenState extends State<AttendanceReportsScreen> with 
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
               ),
-            ),
-          ],
+            );
+
+            if (isCompact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  title,
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: exportButton,
+                  ),
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: title),
+                const SizedBox(width: 12),
+                exportButton,
+              ],
+            );
+          },
         ),
         const SizedBox(height: 24),
         GlassCard(
@@ -144,36 +202,82 @@ class _AttendanceReportsScreenState extends State<AttendanceReportsScreen> with 
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+              headingTextStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
               columns: [
-                DataColumn(label: Text('$personType Name', style: const TextStyle(color: Colors.white))),
-                const DataColumn(label: Text('Total Present', style: TextStyle(color: Colors.white))),
-                const DataColumn(label: Text('Total Absent', style: TextStyle(color: Colors.white))),
-                const DataColumn(label: Text('Status', style: TextStyle(color: Colors.white))),
+                DataColumn(
+                  label: Text(
+                    '$personType Name',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                const DataColumn(
+                  label: Text(
+                    'Total Present',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const DataColumn(
+                  label: Text(
+                    'Total Absent',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const DataColumn(
+                  label: Text('Status', style: TextStyle(color: Colors.white)),
+                ),
               ],
               rows: data.map((record) {
-                return DataRow(cells: [
-                  DataCell(Text(record['name'] ?? '', style: const TextStyle(color: Colors.white70))),
-                  DataCell(Text(record['present']?.toString() ?? '0', style: const TextStyle(color: Colors.white70))),
-                  DataCell(Text(record['absent']?.toString() ?? '0', style: const TextStyle(color: Colors.white70))),
-                  DataCell(
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(record['status'] ?? '').withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _getStatusColor(record['status'] ?? '').withValues(alpha: 0.5)),
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      Text(
+                        record['name'] ?? '',
+                        style: const TextStyle(color: Colors.white70),
                       ),
-                      child: Text(
-                        record['status'] ?? '',
-                        style: TextStyle(
-                          color: _getStatusColor(record['status'] ?? ''),
-                          fontWeight: FontWeight.bold,
+                    ),
+                    DataCell(
+                      Text(
+                        record['present']?.toString() ?? '0',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        record['absent']?.toString() ?? '0',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(
+                            record['status'] ?? '',
+                          ).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _getStatusColor(
+                              record['status'] ?? '',
+                            ).withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Text(
+                          record['status'] ?? '',
+                          style: TextStyle(
+                            color: _getStatusColor(record['status'] ?? ''),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ]);
+                  ],
+                );
               }).toList(),
             ),
           ),
