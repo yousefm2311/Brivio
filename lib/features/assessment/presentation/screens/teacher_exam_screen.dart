@@ -956,6 +956,9 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                               children: [
                                                 Text(
                                                   exam.title,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                   style:
                                                       AppTypography.titleMedium(
                                                         textColor,
@@ -967,6 +970,9 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                                 const SizedBox(height: 4),
                                                 Text(
                                                   '${context.tr('Duration')}: ${exam.durationMinutes} ${context.tr('min')} | ${context.tr('Pass Score')}: ${exam.passScore} | ${context.tr('Status')}: ${context.tr(exam.status)}',
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                   style: AppTypography.caption(
                                                     subtitleColor,
                                                   ),
@@ -981,36 +987,75 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                               ],
                                             ),
                                           ),
-                                          IconButton(
+                                          PopupMenuButton<String>(
+                                            tooltip: context.tr('Actions'),
                                             icon: const Icon(
-                                              Icons.edit_document,
-                                              color: AppColors.primary,
+                                              Icons.more_vert_rounded,
                                             ),
-                                            tooltip: context.tr(
-                                              'Manage Questions',
-                                            ),
-                                            onPressed: () =>
-                                                _showManageQuestionsBottomSheet(
-                                                  exam,
+                                            onSelected: (value) {
+                                              switch (value) {
+                                                case 'questions':
+                                                  _showManageQuestionsBottomSheet(
+                                                    exam,
+                                                  );
+                                                  break;
+                                                case 'close':
+                                                  if (exam.status != 'closed') {
+                                                    _closeExam(exam);
+                                                  }
+                                                  break;
+                                                case 'delete':
+                                                  _deleteExam(exam);
+                                                  break;
+                                              }
+                                            },
+                                            itemBuilder: (context) => [
+                                              PopupMenuItem(
+                                                value: 'questions',
+                                                child: ListTile(
+                                                  leading: const Icon(
+                                                    Icons.edit_document,
+                                                  ),
+                                                  title: Text(
+                                                    context.tr(
+                                                      'Manage Questions',
+                                                    ),
+                                                  ),
+                                                  contentPadding:
+                                                      EdgeInsets.zero,
                                                 ),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.lock_outline,
-                                              color: AppColors.warning,
-                                            ),
-                                            tooltip: context.tr('Close Exam'),
-                                            onPressed: exam.status == 'closed'
-                                                ? null
-                                                : () => _closeExam(exam),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.delete_outline,
-                                              color: AppColors.error,
-                                            ),
-                                            tooltip: context.tr('Delete Exam'),
-                                            onPressed: () => _deleteExam(exam),
+                                              ),
+                                              PopupMenuItem(
+                                                value: 'close',
+                                                enabled:
+                                                    exam.status != 'closed',
+                                                child: ListTile(
+                                                  leading: const Icon(
+                                                    Icons.lock_outline,
+                                                    color: AppColors.warning,
+                                                  ),
+                                                  title: Text(
+                                                    context.tr('Close Exam'),
+                                                  ),
+                                                  contentPadding:
+                                                      EdgeInsets.zero,
+                                                ),
+                                              ),
+                                              PopupMenuItem(
+                                                value: 'delete',
+                                                child: ListTile(
+                                                  leading: const Icon(
+                                                    Icons.delete_outline,
+                                                    color: AppColors.error,
+                                                  ),
+                                                  title: Text(
+                                                    context.tr('Delete Exam'),
+                                                  ),
+                                                  contentPadding:
+                                                      EdgeInsets.zero,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),

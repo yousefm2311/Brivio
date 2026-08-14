@@ -673,6 +673,8 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                           children: [
                                             Text(
                                               h.title,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
                                               style:
                                                   AppTypography.titleMedium(
                                                     textColor,
@@ -683,6 +685,8 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                             const SizedBox(height: 4),
                                             Text(
                                               '${context.tr('Due')}: ${h.dueAt.toLocal().toString().split(' ')[0]} | ${context.tr('Status')}: ${context.tr(h.status)}',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
                                               style: AppTypography.caption(
                                                 subtitleColor,
                                               ),
@@ -697,32 +701,69 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                           ],
                                         ),
                                       ),
-                                      IconButton(
+                                      PopupMenuButton<String>(
+                                        tooltip: context.tr('Actions'),
                                         icon: const Icon(
-                                          Icons.edit_document,
-                                          color: AppColors.primary,
+                                          Icons.more_vert_rounded,
                                         ),
-                                        tooltip: context.tr('Manage Questions'),
-                                        onPressed: () =>
-                                            _showManageQuestionsBottomSheet(h),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.lock_outline,
-                                          color: AppColors.warning,
-                                        ),
-                                        tooltip: context.tr('Close Homework'),
-                                        onPressed: h.status == 'closed'
-                                            ? null
-                                            : () => _closeHomework(h),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline,
-                                          color: AppColors.error,
-                                        ),
-                                        tooltip: context.tr('Delete Homework'),
-                                        onPressed: () => _deleteHomework(h),
+                                        onSelected: (value) {
+                                          switch (value) {
+                                            case 'questions':
+                                              _showManageQuestionsBottomSheet(
+                                                h,
+                                              );
+                                              break;
+                                            case 'close':
+                                              if (h.status != 'closed') {
+                                                _closeHomework(h);
+                                              }
+                                              break;
+                                            case 'delete':
+                                              _deleteHomework(h);
+                                              break;
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          PopupMenuItem(
+                                            value: 'questions',
+                                            child: ListTile(
+                                              leading: const Icon(
+                                                Icons.edit_document,
+                                              ),
+                                              title: Text(
+                                                context.tr('Manage Questions'),
+                                              ),
+                                              contentPadding: EdgeInsets.zero,
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'close',
+                                            enabled: h.status != 'closed',
+                                            child: ListTile(
+                                              leading: const Icon(
+                                                Icons.lock_outline,
+                                                color: AppColors.warning,
+                                              ),
+                                              title: Text(
+                                                context.tr('Close Homework'),
+                                              ),
+                                              contentPadding: EdgeInsets.zero,
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: ListTile(
+                                              leading: const Icon(
+                                                Icons.delete_outline,
+                                                color: AppColors.error,
+                                              ),
+                                              title: Text(
+                                                context.tr('Delete Homework'),
+                                              ),
+                                              contentPadding: EdgeInsets.zero,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),

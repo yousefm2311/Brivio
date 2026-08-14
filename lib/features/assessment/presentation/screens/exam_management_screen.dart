@@ -364,47 +364,80 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                           accentColor: AppColors.adminRole,
                           title: e.title,
                           subtitle:
-                              'Duration: ${e.durationMinutes} min | Pass Score: ${e.passScore}',
+                              'Duration: ${e.durationMinutes} min | Pass Score: ${e.passScore} | Status: ${e.status.toUpperCase()}',
                           trailing: [
                             PortalStatusChip(status: e.status),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.people,
-                                color: Colors.green,
-                              ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (ctx) =>
-                                        ExamSubmissionsScreen(exam: e),
-                                  ),
-                                );
-                              },
-                              tooltip: 'View Submissions',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _showEditExamDialog(e),
-                              tooltip: 'Edit Exam',
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.lock_outline,
-                                color: Colors.orange,
-                              ),
-                              onPressed: e.status == 'closed'
-                                  ? null
-                                  : () async {
+                            PopupMenuButton<String>(
+                              tooltip: 'Actions',
+                              icon: const Icon(Icons.more_vert_rounded),
+                              onSelected: (value) async {
+                                switch (value) {
+                                  case 'submissions':
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (ctx) =>
+                                            ExamSubmissionsScreen(exam: e),
+                                      ),
+                                    );
+                                    break;
+                                  case 'edit':
+                                    _showEditExamDialog(e);
+                                    break;
+                                  case 'close':
+                                    if (e.status == 'closed') return;
+                                    try {
+                                      await Supabase.instance.client
+                                          .from('exams')
+                                          .update({
+                                            'status': 'closed',
+                                            'updated_at': DateTime.now()
+                                                .toIso8601String(),
+                                          })
+                                          .eq('id', e.id);
+                                      _loadExams();
+                                    } catch (err) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to close: $err',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                    break;
+                                  case 'delete':
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Delete Exam'),
+                                        content: const Text(
+                                          'Are you sure you want to delete this exam?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) {
                                       try {
-                                        await Supabase.instance.client
-                                            .from('exams')
-                                            .update({
-                                              'status': 'closed',
-                                              'updated_at': DateTime.now()
-                                                  .toIso8601String(),
-                                            })
-                                            .eq('id', e.id);
+                                        await Supabase.instance.client.rpc(
+                                          'delete_exam',
+                                          params: {'exam_id': e.id},
+                                        );
                                         _loadExams();
                                       } catch (err) {
                                         if (mounted) {
@@ -413,62 +446,51 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                           ).showSnackBar(
                                             SnackBar(
                                               content: Text(
-                                                'Failed to close: $err',
+                                                'Failed to delete: $err',
                                               ),
                                             ),
                                           );
                                         }
                                       }
-                                    },
-                              tooltip: 'Close Exam',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Delete Exam'),
-                                    content: const Text(
-                                      'Are you sure you want to delete this exam?',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        child: const Text('Delete'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  try {
-                                    await Supabase.instance.client.rpc(
-                                      'delete_exam',
-                                      params: {'exam_id': e.id},
-                                    );
-                                    _loadExams();
-                                  } catch (err) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Failed to delete: $err',
-                                          ),
-                                        ),
-                                      );
                                     }
-                                  }
+                                    break;
                                 }
                               },
-                              tooltip: 'Delete Exam',
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'submissions',
+                                  child: ListTile(
+                                    leading: Icon(Icons.people),
+                                    title: Text('View Submissions'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: ListTile(
+                                    leading: Icon(Icons.edit),
+                                    title: Text('Edit Exam'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'close',
+                                  enabled: e.status != 'closed',
+                                  child: const ListTile(
+                                    leading: Icon(Icons.lock_outline),
+                                    title: Text('Close Exam'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: ListTile(
+                                    leading: Icon(Icons.delete_outline),
+                                    title: Text('Delete Exam'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         );

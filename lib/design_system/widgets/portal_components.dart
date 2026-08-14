@@ -1029,38 +1029,47 @@ class PortalListCard extends StatelessWidget {
                   ),
                 ],
               );
-              final actions = trailing.isEmpty
-                  ? const SizedBox.shrink()
-                  : Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: trailing,
-                    );
-
               if (constraints.maxWidth < 520 && trailing.isNotEmpty) {
                 return Padding(
                   padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          leading,
-                          const SizedBox(width: 14),
-                          Expanded(child: textBlock),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: actions,
+                      leading,
+                      const SizedBox(width: 14),
+                      Expanded(child: textBlock),
+                      const SizedBox(width: 6),
+                      IconButton.filledTonal(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: context.tr('Actions'),
+                        icon: const Icon(Icons.more_vert_rounded),
+                        onPressed: () => showModalBottomSheet<void>(
+                          context: context,
+                          showDragHandle: true,
+                          builder: (sheetContext) => SafeArea(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                alignment: WrapAlignment.end,
+                                children: trailing,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 );
               }
+
+              final actions = Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: trailing,
+              );
 
               return Padding(
                 padding: const EdgeInsets.all(14),

@@ -767,6 +767,9 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                         ],
                                       ),
                                       children: lesson.resources.map((res) {
+                                        final resourceFileName = res.objectPath
+                                            .split('/')
+                                            .last;
                                         return ListTile(
                                           leading: const Icon(
                                             Icons.picture_as_pdf,
@@ -774,7 +777,14 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                           ),
                                           title: Text(res.title),
                                           subtitle: Text(
-                                            '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
+                                            [
+                                              res.bucket,
+                                              resourceFileName.isEmpty
+                                                  ? res.resourceType
+                                                  : resourceFileName,
+                                            ].join(' / '),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         );
                                       }).toList(),

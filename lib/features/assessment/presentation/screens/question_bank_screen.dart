@@ -364,39 +364,74 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           subtitle:
                               'Type: ${q.questionType.name.toUpperCase()} | Points: ${q.defaultPoints}',
                           trailing: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _showEditQuestionDialog(q),
-                              tooltip: 'Edit Question',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Delete Question'),
-                                    content: const Text('Are you sure you want to delete this question?'),
-                                    actions: [
-                                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                      ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  try {
-                                    await _questionRepo.deleteQuestion(q.id);
-                                    _loadQuestions();
-                                  } catch (err) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Failed to delete: $err')),
-                                      );
+                            PopupMenuButton<String>(
+                              tooltip: 'Actions',
+                              icon: const Icon(Icons.more_vert_rounded),
+                              onSelected: (value) async {
+                                if (value == 'edit') {
+                                  _showEditQuestionDialog(q);
+                                  return;
+                                }
+                                if (value == 'delete') {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Delete Question'),
+                                      content: const Text(
+                                        'Are you sure you want to delete this question?',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, true),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) {
+                                    try {
+                                      await _questionRepo.deleteQuestion(q.id);
+                                      _loadQuestions();
+                                    } catch (err) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to delete: $err',
+                                            ),
+                                          ),
+                                        );
+                                      }
                                     }
                                   }
                                 }
                               },
-                              tooltip: 'Delete Question',
+                              itemBuilder: (context) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: ListTile(
+                                    leading: Icon(Icons.edit),
+                                    title: Text('Edit Question'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: ListTile(
+                                    leading: Icon(Icons.delete_outline),
+                                    title: Text('Delete Question'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         );

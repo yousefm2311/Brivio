@@ -1085,6 +1085,10 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                           ],
                                         ),
                                         children: lesson.resources.map((res) {
+                                          final resourceFileName = res
+                                              .objectPath
+                                              .split('/')
+                                              .last;
                                           return Material(
                                             type: MaterialType.transparency,
                                             child: ListTile(
@@ -1099,7 +1103,14 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                 ),
                                               ),
                                               subtitle: Text(
-                                                '${context.tr('Path')}: ${res.bucket}/${res.objectPath}',
+                                                [
+                                                  res.bucket,
+                                                  resourceFileName.isEmpty
+                                                      ? res.resourceType
+                                                      : resourceFileName,
+                                                ].join(' / '),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                                 style: AppTypography.bodySmall(
                                                   subtitleColor,
                                                 ),

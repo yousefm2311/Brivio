@@ -709,6 +709,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                           children: [
                                             Text(
                                               q.prompt,
+                                              maxLines: 4,
+                                              overflow: TextOverflow.ellipsis,
                                               style:
                                                   AppTypography.titleMedium(
                                                     textColor,
@@ -727,20 +729,43 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                         ),
                                       ),
                                       const SizedBox(width: 8),
-                                      IconButton(
+                                      PopupMenuButton<String>(
+                                        tooltip: context.tr('Actions'),
                                         icon: const Icon(
-                                          Icons.edit_rounded,
-                                          color: AppColors.primary,
+                                          Icons.more_vert_rounded,
                                         ),
-                                        onPressed: () =>
-                                            _showQuestionEditorDialog(q),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline,
-                                          color: AppColors.error,
-                                        ),
-                                        onPressed: () => _deleteQuestion(q),
+                                        onSelected: (value) {
+                                          if (value == 'edit') {
+                                            _showQuestionEditorDialog(q);
+                                          } else if (value == 'delete') {
+                                            _deleteQuestion(q);
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          PopupMenuItem(
+                                            value: 'edit',
+                                            child: ListTile(
+                                              leading: const Icon(
+                                                Icons.edit_rounded,
+                                              ),
+                                              title: Text(context.tr('Edit')),
+                                              contentPadding: EdgeInsets.zero,
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: ListTile(
+                                              leading: const Icon(
+                                                Icons.delete_outline,
+                                                color: AppColors.error,
+                                              ),
+                                              title: Text(
+                                                context.tr('Delete'),
+                                              ),
+                                              contentPadding: EdgeInsets.zero,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),

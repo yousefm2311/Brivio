@@ -377,21 +377,60 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                               'Max Score: ${h.maxScore} | Due: ${h.dueAt.year}-${h.dueAt.month}-${h.dueAt.day} | Status: ${h.status.toUpperCase()}',
                           trailing: [
                             PortalStatusChip(status: h.status),
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _showEditHomeworkDialog(h),
-                              tooltip: 'Edit Homework',
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.lock_outline,
-                                color: Colors.orange,
-                              ),
-                              onPressed: h.status == 'closed'
-                                  ? null
-                                  : () async {
+                            PopupMenuButton<String>(
+                              tooltip: 'Actions',
+                              icon: const Icon(Icons.more_vert_rounded),
+                              onSelected: (value) async {
+                                switch (value) {
+                                  case 'edit':
+                                    _showEditHomeworkDialog(h);
+                                    break;
+                                  case 'close':
+                                    if (h.status == 'closed') return;
+                                    try {
+                                      await _homeworkRepo.closeHomework(h.id);
+                                      _loadHomeworks();
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to close: $e',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                    break;
+                                  case 'delete':
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Delete Homework'),
+                                        content: const Text(
+                                          'Are you sure you want to delete this homework?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) {
                                       try {
-                                        await _homeworkRepo.closeHomework(h.id);
+                                        await _homeworkRepo.deleteHomework(
+                                          h.id,
+                                        );
                                         _loadHomeworks();
                                       } catch (e) {
                                         if (mounted) {
@@ -400,57 +439,43 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                                           ).showSnackBar(
                                             SnackBar(
                                               content: Text(
-                                                'Failed to close: $e',
+                                                'Failed to delete: $e',
                                               ),
                                             ),
                                           );
                                         }
                                       }
-                                    },
-                              tooltip: 'Close Homework',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Delete Homework'),
-                                    content: const Text(
-                                      'Are you sure you want to delete this homework?',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        child: const Text('Delete'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  try {
-                                    await _homeworkRepo.deleteHomework(h.id);
-                                    _loadHomeworks();
-                                  } catch (e) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Failed to delete: $e'),
-                                        ),
-                                      );
                                     }
-                                  }
+                                    break;
                                 }
                               },
-                              tooltip: 'Delete Homework',
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: ListTile(
+                                    leading: Icon(Icons.edit),
+                                    title: Text('Edit Homework'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'close',
+                                  enabled: h.status != 'closed',
+                                  child: const ListTile(
+                                    leading: Icon(Icons.lock_outline),
+                                    title: Text('Close Homework'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: ListTile(
+                                    leading: Icon(Icons.delete_outline),
+                                    title: Text('Delete Homework'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         );
