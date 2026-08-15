@@ -714,7 +714,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                         LinearProgressIndicator(value: lesson.progress),
                         const SizedBox(height: 6),
                         Text(
-                          '${lesson.progressPercentage}% • page ${lesson.lastPage}/${lesson.totalPages}',
+                          '${lesson.progressPercentage}% • page ${lesson.lastPage}/${lesson.totalPages} • ${_formatStudyTime(lesson.timeSpentSeconds)}',
                         ),
                       ],
                     ),
@@ -1351,7 +1351,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       accentColor: AppColors.studentRole,
       title: lesson.title,
       subtitle:
-          '${lesson.pathName} • ${lesson.unitName} • ${lesson.progressPercentage}%',
+          '${lesson.pathName} • ${lesson.unitName} • ${lesson.progressPercentage}% • ${_formatStudyTime(lesson.timeSpentSeconds)}',
       trailing: [PortalStatusChip(status: lesson.hasPdf ? 'PDF' : 'Lesson')],
     );
   }
@@ -1372,6 +1372,15 @@ class _ParentDashboardState extends State<ParentDashboard> {
         .where((item) => item.status == 'present' || item.status == 'late')
         .length;
     return present * 100 / _attendance.length;
+  }
+
+  String _formatStudyTime(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    final minutes = seconds ~/ 60;
+    if (minutes < 60) return '${minutes}m';
+    final hours = minutes ~/ 60;
+    final rest = minutes % 60;
+    return rest == 0 ? '${hours}h' : '${hours}h ${rest}m';
   }
 
   List<_ParentInsight> _buildParentInsights() {

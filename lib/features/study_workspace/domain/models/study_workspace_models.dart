@@ -9,6 +9,7 @@ class StudyLessonSummary extends Equatable {
   final int estimatedMinutes;
   final int lastPage;
   final int totalPages;
+  final int timeSpentSeconds;
   final int xp;
   final bool hasPdf;
   final bool hasCodePlayground;
@@ -25,6 +26,7 @@ class StudyLessonSummary extends Equatable {
     required this.estimatedMinutes,
     required this.lastPage,
     required this.totalPages,
+    this.timeSpentSeconds = 0,
     required this.xp,
     required this.hasPdf,
     required this.hasCodePlayground,
@@ -45,6 +47,7 @@ class StudyLessonSummary extends Equatable {
       estimatedMinutes: estimatedMinutes,
       lastPage: lastPage ?? this.lastPage,
       totalPages: totalPages,
+      timeSpentSeconds: timeSpentSeconds,
       xp: xp,
       hasPdf: hasPdf,
       hasCodePlayground: hasCodePlayground,
@@ -64,6 +67,7 @@ class StudyLessonSummary extends Equatable {
     estimatedMinutes,
     lastPage,
     totalPages,
+    timeSpentSeconds,
     xp,
     hasPdf,
     hasCodePlayground,
@@ -83,6 +87,7 @@ class StudyLessonSummary extends Equatable {
       estimatedMinutes: (json['estimated_minutes'] as num?)?.round() ?? 0,
       lastPage: (json['last_page'] as num?)?.round() ?? 1,
       totalPages: (json['total_pages'] as num?)?.round() ?? 1,
+      timeSpentSeconds: (json['time_spent_seconds'] as num?)?.round() ?? 0,
       xp: (json['xp'] as num?)?.round() ?? 0,
       hasPdf: json['has_pdf'] == true,
       hasCodePlayground: json['has_code_playground'] == true,

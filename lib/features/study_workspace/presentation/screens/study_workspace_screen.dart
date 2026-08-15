@@ -331,6 +331,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     final startedAt = _studySessionStartedAt;
     if (repository == null || sessionId == null || startedAt == null) return;
     final duration = DateTime.now().difference(startedAt).inSeconds;
+    unawaited(_viewModel.flushProgress().catchError((_) {}));
     unawaited(
       repository
           .finishStudySession(

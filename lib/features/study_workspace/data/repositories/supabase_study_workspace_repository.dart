@@ -764,6 +764,7 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
     required String lessonId,
     required int page,
     required int progressPercentage,
+    int timeSpentSeconds = 0,
   }) async {
     await _wrapper.client.rpc(
       'update_lesson_progress',
@@ -772,7 +773,7 @@ class SupabaseStudyWorkspaceRepository implements IStudyWorkspaceRepository {
         'p_status': progressPercentage >= 100 ? 'completed' : 'in_progress',
         'p_progress_percentage': progressPercentage,
         'p_last_position_seconds': page,
-        'p_time_spent_seconds': 0,
+        'p_time_spent_seconds': timeSpentSeconds.clamp(0, 300),
       },
     );
   }

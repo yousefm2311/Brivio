@@ -38,6 +38,7 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
   StreamSubscription? _teacherDraftSubscription;
   bool _isDisposed = false;
   final DateTime _openedAt = DateTime.now();
+  DateTime _lastProgressSyncAt = DateTime.now();
 
   StudyWorkspaceViewModel({
     required this.lesson,
@@ -369,16 +370,57 @@ class StudyWorkspaceViewModel extends ChangeNotifier {
             ? 95
             : pagesProgress;
         try {
+          final now = DateTime.now();
+          final elapsedSinceLastSync = now
+              .difference(_lastProgressSyncAt)
+              .inSeconds
+              .clamp(0, 300);
           await repository!.updatePageProgress(
             lessonId: lesson.id,
             page: normalized,
             progressPercentage: progress,
+            timeSpentSeconds: elapsedSinceLastSync,
           );
+          _lastProgressSyncAt = now;
         } catch (e, st) {
           debugPrint('Failed to update lesson progress: $e\n$st');
         }
       }
     });
+  }
+
+  Future<void> flushProgress() async {
+    if (repository == null || studentId == null) return;
+    final totalPages = lesson.totalPages < 1 ? 1 : lesson.totalPages;
+    final preferences = await SharedPreferences.getInstance();
+    final userSuffix = teacherId ?? studentId ?? 'guest';
+    final visitedKey = '$_visitedPagesPrefix${lesson.id}_$userSuffix';
+    final visitedPages = {
+      ...preferences.getStringList(visitedKey) ?? const <String>[],
+      '$_currentPage',
+    };
+    final pagesProgress = ((visitedPages.length / totalPages) * 100)
+        .round()
+        .clamp(0, 100);
+    final elapsedSeconds = DateTime.now().difference(_openedAt).inSeconds;
+    final minimumStudySeconds = (totalPages * 20).clamp(60, 600);
+    final progress =
+        pagesProgress >= 100 && elapsedSeconds < minimumStudySeconds
+        ? 95
+        : pagesProgress;
+    final now = DateTime.now();
+    final elapsedSinceLastSync = now
+        .difference(_lastProgressSyncAt)
+        .inSeconds
+        .clamp(0, 300);
+    if (elapsedSinceLastSync <= 0) return;
+    await repository!.updatePageProgress(
+      lessonId: lesson.id,
+      page: _currentPage,
+      progressPercentage: progress,
+      timeSpentSeconds: elapsedSinceLastSync,
+    );
+    _lastProgressSyncAt = now;
   }
 
   void runCodePreview([String? code]) {

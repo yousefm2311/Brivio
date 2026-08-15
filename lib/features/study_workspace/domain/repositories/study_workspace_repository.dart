@@ -100,5 +100,6 @@ abstract class IStudyWorkspaceRepository {
     required String lessonId,
     required int page,
     required int progressPercentage,
+    int timeSpentSeconds = 0,
   });
 }

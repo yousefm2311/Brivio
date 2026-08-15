@@ -119,30 +119,24 @@ class HelpdeskRepository {
     final user = _client.auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
-    final data = {
-      'user_id': user.id,
-      'subject': subject,
-      'description': description,
-      'priority': priority,
-    };
-    if (groupId != null) {
-      data['group_id'] = groupId;
-    }
+    final response = await _client.rpc(
+      'create_support_ticket',
+      params: {
+        'p_subject': subject,
+        'p_description': description,
+        'p_priority': priority,
+        'p_group_id': groupId,
+      },
+    );
 
-    final response = await _client
-        .from('support_tickets')
-        .insert(data)
-        .select()
-        .single();
-
-    return SupportTicket.fromJson(response);
+    return SupportTicket.fromJson(Map<String, dynamic>.from(response as Map));
   }
 
   Future<void> updateTicketStatus(String ticketId, String status) async {
-    await _client
-        .from('support_tickets')
-        .update({'status': status})
-        .eq('id', ticketId);
+    await _client.rpc(
+      'update_support_ticket_status',
+      params: {'p_ticket_id': ticketId, 'p_status': status},
+    );
   }
 
   Future<List<TicketReply>> getReplies(String ticketId) async {
@@ -160,12 +154,11 @@ class HelpdeskRepository {
     final user = _client.auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
-    final response = await _client
-        .from('ticket_replies')
-        .insert({'ticket_id': ticketId, 'user_id': user.id, 'message': message})
-        .select()
-        .single();
+    final response = await _client.rpc(
+      'add_ticket_reply',
+      params: {'p_ticket_id': ticketId, 'p_message': message},
+    );
 
-    return TicketReply.fromJson(response);
+    return TicketReply.fromJson(Map<String, dynamic>.from(response as Map));
   }
 }

@@ -5,6 +5,7 @@ import '../../../../design_system/widgets/portal_components.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../features/helpdesk/data/models/support_ticket.dart';
+import '../../../../features/helpdesk/data/models/ticket_reply.dart';
 import '../../../../features/helpdesk/data/repositories/helpdesk_repository.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
@@ -438,214 +439,286 @@ class _TicketList extends StatelessWidget {
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final replyController = TextEditingController();
+    final repo = HelpdeskRepository();
+    Future<List<TicketReply>> repliesFuture = repo.getReplies(ticket.id);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.8,
-          maxChildSize: 0.95,
-          minChildSize: 0.5,
-          builder: (context, scrollController) {
-            return GlassCard(
-              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-              borderColor: isDark
-                  ? AppColors.darkBorder
-                  : AppColors.lightBorder,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
-              ),
-              padding: const EdgeInsets.all(0),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.8,
+              maxChildSize: 0.95,
+              minChildSize: 0.5,
+              builder: (context, scrollController) {
+                return GlassCard(
+                  color: isDark
+                      ? AppColors.darkSurface
+                      : AppColors.lightSurface,
+                  borderColor: isDark
+                      ? AppColors.darkBorder
+                      : AppColors.lightBorder,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                  padding: const EdgeInsets.all(0),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    ticket.id,
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    ticket.subject,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.all(24),
+                          children: [
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                backgroundColor: avatarColor.withValues(
+                                  alpha: 0.15,
+                                ),
+                                child: Icon(Icons.person, color: avatarColor),
+                              ),
+                              title: Text(
+                                '${context.tr('User ID')}: ${ticket.userId}',
+                              ),
+                              subtitle: Text(
+                                '${context.tr('Submitted')}: $dateFormatted',
+                              ),
+                              trailing: DropdownButton<String>(
+                                value: ticket.status,
+                                items:
+                                    [
+                                          'open',
+                                          'in_progress',
+                                          'resolved',
+                                          'closed',
+                                        ]
+                                        .map(
+                                          (s) => DropdownMenuItem(
+                                            value: s,
+                                            child: Text(s.toUpperCase()),
+                                          ),
+                                        )
+                                        .toList(),
+                                onChanged: (val) async {
+                                  if (val != null) {
+                                    await repo.updateTicketStatus(
+                                      ticket.id,
+                                      val,
+                                    );
+                                    if (context.mounted) Navigator.pop(context);
+                                    onStatusChange();
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              context.tr('Description'),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              ticket.description,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 32),
+                            Text(
+                              context.tr('Activity'),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            FutureBuilder<List<TicketReply>>(
+                              future: repliesFuture,
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
+                                final replies = snapshot.data ?? const [];
+                                if (replies.isEmpty) {
+                                  return Text(
+                                    context.tr('No replies yet'),
+                                    style: const TextStyle(color: Colors.grey),
+                                  );
+                                }
+                                return Column(
+                                  children: replies
+                                      .map(
+                                        (reply) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const CircleAvatar(
+                                                radius: 16,
+                                                backgroundColor: Colors.grey,
+                                                child: Icon(
+                                                  Icons.person,
+                                                  size: 16,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    12,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: accentColor
+                                                        .withValues(
+                                                          alpha: 0.05,
+                                                        ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: accentColor
+                                                          .withValues(
+                                                            alpha: 0.2,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        reply.userId.substring(
+                                                          0,
+                                                          8,
+                                                        ),
+                                                        style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Text(reply.message),
+                                                      const SizedBox(height: 4),
+                                                      Text(
+                                                        timeago.format(
+                                                          reply.createdAt,
+                                                        ),
+                                                        style: const TextStyle(
+                                                          color: Colors.grey,
+                                                          fontSize: 10,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: SafeArea(
+                          child: Row(
                             children: [
-                              Text(
-                                ticket.id,
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: TextField(
+                                  controller: replyController,
+                                  decoration: InputDecoration(
+                                    hintText: context.tr('Type a reply...'),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                  ),
                                 ),
                               ),
-                              Text(
-                                ticket.subject,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              const SizedBox(width: 12),
+                              FloatingActionButton(
+                                onPressed: () async {
+                                  final message = replyController.text.trim();
+                                  if (message.isEmpty) return;
+                                  await repo.addReply(ticket.id, message);
+                                  replyController.clear();
+                                  setSheetState(() {
+                                    repliesFuture = repo.getReplies(ticket.id);
+                                  });
+                                  onStatusChange();
+                                },
+                                mini: true,
+                                backgroundColor: accentColor,
+                                elevation: 0,
+                                child: const Icon(
+                                  Icons.send,
+                                  color: Colors.white,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: avatarColor.withValues(
-                              alpha: 0.15,
-                            ),
-                            child: Icon(Icons.person, color: avatarColor),
-                          ),
-                          title: Text(
-                            '${context.tr('User ID')}: ${ticket.userId}',
-                          ),
-                          subtitle: Text(
-                            '${context.tr('Submitted')}: $dateFormatted',
-                          ),
-                          trailing: DropdownButton<String>(
-                            value: ticket.status,
-                            items: ['open', 'in_progress', 'resolved', 'closed']
-                                .map(
-                                  (s) => DropdownMenuItem(
-                                    value: s,
-                                    child: Text(s.toUpperCase()),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (val) async {
-                              if (val != null) {
-                                final repo = HelpdeskRepository();
-                                await repo.updateTicketStatus(ticket.id, val);
-                                if (context.mounted) Navigator.pop(context);
-                                onStatusChange();
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          context.tr('Description'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          ticket.description,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 32),
-                        Text(
-                          context.tr('Activity'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: Colors.grey,
-                              child: const Icon(
-                                Icons.support_agent,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: accentColor.withValues(alpha: 0.05),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: accentColor.withValues(alpha: 0.2),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      context.tr('System'),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      context.tr('Ticket logged successfully.'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SafeArea(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: replyController,
-                              decoration: InputDecoration(
-                                hintText: context.tr('Type a reply...'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          FloatingActionButton(
-                            onPressed: () {
-                              if (replyController.text.isNotEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      context.tr(
-                                        'Reply feature is coming soon!',
-                                      ),
-                                    ),
-                                  ),
-                                );
-                                replyController.clear();
-                              }
-                            },
-                            mini: true,
-                            backgroundColor: accentColor,
-                            elevation: 0,
-                            child: const Icon(Icons.send, color: Colors.white),
-                          ),
-                        ],
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         );

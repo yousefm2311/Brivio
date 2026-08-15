@@ -31,9 +31,9 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
       final completed = lessons
           .where((lesson) => lesson.progressPercentage >= 100)
           .length;
-      final totalMinutes = lessons.fold<int>(
+      final trackedSeconds = lessons.fold<int>(
         0,
-        (sum, lesson) => sum + lesson.estimatedMinutes,
+        (sum, lesson) => sum + lesson.timeSpentSeconds,
       );
 
       return StudentLearningSnapshot(
@@ -56,8 +56,8 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
           ),
           StudyMetric(
             label: 'Study time',
-            value: _formatMinutes(totalMinutes),
-            helper: 'Planned content',
+            value: _formatDuration(trackedSeconds),
+            helper: 'Tracked',
           ),
           StudyMetric(
             label: 'XP',
@@ -151,6 +151,8 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
           estimatedMinutes: (lesson['estimated_minutes'] as num?)?.round() ?? 0,
           lastPage: lastPage.clamp(1, totalPages),
           totalPages: totalPages,
+          timeSpentSeconds:
+              (lesson['time_spent_seconds'] as num?)?.round() ?? 0,
           xp: progressPercentage >= 100 ? 100 : 0,
           hasPdf: pdfBucket != null && pdfObjectPath != null,
           hasCodePlayground: lesson['has_code_playground'] == true,
@@ -183,5 +185,9 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
     final rest = minutes % 60;
     if (rest == 0) return '${hours}h';
     return '${hours}h ${rest}m';
+  }
+
+  String _formatDuration(int seconds) {
+    return _formatMinutes(seconds ~/ 60);
   }
 }
