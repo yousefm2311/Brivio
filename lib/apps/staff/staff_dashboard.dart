@@ -15,6 +15,12 @@ import '../../features/academy/presentation/screens/academy_screens.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../features/communication/domain/models/notification.dart';
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
+import '../../features/communication/presentation/screens/notification_center_screen.dart';
+import '../../features/communication/presentation/viewmodels/notification_center_viewmodel.dart';
+import '../../features/attendance/presentation/screens/attendance_operations_screen.dart';
+import '../../features/helpdesk/presentation/screens/helpdesk_management_screen.dart';
+import '../../features/payments/presentation/screens/finance_management_screen.dart';
+import '../../features/reports/presentation/screens/reports_dashboard_screen.dart';
 
 class StaffDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -30,6 +36,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
   String? _errorMessage;
   int _selectedIndex = 0;
   List<Student> _students = [];
+  List<Parent> _parents = [];
+  List<Teacher> _teachers = [];
   List<GroupEntity> _groups = [];
   List<_StaffQueueItem> _leaveQueue = [];
   List<_StaffQueueItem> _invoiceQueue = [];
@@ -38,7 +46,14 @@ class _StaffDashboardState extends State<StaffDashboard> {
   List<_StaffQueueItem> _operationsQueue = [];
   List<AppNotification> _notifications = [];
   int _unreadCount = 0;
+  List<String> _dataWarnings = [];
   StreamSubscription<AppNotification>? _notificationSubscription;
+  late final NotificationCenterViewModel _notificationCenterViewModel;
+  final _groupSearchController = TextEditingController();
+  String _studentSearch = '';
+  String _parentSearch = '';
+  String _teacherSearch = '';
+  String _groupSearch = '';
 
   int get unreadCount => _unreadCount;
   List<AppNotification> get notifications => _notifications;
@@ -47,13 +62,23 @@ class _StaffDashboardState extends State<StaffDashboard> {
     PortalDestination(icon: Icons.dashboard_customize, label: 'Overview'),
     PortalDestination(icon: Icons.assignment_late, label: 'Queues'),
     PortalDestination(icon: Icons.school, label: 'Students'),
+    PortalDestination(icon: Icons.family_restroom, label: 'Parents'),
+    PortalDestination(icon: Icons.co_present, label: 'Teachers'),
     PortalDestination(icon: Icons.group_work, label: 'Groups'),
+    PortalDestination(icon: Icons.fact_check, label: 'Attendance'),
+    PortalDestination(icon: Icons.receipt_long, label: 'Finance'),
+    PortalDestination(icon: Icons.support_agent, label: 'Helpdesk'),
+    PortalDestination(icon: Icons.notifications, label: 'Notifications'),
+    PortalDestination(icon: Icons.analytics, label: 'Reports'),
     PortalDestination(icon: Icons.settings, label: 'Settings'),
   ];
 
   @override
   void initState() {
     super.initState();
+    _notificationCenterViewModel = NotificationCenterViewModel(
+      getIt<INotificationRepository>(),
+    );
     _subscribeToNotifications();
     _loadStaffData();
   }
@@ -61,6 +86,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
   @override
   void dispose() {
     _notificationSubscription?.cancel();
+    _notificationCenterViewModel.dispose();
+    _groupSearchController.dispose();
     super.dispose();
   }
 
@@ -87,12 +114,16 @@ class _StaffDashboardState extends State<StaffDashboard> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _dataWarnings = [];
     });
     try {
       final wrapper = _wrapper;
       final studentRepo = SupabaseStudentRepository(wrapper);
+      final parentRepo = SupabaseParentRepository(wrapper);
+      final teacherRepo = SupabaseTeacherRepository(wrapper);
       final groupRepo = SupabaseGroupRepository(wrapper);
       final notificationRepo = getIt<INotificationRepository>();
+      final warnings = <String>[];
 
       final results = await Future.wait<Object>([
         _has(Permission.studentsView)
@@ -105,31 +136,60 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   data: [],
                 ),
               ),
+        _safePageQuery<Parent>(
+          'Parents',
+          warnings,
+          () => parentRepo.fetchParents(pageSize: 100),
+          const PaginatedResult<Parent>(
+            total: 0,
+            page: 1,
+            pageSize: 100,
+            data: [],
+          ),
+        ),
+        _safePageQuery<Teacher>(
+          'Teachers',
+          warnings,
+          () => teacherRepo.fetchTeachers(pageSize: 100),
+          const PaginatedResult<Teacher>(
+            total: 0,
+            page: 1,
+            pageSize: 100,
+            data: [],
+          ),
+        ),
         _has(Permission.groupsView)
             ? groupRepo.fetchGroups()
             : Future.value([]),
-        _fetchLeaveQueue(),
-        _fetchInvoiceQueue(),
-        _fetchAttendanceQueue(),
-        _fetchEnrollmentQueue(),
-        _fetchOperationsQueue(),
-        notificationRepo.getNotifications().catchError(
-          (_) => <AppNotification>[],
-        ),
-        notificationRepo.getUnreadCount().catchError((_) => 0),
+        _fetchLeaveQueue(warnings),
+        _fetchInvoiceQueue(warnings),
+        _fetchAttendanceQueue(warnings),
+        _fetchEnrollmentQueue(warnings),
+        _fetchOperationsQueue(warnings),
+        notificationRepo.getNotifications().catchError((error) {
+          warnings.add('Notifications: $error');
+          return <AppNotification>[];
+        }),
+        notificationRepo.getUnreadCount().catchError((error) {
+          warnings.add('Unread notifications: $error');
+          return 0;
+        }),
       ]);
 
       if (!mounted) return;
       setState(() {
         _students = (results[0] as PaginatedResult<Student>).data;
-        _groups = results[1] as List<GroupEntity>;
-        _leaveQueue = results[2] as List<_StaffQueueItem>;
-        _invoiceQueue = results[3] as List<_StaffQueueItem>;
-        _attendanceQueue = results[4] as List<_StaffQueueItem>;
-        _enrollmentQueue = results[5] as List<_StaffQueueItem>;
-        _operationsQueue = results[6] as List<_StaffQueueItem>;
-        _notifications = results[7] as List<AppNotification>;
-        _unreadCount = results[8] as int;
+        _parents = (results[1] as PaginatedResult<Parent>).data;
+        _teachers = (results[2] as PaginatedResult<Teacher>).data;
+        _groups = results[3] as List<GroupEntity>;
+        _leaveQueue = results[4] as List<_StaffQueueItem>;
+        _invoiceQueue = results[5] as List<_StaffQueueItem>;
+        _attendanceQueue = results[6] as List<_StaffQueueItem>;
+        _enrollmentQueue = results[7] as List<_StaffQueueItem>;
+        _operationsQueue = results[8] as List<_StaffQueueItem>;
+        _notifications = results[9] as List<AppNotification>;
+        _unreadCount = results[10] as int;
+        _dataWarnings = warnings;
         _isLoading = false;
       });
     } catch (e) {
@@ -141,8 +201,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
     }
   }
 
-  Future<List<_StaffQueueItem>> _fetchLeaveQueue() async {
-    return _safeQuery(() async {
+  Future<List<_StaffQueueItem>> _fetchLeaveQueue(List<String> warnings) async {
+    return _safeQuery('Leave requests', warnings, () async {
       final rows = await Supabase.instance.client
           .from('leave_requests')
           .select(
@@ -170,8 +230,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
     });
   }
 
-  Future<List<_StaffQueueItem>> _fetchInvoiceQueue() async {
-    return _safeQuery(() async {
+  Future<List<_StaffQueueItem>> _fetchInvoiceQueue(
+    List<String> warnings,
+  ) async {
+    return _safeQuery('Payment follow-up', warnings, () async {
       final rows = await Supabase.instance.client
           .from('invoices')
           .select(
@@ -201,8 +263,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
     });
   }
 
-  Future<List<_StaffQueueItem>> _fetchAttendanceQueue() async {
-    return _safeQuery(() async {
+  Future<List<_StaffQueueItem>> _fetchAttendanceQueue(
+    List<String> warnings,
+  ) async {
+    return _safeQuery('Attendance exceptions', warnings, () async {
       final rows = await Supabase.instance.client
           .from('attendance_records')
           .select(
@@ -227,8 +291,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
     });
   }
 
-  Future<List<_StaffQueueItem>> _fetchEnrollmentQueue() async {
-    return _safeQuery(() async {
+  Future<List<_StaffQueueItem>> _fetchEnrollmentQueue(
+    List<String> warnings,
+  ) async {
+    return _safeQuery('Recent enrollments', warnings, () async {
       final rows = await Supabase.instance.client
           .from('enrollments')
           .select(
@@ -252,8 +318,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
     });
   }
 
-  Future<List<_StaffQueueItem>> _fetchOperationsQueue() async {
-    return _safeQuery(() async {
+  Future<List<_StaffQueueItem>> _fetchOperationsQueue(
+    List<String> warnings,
+  ) async {
+    return _safeQuery('Unified operations queue', warnings, () async {
       final rows = await Supabase.instance.client.rpc(
         'get_staff_operations_queue',
         params: {'p_limit': 80},
@@ -266,12 +334,29 @@ class _StaffDashboardState extends State<StaffDashboard> {
   }
 
   Future<List<_StaffQueueItem>> _safeQuery(
+    String label,
+    List<String> warnings,
     Future<List<_StaffQueueItem>> Function() query,
   ) async {
     try {
       return await query();
-    } catch (_) {
+    } catch (e) {
+      warnings.add('$label: $e');
       return [];
+    }
+  }
+
+  Future<PaginatedResult<T>> _safePageQuery<T>(
+    String label,
+    List<String> warnings,
+    Future<PaginatedResult<T>> Function() query,
+    PaginatedResult<T> fallback,
+  ) async {
+    try {
+      return await query();
+    } catch (e) {
+      warnings.add('$label: $e');
+      return fallback;
     }
   }
 
@@ -483,30 +568,40 @@ class _StaffDashboardState extends State<StaffDashboard> {
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
       onRefresh: _loadStaffData,
       onSignOut: widget.authViewModel.signOut,
-      body: RefreshIndicator(
-        onRefresh: _loadStaffData,
-        child: PortalStateView(
-          isLoading: _isLoading,
-          errorMessage: _errorMessage,
-          isEmpty: false,
-          emptyTitle: 'No operations data',
-          emptySubtitle: 'Refresh after staff permissions are assigned.',
-          emptyIcon: Icons.badge,
-          onRetry: _loadStaffData,
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              PortalHeader(
-                eyebrow: 'Operations Portal',
-                title: user?.fullName ?? 'Staff Member',
-                subtitle: 'Students, groups, attendance, leave, and payments',
-                icon: Icons.badge,
-                accentColor: AppColors.primary,
-              ),
-              const SizedBox(height: 16),
-              _selectedPage(),
+      body: _selectedIndex <= 5
+          ? _dashboardBody(user?.fullName)
+          : _selectedPage(),
+    );
+  }
+
+  Widget _dashboardBody(String? userName) {
+    return RefreshIndicator(
+      onRefresh: _loadStaffData,
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: false,
+        emptyTitle: 'No operations data',
+        emptySubtitle: 'Refresh after staff permissions are assigned.',
+        emptyIcon: Icons.badge,
+        onRetry: _loadStaffData,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            PortalHeader(
+              eyebrow: 'Operations Portal',
+              title: userName ?? 'Staff Member',
+              subtitle: 'Students, groups, attendance, leave, and payments',
+              icon: Icons.badge,
+              accentColor: AppColors.primary,
+            ),
+            if (_dataWarnings.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _WarningsCard(warnings: _dataWarnings),
             ],
-          ),
+            const SizedBox(height: 16),
+            _selectedPage(),
+          ],
         ),
       ),
     );
@@ -517,10 +612,32 @@ class _StaffDashboardState extends State<StaffDashboard> {
       0 => _overviewPage(),
       1 => _queuesPage(),
       2 => _studentsPage(),
-      3 => _groupsPage(),
-      4 => const AppSettingsPanel(),
+      3 => _parentsPage(),
+      4 => _teachersPage(),
+      5 => _groupsPage(),
+      6 => const AttendanceOperationsScreen(),
+      7 => const FinanceManagementScreen(),
+      8 => const HelpdeskManagementScreen(),
+      9 => NotificationCenterScreen(
+        viewModel: _notificationCenterViewModel,
+        onNotificationTap: _openNotification,
+      ),
+      10 => const ReportsDashboardScreen(),
+      11 => const AppSettingsPanel(),
       _ => _overviewPage(),
     };
+  }
+
+  void _openNotification(AppNotification notification) {
+    final type = notification.type.toLowerCase();
+    final nextIndex = switch (type) {
+      'payment' || 'invoice' || 'receipt' || 'finance' => 7,
+      'attendance' || 'leave' || 'session' => 6,
+      'support' || 'ticket' || 'helpdesk' => 8,
+      'report' || 'analytics' => 10,
+      _ => 0,
+    };
+    setState(() => _selectedIndex = nextIndex);
   }
 
   Widget _overviewPage() {
@@ -558,8 +675,22 @@ class _StaffDashboardState extends State<StaffDashboard> {
               icon: Icons.group_work,
               accentColor: AppColors.primary,
               onTap: _has(Permission.groupsView)
-                  ? () => setState(() => _selectedIndex = 3)
+                  ? () => setState(() => _selectedIndex = 5)
                   : null,
+            ),
+            PortalMetricCard(
+              label: 'Parents visible',
+              value: _parents.length.toString(),
+              icon: Icons.family_restroom,
+              accentColor: AppColors.secondary,
+              onTap: () => setState(() => _selectedIndex = 3),
+            ),
+            PortalMetricCard(
+              label: 'Teachers visible',
+              value: _teachers.length.toString(),
+              icon: Icons.co_present,
+              accentColor: AppColors.success,
+              onTap: () => setState(() => _selectedIndex = 4),
             ),
             PortalMetricCard(
               label: 'Recent enrollments',
@@ -657,14 +788,25 @@ class _StaffDashboardState extends State<StaffDashboard> {
         message: 'students.view permission is required.',
       );
     }
+    final filteredStudents = _filteredStudents();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PortalSectionTitle(title: 'Students Directory'),
+        PortalSectionTitle(
+          title: 'Students Directory',
+          subtitle: '${filteredStudents.length}/${_students.length}',
+        ),
         const SizedBox(height: 8),
         SizedBox(
           height: 520,
-          child: StudentListWidget(students: _students, isLoading: _isLoading),
+          child: StudentListWidget(
+            students: filteredStudents,
+            isLoading: _isLoading,
+            onRefresh: _loadStaffData,
+            onSearchChanged: (value) =>
+                setState(() => _studentSearch = value.trim().toLowerCase()),
+            onStudentSelected: _showStudentDetails,
+          ),
         ),
       ],
     );
@@ -674,16 +816,157 @@ class _StaffDashboardState extends State<StaffDashboard> {
     if (!_has(Permission.groupsView)) {
       return const _AccessCard(message: 'groups.view permission is required.');
     }
+    final filteredGroups = _filteredGroups();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PortalSectionTitle(title: 'Groups Roster'),
+        PortalSectionTitle(
+          title: 'Groups Roster',
+          subtitle: '${filteredGroups.length}/${_groups.length}',
+        ),
+        const SizedBox(height: 8),
+        PortalSearchField(
+          controller: _groupSearchController,
+          label: 'Search groups',
+          onChanged: (value) =>
+              setState(() => _groupSearch = value.trim().toLowerCase()),
+        ),
         const SizedBox(height: 8),
         SizedBox(
           height: 520,
-          child: GroupListWidget(groups: _groups, isLoading: _isLoading),
+          child: GroupListWidget(
+            groups: filteredGroups,
+            isLoading: _isLoading,
+            onGroupSelected: _showGroupDetails,
+          ),
         ),
       ],
+    );
+  }
+
+  List<Student> _filteredStudents() {
+    final q = _studentSearch;
+    if (q.isEmpty) return _students;
+    return _students.where((student) {
+      return student.fullName.toLowerCase().contains(q) ||
+          student.studentCode.toLowerCase().contains(q) ||
+          student.email.toLowerCase().contains(q) ||
+          (student.phoneNumber ?? '').toLowerCase().contains(q) ||
+          (student.gradeLevel ?? '').toLowerCase().contains(q);
+    }).toList();
+  }
+
+  List<GroupEntity> _filteredGroups() {
+    final q = _groupSearch;
+    if (q.isEmpty) return _groups;
+    return _groups.where((group) {
+      return group.name.toLowerCase().contains(q) ||
+          group.code.toLowerCase().contains(q) ||
+          group.status.toLowerCase().contains(q);
+    }).toList();
+  }
+
+  void _showStudentDetails(Student student) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          student.fullName.isNotEmpty ? student.fullName : student.studentCode,
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _detailLine('Student Code', student.studentCode),
+              _detailLine('Email', student.email),
+              _detailLine('Phone', student.phoneNumber ?? 'N/A'),
+              _detailLine('Grade', student.gradeLevel ?? 'N/A'),
+              _detailLine('School', student.schoolName ?? 'N/A'),
+              _detailLine('Status', student.status),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Close')),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _selectedIndex = 5);
+            },
+            icon: const Icon(Icons.receipt_long),
+            label: Text(context.tr('Finance')),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _selectedIndex = 4);
+            },
+            icon: const Icon(Icons.fact_check),
+            label: Text(context.tr('Attendance')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGroupDetails(GroupEntity group) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${group.name} (${group.code})'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _detailLine('Status', group.status),
+              _detailLine(
+                'Max Capacity',
+                group.maxCapacity?.toString() ?? 'Unlimited',
+              ),
+              _detailLine('Subject', group.subjectId),
+              _detailLine('Branch', group.branchId),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Close')),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _selectedIndex = 4);
+            },
+            icon: const Icon(Icons.fact_check),
+            label: Text(context.tr('Attendance')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              context.tr(label),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          Expanded(child: Text(context.tr(value))),
+        ],
+      ),
     );
   }
 
@@ -858,6 +1141,58 @@ class _AccessCard extends StatelessWidget {
             const Icon(Icons.lock_outline),
             const SizedBox(width: 10),
             Expanded(child: Text(context.l10n.t(message))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WarningsCard extends StatelessWidget {
+  final List<String> warnings;
+
+  const _WarningsCard({required this.warnings});
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = warnings.take(4).toList();
+    return Card(
+      color: AppColors.warning.withValues(alpha: 0.08),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.tr('Some operations could not be loaded.'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  ...visible.map(
+                    (warning) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        warning,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ),
+                  if (warnings.length > visible.length)
+                    Text(
+                      context.tr('More issues are available in logs.'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
