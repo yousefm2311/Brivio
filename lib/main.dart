@@ -8,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'core/config/app_config.dart';
 import 'core/error/supabase_error_handler.dart';
 import 'firebase_options.dart';
-
 import 'apps/admin/admin_dashboard.dart';
 import 'apps/parent/parent_dashboard.dart';
 import 'apps/staff/staff_dashboard.dart';

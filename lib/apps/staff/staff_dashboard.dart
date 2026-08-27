@@ -50,6 +50,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
   StreamSubscription<AppNotification>? _notificationSubscription;
   late final NotificationCenterViewModel _notificationCenterViewModel;
   final _groupSearchController = TextEditingController();
+  final _teacherSearchController = TextEditingController();
   String _studentSearch = '';
   String _parentSearch = '';
   String _teacherSearch = '';
@@ -88,6 +89,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
     _notificationSubscription?.cancel();
     _notificationCenterViewModel.dispose();
     _groupSearchController.dispose();
+    _teacherSearchController.dispose();
     super.dispose();
   }
 
@@ -812,6 +814,62 @@ class _StaffDashboardState extends State<StaffDashboard> {
     );
   }
 
+  Widget _parentsPage() {
+    if (!_has(Permission.parentsView)) {
+      return const _AccessCard(
+        message: 'parents.view permission is required.',
+      );
+    }
+    final filteredParents = _filteredParents();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PortalSectionTitle(
+          title: 'Parents Directory',
+          subtitle: '${filteredParents.length}/${_parents.length}',
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 520,
+          child: ParentListWidget(
+            parents: filteredParents,
+            isLoading: _isLoading,
+            onSearchChanged: (value) =>
+                setState(() => _parentSearch = value.trim().toLowerCase()),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _teachersPage() {
+    final filteredTeachers = _filteredTeachers();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PortalSectionTitle(
+          title: 'Teachers Directory',
+          subtitle: '${filteredTeachers.length}/${_teachers.length}',
+        ),
+        const SizedBox(height: 8),
+        PortalSearchField(
+          controller: _teacherSearchController,
+          label: 'Search teachers',
+          onChanged: (value) =>
+              setState(() => _teacherSearch = value.trim().toLowerCase()),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 520,
+          child: TeacherListWidget(
+            teachers: filteredTeachers,
+            isLoading: _isLoading,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _groupsPage() {
     if (!_has(Permission.groupsView)) {
       return const _AccessCard(message: 'groups.view permission is required.');
@@ -863,6 +921,26 @@ class _StaffDashboardState extends State<StaffDashboard> {
       return group.name.toLowerCase().contains(q) ||
           group.code.toLowerCase().contains(q) ||
           group.status.toLowerCase().contains(q);
+    }).toList();
+  }
+
+  List<Parent> _filteredParents() {
+    final q = _parentSearch;
+    if (q.isEmpty) return _parents;
+    return _parents.where((parent) {
+      return parent.fullName.toLowerCase().contains(q) ||
+          parent.email.toLowerCase().contains(q) ||
+          (parent.phoneNumber ?? '').toLowerCase().contains(q);
+    }).toList();
+  }
+
+  List<Teacher> _filteredTeachers() {
+    final q = _teacherSearch;
+    if (q.isEmpty) return _teachers;
+    return _teachers.where((teacher) {
+      return teacher.fullName.toLowerCase().contains(q) ||
+          teacher.email.toLowerCase().contains(q) ||
+          (teacher.specialization ?? '').toLowerCase().contains(q);
     }).toList();
   }
 
